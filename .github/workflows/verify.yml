@@ -8,6 +8,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -25,14 +27,30 @@ jobs:
       - run: npm test
 
       # The three packages must compile to build/ with declarations before they can be published.
+      # Also regenerates spec/openapi.json and spec/openapi.yaml via npm run export:openapi.
       - run: npm run build
 
-      # A packaging mistake is invisible until someone installs it, so pack all three and let npm
-      # report the contents rather than trusting the files field.
       # The documentation is the contract: every exported hook has a page, every documented
       # hook still exists, and every documented return field is on the declared type. Clones
       # pixelkit-docs, so a rename here that makes a page wrong fails this build.
       - run: npm run check-docs
+
+      # Verify that spec/openapi.json and spec/openapi.yaml match data/hooks with zero drift
+      - run: npm run check-openapi
+
+      # Automatically commit and push updated OpenAPI spec if drift was generated on master
+      - name: Auto-sync OpenAPI specification
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          if [ -n "$(git status --porcelain spec/)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add spec/
+            git commit -m "chore: auto-sync openapi specification [skip ci]"
+            git push
+          else
+            echo "OpenAPI specification is in sync."
+          fi
 
       - run: npm pack --dry-run -w @pixelkit-labs/sdk -w @pixelkit-labs/native -w @pixelkit-labs/mlkit
 

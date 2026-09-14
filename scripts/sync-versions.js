@@ -60,3 +60,11 @@ for (const name of NAMES) {
 }
 
 console.log(`version ${version} across the root and ${NAMES.length} packages`);
+
+// Automatically regenerate OpenAPI specification with the updated version
+try {
+  const { execFileSync } = require('child_process');
+  execFileSync(process.execPath, [path.join(__dirname, 'export-openapi.js')], { stdio: 'inherit' });
+} catch (e) {
+  console.warn('[sync-versions] Note: export-openapi could not run automatically:', e.message);
+}

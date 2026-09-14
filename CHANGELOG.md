@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.8] - 2026-09-13
+
+### Added
+- **OpenAPI 3.1.0 Specification Export (`scripts/export-openapi.js`, `spec/openapi.json`, `spec/openapi.yaml`)**:
+  Added automated generation of a complete OpenAPI 3.1.0 specification covering all 51 hardware and AI hooks, telemetry endpoints, and physical actuators. Enforces the Zero-Simulation Principle (`source: 'hardware' | 'derived' | 'unavailable'`).
+- **Automated CI/CD Synchronization & Drift Verification (`scripts/check-openapi.js`, `.github/workflows/verify.yml`)**:
+  Integrated `export:openapi` into `npm run build` and `scripts/sync-versions.js`. Added `check-openapi` to `npm run verify` and CI to guarantee 100% parity with zero drift. Configured automated GitHub Actions commit-back step on `master` pushes.
+- **Unit Test Suite for OpenAPI 3.1 (`test/openapi.test.ts`)**:
+  Added unit tests verifying metadata, 6 canonical categories, all 51 hook paths, action endpoints, zero-simulation enum constraints, and clean YAML serialization without dangling references.
+
 ## [1.6.7] - 2026-09-13
 
 ### Documentation
