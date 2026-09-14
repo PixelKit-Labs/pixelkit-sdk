@@ -4,6 +4,11 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.11] - 2026-09-13
+
+### Documentation
+- **The SDK's description names the compute silicon.** The one-sentence description used in `README.md`, `packages/sdk/README.md` and the `@pixelkit-labs/sdk` npm description listed sensors, radios, secure hardware, camera and audio, telemetry, haptics and AI, and never the CPU, GPU or TPU that `useCPU`, `useGPU` and `useTPU` read. It now leads with them. The npm description changes with the next publish.
+
 ## [1.6.10] - 2026-09-13
 
 ### Changed

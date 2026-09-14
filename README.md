@@ -4,7 +4,7 @@
 
 <p align="center">
   PixelKit is an SDK for building Expo and React Native applications on Google Pixel devices.
-  It provides typed React hooks for device sensors, radios, secure hardware, camera and audio,
+  It provides typed React hooks for the CPU, GPU and TPU, device sensors, radios, secure hardware, camera and audio,
   display and power telemetry, haptics, on-device AI, and Cloud AI.
 </p>
 

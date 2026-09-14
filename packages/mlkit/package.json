@@ -1,6 +1,6 @@
 {
   "name": "@pixelkit-labs/mlkit",
-  "version": "1.6.10",
+  "version": "1.6.11",
   "description": "On-device AI for Expo apps on the Pixel: Gemini Nano through AICore, summarize/proofread/rewrite, ML Kit vision and document scanning, language ID, offline translation across 58 languages, smart reply and entity extraction. Android only.",
   "keywords": [
     "expo",
