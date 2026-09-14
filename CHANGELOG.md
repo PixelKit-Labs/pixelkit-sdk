@@ -2,7 +2,30 @@
 
 All notable changes to PixelKit are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-**Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Bump `version` in `package.json` and `expo.version` in `app.json` together, and increment `expo.android.versionCode` by 1. Minor and major bumps are decided by the maintainer, not by agents.
+**Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
+
+## [1.6.6] - 2026-09-13
+
+### Added
+- **The docs contract now checks the README and the agent pages.** `check-docs` fails when `README.md` does not name every exported hook — it had fallen to 32 of 51 — and when `docs/AI_PRIMER.md` or an `ai-guidance` page in pixelkit-docs imports a name that neither `@pixelkit-labs/sdk` nor `@pixelkit-labs/sdk/mlkit` exports, or imports it from the wrong one. The docs checkout now takes `docs/` as well as `data/hooks` so those pages can be read. (`830b3f9`, `cf99c94`)
+
+### Changed
+- **README brought to 51 hooks.** The Hooks section names all 51. The degradation sentence is measured from the source: 13 hooks import no Kotlin module, 37 do, and `useHiLight` drives the camera-bar LEDs through a local ADB daemon. `useEmbeddings` is listed under the `/mlkit` subpath, where it is actually exported, and the provenance link points at its own documentation page. `RELEASING.md` and `packages/sdk/README.md` counts updated to 51. (`830b3f9`, `cf99c94`)
+- `test/capabilities.test.ts`: dropped the claim that the capability table gates "26 of the 39 hooks", which did not match what imports it. (`830b3f9`)
+
+### Fixed
+- **The versioning rule described steps that no longer exist.** The rule at the top of this file said to bump `expo.version` in `app.json` and increment `expo.android.versionCode`; there has been no `app.json` in this repository since the app moved to pixelkit-template. `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` said `sync-versions.js` moves Android build versions in lockstep; it moves the four `package.json` files and nothing else. Both now describe what the script does.
+
+### Recorded late
+These landed without an entry in the commit that made them. They are listed so the record is complete, with the release each first shipped in.
+
+| Commit | First shipped | Change |
+| :--- | :--- | :--- |
+| `46e5dcf` | 1.6.0 | The `getSlowestTraces` test no longer flakes under CI load: its slow operation waits 80 ms instead of 30, so its ordering against the others is not decided by timer jitter. |
+| `f4f476d` | 1.6.1 | README, `RELEASING.md`, `packages/sdk/README.md` and the capabilities test comment aligned to 39 hooks. |
+| `c569e3b` | not yet released | Removed the `<h1>` title from the top of `README.md`. |
+| `696e41c` | not yet released | Added `AGENTS.md`, `CLAUDE.md` and `GEMINI.md`, the identical agent guides. 1.6.3 records a later update to them, not their addition. |
+| `830b3f9`, `cf99c94` | not yet released | The README and contract-check changes above. |
 
 ## [1.6.5] - 2026-09-13
 

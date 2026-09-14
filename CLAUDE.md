@@ -19,7 +19,7 @@ The consumer template and demo application lives at https://github.com/PixelKit-
    ```bash
    node scripts/sync-versions.js <version>
    ```
-   This moves all four manifests (`package.json`, `packages/sdk`, `packages/native`, `packages/mlkit`) and Android build versions in lockstep. Minor and major bumps are decided by the maintainer, not by agents.
+   This moves the root `package.json` and the three packages (`packages/sdk`, `packages/native`, `packages/mlkit`) together, and re-pins the packages to each other's exact version. Minor and major bumps are decided by the maintainer, not by agents.
 2. **Nothing is simulated.** Every hook exposes `source: 'hardware' | 'derived' | 'unavailable'`. There is deliberately no `simulated` member: fabricated readings are unrepresentable in the type system. Unreadable values are `null`, render as an em dash, and report `unavailable`. Never substitute plausible defaults.
 3. **Observability on every function.** Wrap calls touching hardware, network, native modules, or filesystem in `traced(MODULE, 'op', fn, data)` from `packages/sdk/src/core/observability.ts`. Surface failures through an `error` field, never an empty `catch`. Use `tracedSafe` where failure is survivable.
 4. **Documented before done.** Exported hooks must match documentation in `pixelkit-docs`. `npm run check-docs` verifies every exported hook has a page and every documented return field matches TypeScript types.
