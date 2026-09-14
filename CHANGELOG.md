@@ -4,6 +4,12 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.7] - 2026-09-13
+
+### Documentation
+- **The agent guides now say how to keep everything current.** A new rule 7 lists, for each kind of change, every file in every PixelKit repository that has to change with it and which check enforces it — and says plainly where nothing does: ARTEMIS recipes, hook counts stated in prose, and the CLI's default package id. A new rule 8 on coordinating with other agents, which the template's guide already had and this one lacked. Rule 1 now says how to record a change that shipped without an entry. Rule 3 warns that trace correlation is only correct for sequential calls. Rule 6 notes that pushing a `v*` tag publishes to npm, so it happens only when the maintainer asks. The Map names the recipes correctly, 01 through 07, and the unit tests.
+- The guides no longer state the number of hooks, which is exactly the kind of figure rule 7 describes as unchecked.
+
 ## [1.6.6] - 2026-09-13
 
 ### Added

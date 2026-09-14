@@ -1,6 +1,6 @@
 {
   "name": "pixelkit-sdk",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "private": true,
   "description": "Monorepo for the PixelKit SDK: the hooks, and the two Kotlin Expo Modules they read hardware through.",
   "license": "MIT",
@@ -14,10 +14,12 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run test && npm run build && npm run check-docs",
-    "build": "npm run build -w @pixelkit-labs/sdk -w @pixelkit-labs/native -w @pixelkit-labs/mlkit",
+    "verify": "npm run typecheck && npm run test && npm run build && npm run check-docs && npm run check-openapi",
+    "build": "npm run build -w @pixelkit-labs/sdk -w @pixelkit-labs/native -w @pixelkit-labs/mlkit && npm run export:openapi",
     "sync-versions": "node scripts/sync-versions.js",
     "check-docs": "node scripts/check-docs-contract.js",
+    "check-openapi": "node scripts/check-openapi.js",
+    "export:openapi": "node scripts/export-openapi.js",
     "test:e2e": "node scripts/run-artemis-e2e.js",
     "test:e2e:flash": "node scripts/run-artemis-e2e.js --profile flash",
     "test:e2e:pro": "node scripts/run-artemis-e2e.js --profile pro",
@@ -65,8 +67,8 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-web": "^0.21.2",
-    "@pixelkit-labs/sdk": "1.6.6",
-    "@pixelkit-labs/native": "1.6.6",
-    "@pixelkit-labs/mlkit": "1.6.6"
+    "@pixelkit-labs/sdk": "1.6.7",
+    "@pixelkit-labs/native": "1.6.7",
+    "@pixelkit-labs/mlkit": "1.6.7"
   }
 }

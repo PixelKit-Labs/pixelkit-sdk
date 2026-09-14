@@ -1,6 +1,6 @@
 {
   "name": "@pixelkit-labs/sdk",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "PixelKit is an SDK for building Expo and React Native applications on Google Pixel devices. It provides typed React hooks for device sensors, radios, secure hardware, camera and audio, display and power telemetry, haptics, on-device AI, and Cloud AI.",
   "keywords": [
     "expo",
@@ -46,11 +46,11 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@pixelkit-labs/native": "1.6.6"
+    "@pixelkit-labs/native": "1.6.7"
   },
   "peerDependencies": {
     "@google/genai": "^2.21.0",
-    "@pixelkit-labs/mlkit": "1.6.6",
+    "@pixelkit-labs/mlkit": "1.6.7",
     "expo": "~57.0.20",
     "expo-audio": "~57.0.4",
     "expo-battery": "~57.0.2",
