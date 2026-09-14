@@ -49,6 +49,8 @@ node scripts/run-artemis-e2e.js actuators
 node scripts/run-artemis-e2e.js sensors
 node scripts/run-artemis-e2e.js ai
 node scripts/run-artemis-e2e.js full
+node scripts/run-artemis-e2e.js hardware
+node scripts/run-artemis-e2e.js nextgen
 ```
 
 ---

@@ -7,6 +7,7 @@ Expo module (Kotlin) for the on-device Google ML Kit surface:
 | GenAI | Gemini Nano through the Prompt API on AICore, plus summarization, proofreading, rewriting |
 | Vision | barcode, face, face mesh, text recognition, image labeling, object detection, digital ink, pose, selfie and subject segmentation, document scanner |
 | Natural language | language identification, translation, smart reply, entity extraction |
+| Embeddings | on-device float vector generation (512/768-dim) and cosine similarity running locally |
 
 **This is the expensive one.** It pulls in 19 ML Kit artifacts, compiles with
 `-Xskip-metadata-version-check`, and pins every `kotlin-stdlib` in the consuming build, because
@@ -20,7 +21,7 @@ resolves to `null` rather than throwing when the native side is absent, letting 
 `unavailable`.
 
 Normally installed as a dependency of [`@pixelkit-labs/sdk`](https://www.npmjs.com/package/@pixelkit-labs/sdk), which
-wraps it in `useGeminiNano`, `useGenAITasks`, `useVisionAI` and `useNaturalLanguageAI`.
+wraps it in `useGeminiNano`, `useGenAITasks`, `useVisionAI`, `useNaturalLanguageAI`, and `useEmbeddings`.
 
 ```bash
 npx expo install @pixelkit-labs/mlkit

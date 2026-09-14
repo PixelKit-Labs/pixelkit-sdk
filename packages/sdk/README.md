@@ -57,14 +57,13 @@ npx @pixelkit-labs/cli doctor   # tells you which case you are in
 
 | Area | Hooks |
 | :--- | :--- |
-| Silicon | `useCPU`, `useGPU`, `useTPU`, `useMemory`, `useADPF`, `usePerfetto` |
-| System | `useDevice`, `useDisplay`, `useNetwork`, `useCellular`, `useCapabilities`, `useSpatialAudio` |
-| Sensors | `useSensors`, `useLocation`, `useCamera`, `useCameraExtensions`, `useHealthConnect`, `useVideo`, `useMediaLibrary`, `useAudio` |
+| Silicon & System | `useCPU`, `useGPU`, `useTPU`, `useMemory`, `useADPF`, `useADPFHintSession`, `usePerfetto`, `useBatteryShare`, `useChargingIntelligence`, `useDevice`, `useDisplay`, `useNetwork`, `useCellular`, `useCapabilities` |
+| Sensors & Capture | `useSensors`, `useAltimeter`, `useThermometer`, `useLocation`, `useCamera`, `useCameraExtensions`, `useHealthConnect`, `useVideo`, `useMediaLibrary`, `useAudio`, `useMicrophoneArray`, `useSpatialAudio` |
 | Actuators | `useHaptics`, `useTorch`, `useHiLight` |
-| Radios | `useBLE`, `useChannelSounding`, `useNFC`, `useUWB`, `useRadios` |
-| Security | `useBiometrics`, `useSecurity`, `usePlayIntegrity` |
+| Radios | `useBLE`, `useChannelSounding`, `useNFC`, `useUWB`, `useRadios`, `useWifi7MLO`, `useWifiRTT`, `useSatelliteNTN` |
+| Security | `useBiometrics`, `useSecurity`, `useKeyAgreement`, `usePrivateSpace`, `usePlayIntegrity` |
 | AI (main entry) | `useGemini`, `useAppFunctions`, `useSpeechAI`, `useSpeech` |
-| AI (`@pixelkit-labs/sdk/mlkit`) | `useGeminiNano`, `useGenAITasks`, `useVisionAI`, `useNaturalLanguageAI` |
+| AI (`@pixelkit-labs/sdk/mlkit`) | `useGeminiNano`, `useGenAITasks`, `useVisionAI`, `useNaturalLanguageAI`, `useEmbeddings` |
 
 Plus the observability layer (`traced`, `logError`, `useObservability`) that every hook
 reports through, and `<PixelKitDevTools />` in-app HUD.

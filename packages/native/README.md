@@ -1,8 +1,10 @@
 # @pixelkit-labs/native
 
 Expo module (Kotlin) for Google Pixel telemetry and actuators: SoC identity, CPU clusters and
-per-core frequencies, memory, thermal and ADPF headroom, display modes, GPU, torch, and haptic
-envelopes.
+per-core frequencies, memory, thermal and ADPF headroom & hint sessions, reverse wireless Qi charging,
+battery cycles and health, display modes, GPU, MLX90632 FIR thermometer, acoustic microphone arrays,
+Wi-Fi 7 MLO, Wi-Fi RTT ranging, satellite NTN, Private Space isolation, Titan M2 StrongBox ECDH key agreement,
+torch, and haptic envelopes.
 
 **Zero third-party dependencies.** It reads Android framework APIs and the kernel directly, so it
 adds nothing to your dependency graph. Its sibling [`@pixelkit-labs/mlkit`](https://www.npmjs.com/package/@pixelkit-labs/mlkit)
