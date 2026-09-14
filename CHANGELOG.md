@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.9] - 2026-09-13
+
+### Changed
+- **Practical CI/CD & Drift Verification Hardening**:
+  - `check-openapi.js`: Added cross-platform CRLF/LF line ending normalization to prevent false-positive drift on Windows. Added automated shallow-clone fallback for hook contracts so drift verification never skips in isolated CI environments.
+  - `verify.yml`: Reordered `npm run check-openapi` before `npm run build` so that uncommitted specification drift in pull requests is detected before build overwrites it. Added a dedicated pull-request drift check step ensuring `spec/` has no uncommitted changes.
+  - Modernized GitHub Actions to `@v7` (`actions/checkout@v7`, `actions/setup-node@v7`) across workflows (`verify.yml`, `release.yml`) matching `pixelkit-template` and eliminating Node 20 deprecation warnings.
+
 ## [1.6.8] - 2026-09-13
 
 ### Added

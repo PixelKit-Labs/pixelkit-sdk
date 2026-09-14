@@ -11,9 +11,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -26,6 +26,10 @@ jobs:
       # here is static and would stay green on a wrong answer.
       - run: npm test
 
+      # Verify that spec/openapi.json and spec/openapi.yaml match data/hooks with zero drift
+      # Must run before build, so that uncommitted drift in PRs is caught before export:openapi overwrites it
+      - run: npm run check-openapi
+
       # The three packages must compile to build/ with declarations before they can be published.
       # Also regenerates spec/openapi.json and spec/openapi.yaml via npm run export:openapi.
       - run: npm run build
@@ -35,8 +39,15 @@ jobs:
       # pixelkit-docs, so a rename here that makes a page wrong fails this build.
       - run: npm run check-docs
 
-      # Verify that spec/openapi.json and spec/openapi.yaml match data/hooks with zero drift
-      - run: npm run check-openapi
+      # On PRs: ensure that build didn't generate any uncommitted drift in spec/
+      - name: Verify spec has no uncommitted drift
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -n "$(git status --porcelain spec/)" ]; then
+            echo "::error::OpenAPI specification is out of date! Run 'npm run export:openapi' and commit the updated spec/ files."
+            git diff spec/
+            exit 1
+          fi
 
       # Automatically commit and push updated OpenAPI spec if drift was generated on master
       - name: Auto-sync OpenAPI specification
