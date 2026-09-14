@@ -4,6 +4,12 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.10] - 2026-09-13
+
+### Changed
+- **OpenAPI Route & Dual Path Resolution (`scripts/export-openapi.js`)**:
+  Synchronize OpenAPI specification to both `public/` and `public/api/` in `pixelkit-docs` ensuring seamless resolution for both root and nested relative paths.
+
 ## [1.6.9] - 2026-09-13
 
 ### Changed

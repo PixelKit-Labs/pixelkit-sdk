@@ -641,12 +641,16 @@ function main() {
   fs.writeFileSync(yamlOut, yamlStr, 'utf8');
   console.log(`[export-openapi] Wrote OpenAPI 3.1.0 YAML to: ${yamlOut} (${(yamlStr.length / 1024).toFixed(1)} KB)`);
 
-  // Sync to pixelkit-docs/public if present
+  // Sync to pixelkit-docs/public and public/api if present
   const docsPublicDir = path.resolve(ROOT, '..', 'pixelkit-docs', 'public');
   if (fs.existsSync(docsPublicDir)) {
     fs.writeFileSync(path.join(docsPublicDir, 'openapi.json'), jsonStr, 'utf8');
     fs.writeFileSync(path.join(docsPublicDir, 'openapi.yaml'), yamlStr, 'utf8');
-    console.log(`[export-openapi] Synchronized to pixelkit-docs/public: openapi.json & openapi.yaml`);
+    const docsPublicApiDir = path.join(docsPublicDir, 'api');
+    if (!fs.existsSync(docsPublicApiDir)) fs.mkdirSync(docsPublicApiDir, { recursive: true });
+    fs.writeFileSync(path.join(docsPublicApiDir, 'openapi.json'), jsonStr, 'utf8');
+    fs.writeFileSync(path.join(docsPublicApiDir, 'openapi.yaml'), yamlStr, 'utf8');
+    console.log(`[export-openapi] Synchronized to pixelkit-docs/public & public/api: openapi.json & openapi.yaml`);
   }
 
   // Count operations and schemas

@@ -1,6 +1,6 @@
 {
   "name": "@pixelkit-labs/native",
-  "version": "1.6.9",
+  "version": "1.6.10",
   "description": "Pixel hardware for Expo apps: SoC identity, CPU clusters, memory, thermal and ADPF headroom, display modes, GPU, torch and haptic envelopes. Zero third-party dependencies. Android only.",
   "keywords": [
     "expo",
