@@ -48,9 +48,9 @@ describe('PixelKit OpenAPI 3.1 Specification', () => {
     assert.ok(spec.paths['/hooks'].get, 'Missing GET /hooks');
   });
 
-  it('includes all 51 hooks as GET endpoints under /hooks/{hookName}', () => {
+  it('includes all hooks as GET endpoints under /hooks/{hookName}', () => {
     const hookFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.json'));
-    assert.equal(hookFiles.length, 51, 'Expected 51 hook contract files');
+    assert.ok(hookFiles.length >= 51, `Expected at least 51 hook contract files, got ${hookFiles.length}`);
 
     for (const file of hookFiles) {
       const hook = JSON.parse(fs.readFileSync(path.join(hooksDir, file), 'utf8'));

@@ -194,7 +194,7 @@ Every telemetry read exposes \`source: 'hardware' | 'derived' | 'unavailable'\`.
 - Unreadable sensor readings are \`null\` and report \`unavailable\`.
 - Actuators reject with an explicit reason in \`error\` when hardware is unavailable or disabled.
 
-Covers all 51 typed hardware and AI hooks, low-overhead native telemetry, and actuators.
+Covers all ${hooks.length} typed hardware and AI hooks, low-overhead native telemetry, and actuators.
       `.trim(),
       contact: {
         name: 'PixelKit Labs',

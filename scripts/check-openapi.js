@@ -76,7 +76,7 @@ function main() {
 
   const pathCount = Object.keys(currentSpec.paths).length;
   const schemaCount = Object.keys(currentSpec.components.schemas).length;
-  console.log(`[check-openapi] OpenAPI specification is strictly up to date (${pathCount} paths, ${schemaCount} schemas across all 51 hooks).`);
+  console.log(`[check-openapi] OpenAPI specification is strictly up to date (${pathCount} paths, ${schemaCount} schemas across all ${currentSpec.info.description.match(/all (\d+) typed/)?.[1] ?? '53'} hooks).`);
 }
 
 if (require.main === module) {

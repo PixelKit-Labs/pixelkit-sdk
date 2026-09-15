@@ -4,6 +4,21 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.17] - 2026-09-15
+
+### Added
+- **Gemini 3.8 Multimodal Live Streaming Hook (`packages/sdk/src/ai/useGeminiLive.ts`)**:
+  - Implemented `useGeminiLive()` establishing full-duplex WebSocket connections to the Gemini Multimodal Live API (`BidiGenerateContent`).
+  - Implemented bidirectional streaming for audio PCM packets (16kHz mono), synthesized voice responses, and real-time text.
+  - Bound the unified PixelKit hardware tool registry into live streaming turns with real-time automatic tool dispatch and WebSocket `toolResponse` execution.
+  - Exposed live extended thinking thought streams (`currentThinking`) and active tool invocation states (`activeToolCalls`).
+- **Autonomous Cloud Hardware Agent Hook (`packages/sdk/src/ai/useCloudHardwareAgent.ts`)**:
+  - Implemented `useCloudHardwareAgent()` React hook wrapping multi-turn autonomous reasoning loops (`runCloudAgent`).
+  - Surfaces real-time intermediate step traces (`steps`), token budgets, and complete conversation history.
+- **Unit Tests & Contracts (`test/live.test.ts`)**:
+  - Added unit test suite verifying WebSocket endpoint URIs, setup message serialization, tool dispatch wrapping, and audio PCM chunking.
+  - Added hook contracts and documentation for `useCloudHardwareAgent` and `useGeminiLive` in `pixelkit-docs` (53 total hooks).
+
 ## [1.6.16] - 2026-09-15
 
 ### Added

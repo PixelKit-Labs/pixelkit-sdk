@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PixelKit SDK API",
-    "version": "1.6.16",
-    "description": "OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).\n\n### The Zero-Simulation Principle\nEvery telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.\n- Fabricated readings are completely unrepresentable in this specification.\n- Unreadable sensor readings are `null` and report `unavailable`.\n- Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.\n\nCovers all 51 typed hardware and AI hooks, low-overhead native telemetry, and actuators.",
+    "version": "1.6.17",
+    "description": "OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).\n\n### The Zero-Simulation Principle\nEvery telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.\n- Fabricated readings are completely unrepresentable in this specification.\n- Unreadable sensor readings are `null` and report `unavailable`.\n- Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.\n\nCovers all 53 typed hardware and AI hooks, low-overhead native telemetry, and actuators.",
     "contact": {
       "name": "PixelKit Labs",
       "url": "https://github.com/PixelKit-Labs/pixelkit-sdk"
@@ -1741,6 +1741,83 @@
         }
       }
     },
+    "/hooks/useCloudHardwareAgent": {
+      "get": {
+        "summary": "Autonomous cloud hardware reasoning loop with multi-turn tool calling and extended thinking.",
+        "description": "Dispatches autonomous multi-turn reasoning loops with Gemini in the cloud, dynamically invoking unified PixelKit hardware tools to diagnose system telemetry and execute hardware actions.\n\nOrchestrates multi-turn agentic hardware problem solving using Google Gen AI SDK (`@google/genai`). Evaluates prompts, plans hardware tool invocations, executes local sensors and actuators, and reflects on results across consecutive turns until the goal is achieved. Surfaces live reasoning thought chains, intermediate tool execution steps, and final diagnostics.",
+        "operationId": "get_useCloudHardwareAgent",
+        "tags": [
+          "neural-ai"
+        ],
+        "parameters": [
+          {
+            "name": "defaultOptions",
+            "in": "query",
+            "description": "Default configuration for model selection, temperature, system instruction, thinking budget, and max steps.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CloudAgentOptions"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current telemetry reading from useCloudHardwareAgent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useCloudHardwareAgentTelemetry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useCloudHardwareAgent/actions/ask": {
+      "post": {
+        "summary": "Invoke ask (useCloudHardwareAgent)",
+        "description": "Dispatches an autonomous multi-turn reasoning prompt.",
+        "operationId": "useCloudHardwareAgent_ask",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking ask.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useCloudHardwareAgent_ask_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useCloudHardwareAgent/actions/reset": {
+      "post": {
+        "summary": "Invoke reset (useCloudHardwareAgent)",
+        "description": "Clears agent memory, step history, and conversation turns.",
+        "operationId": "useCloudHardwareAgent_reset",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking reset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useCloudHardwareAgent_reset_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/hooks/useDevice": {
       "get": {
         "summary": "Device identity, battery level, thermistor temperature, voltage, current, and wattage.",
@@ -2402,6 +2479,171 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/useGemini_setApiKey_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive": {
+      "get": {
+        "summary": "Real-time bidirectional streaming audio, text, and hardware tool execution with Gemini 3.8 Multimodal Live API.",
+        "description": "Streams live bidirectional voice and text with Gemini in the cloud over WebSockets, executing real-time hardware diagnostics and actions with low-latency audio duplexing.\n\nEstablishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks from device microphones, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.",
+        "operationId": "get_useGeminiLive",
+        "tags": [
+          "neural-ai"
+        ],
+        "parameters": [
+          {
+            "name": "config",
+            "in": "query",
+            "description": "Configuration options for model name, voice profile ('Aoede', 'Puck', etc.), system instruction, thinking budget, and hardware tool binding.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GeminiLiveConfig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current telemetry reading from useGeminiLive.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLiveTelemetry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive/actions/connect": {
+      "post": {
+        "summary": "Invoke connect (useGeminiLive)",
+        "description": "Opens the duplex WebSocket connection to Gemini Live.",
+        "operationId": "useGeminiLive_connect",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking connect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLive_connect_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive/actions/disconnect": {
+      "post": {
+        "summary": "Invoke disconnect (useGeminiLive)",
+        "description": "Terminates the streaming session.",
+        "operationId": "useGeminiLive_disconnect",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking disconnect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLive_disconnect_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive/actions/sendText": {
+      "post": {
+        "summary": "Invoke sendText (useGeminiLive)",
+        "description": "Sends a text message to the live session.",
+        "operationId": "useGeminiLive_sendText",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking sendText.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLive_sendText_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive/actions/sendAudioChunk": {
+      "post": {
+        "summary": "Invoke sendAudioChunk (useGeminiLive)",
+        "description": "Sends a PCM audio packet to the live session.",
+        "operationId": "useGeminiLive_sendAudioChunk",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking sendAudioChunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLive_sendAudioChunk_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive/actions/interrupt": {
+      "post": {
+        "summary": "Invoke interrupt (useGeminiLive)",
+        "description": "Interrupts model speech playback.",
+        "operationId": "useGeminiLive_interrupt",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking interrupt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLive_interrupt_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useGeminiLive/actions/clearTranscript": {
+      "post": {
+        "summary": "Invoke clearTranscript (useGeminiLive)",
+        "description": "Clears conversation history and active tool calls.",
+        "operationId": "useGeminiLive_clearTranscript",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking clearTranscript.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useGeminiLive_clearTranscript_Response"
                 }
               }
             }
@@ -10109,6 +10351,142 @@
           "source"
         ]
       },
+      "useCloudHardwareAgentTelemetry": {
+        "type": "object",
+        "description": "Autonomous cloud hardware reasoning loop with multi-turn tool calling and extended thinking.\n\nOrchestrates multi-turn agentic hardware problem solving using Google Gen AI SDK (`@google/genai`). Evaluates prompts, plans hardware tool invocations, executes local sensors and actuators, and reflects on results across consecutive turns until the goal is achieved. Surfaces live reasoning thought chains, intermediate tool execution steps, and final diagnostics.",
+        "properties": {
+          "isRunning": {
+            "type": "boolean",
+            "description": "Whether the autonomous reasoning loop is actively executing multi-turn tool steps."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentStepInfo"
+            },
+            "description": "Ordered list of tool execution steps taken by the model during the latest execution."
+          },
+          "lastResponse": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Latest response text returned by the cloud agent."
+          },
+          "lastResult": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CloudAgentResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Complete result payload of the last agent execution including stop reason."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Content"
+            },
+            "description": "Full conversation turn history with model tool calls and function outputs."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if agent initialization, network, or execution failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource",
+            "description": "Data provenance: 'hardware' when an API key is present, or 'unavailable'."
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "useCloudHardwareAgent_ask_Request": {
+        "type": "object",
+        "description": "Request payload for ask on useCloudHardwareAgent.",
+        "properties": {}
+      },
+      "useCloudHardwareAgent_ask_Response": {
+        "type": "object",
+        "description": "Response payload for ask on useCloudHardwareAgent.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useCloudHardwareAgent_reset_Request": {
+        "type": "object",
+        "description": "Request payload for reset on useCloudHardwareAgent.",
+        "properties": {}
+      },
+      "useCloudHardwareAgent_reset_Response": {
+        "type": "object",
+        "description": "Response payload for reset on useCloudHardwareAgent.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
       "useDeviceTelemetry": {
         "type": "object",
         "description": "Device identity, battery level, thermistor temperature, voltage, current, and wattage.\n\nIdentity comes from expo-device, live power state from expo-battery listeners, and deep physical battery telemetry from the native fuel gauge PMIC via PixelNative.getBatteryTelemetry(). batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give the cell terminal voltage and live current draw (negative discharging, positive charging); batteryPowerWatts computes real-time wattage (V × I). On Android 14+, batteryCycleCount reads lifetime charge cycles from the PMIC EEPROM. Nothing is simulated: unavailable readings are null.",
@@ -11456,6 +11834,287 @@
           },
           "output": {
             "description": "Returns nothing. hasApiKey updates immediately and availableModels is refreshed in the background."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useGeminiLiveTelemetry": {
+        "type": "object",
+        "description": "Real-time bidirectional streaming audio, text, and hardware tool execution with Gemini 3.8 Multimodal Live API.\n\nEstablishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks from device microphones, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.",
+        "properties": {
+          "isConnected": {
+            "type": "boolean",
+            "description": "Whether the WebSocket session to Gemini Live is active and ready."
+          },
+          "isStreaming": {
+            "type": "boolean",
+            "description": "Whether the model is actively streaming an audio or text response."
+          },
+          "isSpeaking": {
+            "type": "boolean",
+            "description": "Whether synthesized speech audio is currently playing."
+          },
+          "isListening": {
+            "type": "boolean",
+            "description": "Whether the client is streaming microphone audio chunks to the server."
+          },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveMessage"
+            },
+            "description": "Real-time transcript of conversational dialogue."
+          },
+          "currentThinking": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Latest reasoning thoughts emitted by the model during extended thinking."
+          },
+          "activeToolCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveToolCall"
+            },
+            "description": "Real-time hardware tool invocations executed during the session."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if connection or streaming protocol encountered a failure."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource",
+            "description": "Data provenance: 'hardware' when connected with valid key, or 'unavailable'."
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "useGeminiLive_connect_Request": {
+        "type": "object",
+        "description": "Request payload for connect on useGeminiLive.",
+        "properties": {}
+      },
+      "useGeminiLive_connect_Response": {
+        "type": "object",
+        "description": "Response payload for connect on useGeminiLive.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useGeminiLive_disconnect_Request": {
+        "type": "object",
+        "description": "Request payload for disconnect on useGeminiLive.",
+        "properties": {}
+      },
+      "useGeminiLive_disconnect_Response": {
+        "type": "object",
+        "description": "Response payload for disconnect on useGeminiLive.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useGeminiLive_sendText_Request": {
+        "type": "object",
+        "description": "Request payload for sendText on useGeminiLive.",
+        "properties": {}
+      },
+      "useGeminiLive_sendText_Response": {
+        "type": "object",
+        "description": "Response payload for sendText on useGeminiLive.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useGeminiLive_sendAudioChunk_Request": {
+        "type": "object",
+        "description": "Request payload for sendAudioChunk on useGeminiLive.",
+        "properties": {}
+      },
+      "useGeminiLive_sendAudioChunk_Response": {
+        "type": "object",
+        "description": "Response payload for sendAudioChunk on useGeminiLive.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useGeminiLive_interrupt_Request": {
+        "type": "object",
+        "description": "Request payload for interrupt on useGeminiLive.",
+        "properties": {}
+      },
+      "useGeminiLive_interrupt_Response": {
+        "type": "object",
+        "description": "Response payload for interrupt on useGeminiLive.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useGeminiLive_clearTranscript_Request": {
+        "type": "object",
+        "description": "Request payload for clearTranscript on useGeminiLive.",
+        "properties": {}
+      },
+      "useGeminiLive_clearTranscript_Response": {
+        "type": "object",
+        "description": "Response payload for clearTranscript on useGeminiLive.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Result description"
           },
           "error": {
             "anyOf": [
@@ -19005,6 +19664,9 @@
           "useChargingIntelligence": {
             "$ref": "#/components/schemas/useChargingIntelligenceTelemetry"
           },
+          "useCloudHardwareAgent": {
+            "$ref": "#/components/schemas/useCloudHardwareAgentTelemetry"
+          },
           "useDevice": {
             "$ref": "#/components/schemas/useDeviceTelemetry"
           },
@@ -19019,6 +19681,9 @@
           },
           "useGemini": {
             "$ref": "#/components/schemas/useGeminiTelemetry"
+          },
+          "useGeminiLive": {
+            "$ref": "#/components/schemas/useGeminiLiveTelemetry"
           },
           "useGeminiNano": {
             "$ref": "#/components/schemas/useGeminiNanoTelemetry"
@@ -19115,6 +19780,16 @@
           }
         }
       },
+      "CloudAgentOptions": {
+        "type": "object",
+        "description": "Typed entity: CloudAgentOptions",
+        "additionalProperties": true
+      },
+      "GeminiLiveConfig": {
+        "type": "object",
+        "description": "Typed entity: GeminiLiveConfig",
+        "additionalProperties": true
+      },
       "VideoSource": {
         "type": "object",
         "description": "Typed entity: VideoSource",
@@ -19160,6 +19835,21 @@
         "description": "Typed entity: ChannelSoundingTarget",
         "additionalProperties": true
       },
+      "AgentStepInfo": {
+        "type": "object",
+        "description": "Typed entity: AgentStepInfo",
+        "additionalProperties": true
+      },
+      "CloudAgentResult": {
+        "type": "object",
+        "description": "Typed entity: CloudAgentResult",
+        "additionalProperties": true
+      },
+      "Content": {
+        "type": "object",
+        "description": "Typed entity: Content",
+        "additionalProperties": true
+      },
       "BatteryTelemetry": {
         "type": "object",
         "description": "Typed entity: BatteryTelemetry",
@@ -19178,6 +19868,16 @@
       "defaultHarmBlockThreshold": {
         "type": "object",
         "description": "Typed entity: defaultHarmBlockThreshold",
+        "additionalProperties": true
+      },
+      "LiveMessage": {
+        "type": "object",
+        "description": "Typed entity: LiveMessage",
+        "additionalProperties": true
+      },
+      "LiveToolCall": {
+        "type": "object",
+        "description": "Typed entity: LiveToolCall",
         "additionalProperties": true
       },
       "NanoModelInfo": {

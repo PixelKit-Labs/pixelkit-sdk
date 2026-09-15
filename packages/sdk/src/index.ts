@@ -88,6 +88,17 @@ export { useUWB } from './hardware/useUWB';
 // AI, Voice & Tensor TPU Hooks
 export { useTPU } from './ai/useTPU';
 export { useGemini, type SafetyThreshold, type GroundingSummary } from './ai/useGemini';
+export { useCloudHardwareAgent, type CloudHardwareAgentTelemetry } from './ai/useCloudHardwareAgent';
+export {
+  useGeminiLive,
+  type GeminiLiveTelemetry,
+  type GeminiLiveConfig,
+  type LiveVoiceName,
+  type LiveMessage,
+  type LiveToolCall,
+  DEFAULT_LIVE_MODEL,
+  LIVE_WEBSOCKET_ENDPOINT,
+} from './ai/useGeminiLive';
 export {
   useAppFunctions,
   type AppFunctionParameter,

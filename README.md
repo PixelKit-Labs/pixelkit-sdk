@@ -83,7 +83,7 @@ npx @pixelkit-labs/cli doctor   # tells you which case you are in
 `usePlayIntegrity`
 
 **AI** — `useGemini` (multi-turn chat, streaming, safety thresholds, Google Search grounding, token
-counting), `useSpeechAI` (voice capture and transcription, on-device streaming or cloud),
+counting), `useCloudHardwareAgent` (autonomous multi-turn reasoning and tool loops), `useGeminiLive` (bidirectional audio and text streaming over WebSockets with real-time tool execution), `useSpeechAI` (voice capture and transcription, on-device streaming or cloud),
 `useSpeech` (text to speech), `useAppFunctions` (expose your app's capabilities to the system Gemini
 assistant), `useTPU` (what the AICore stack actually exposes)
 
@@ -104,7 +104,7 @@ and returns `null` rather than a substitute when a reading cannot be taken. The 
 
 | | |
 | :--- | :--- |
-| `@pixelkit-labs/sdk` | The 51 hooks, the types they return, and the observability layer |
+| `@pixelkit-labs/sdk` | The 53 hooks, the types they return, and the observability layer |
 | `@pixelkit-labs/native` | Kotlin Expo Module for telemetry and actuators. No third-party dependencies. |
 | `@pixelkit-labs/mlkit` | Kotlin Expo Module for on-device ML Kit and Gemini Nano. Opt-in. |
 
