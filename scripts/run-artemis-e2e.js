@@ -21,6 +21,8 @@ const RECIPES = {
   pixel11: path.join(__dirname, '../test/artemis/recipes/06-pixel-11-pro-hardware.md'),
   nextgen: path.join(__dirname, '../test/artemis/recipes/07-next-gen-hardware.md'),
   expansion: path.join(__dirname, '../test/artemis/recipes/07-next-gen-hardware.md'),
+  agents: path.join(__dirname, '../test/artemis/recipes/08-cloud-agents-and-adk.md'),
+  adk: path.join(__dirname, '../test/artemis/recipes/08-cloud-agents-and-adk.md'),
 };
 
 function resolveArtemisBinary() {

@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.16] - 2026-09-15
+
+### Added
+- **ARTEMIS Recipe 08: Cloud Hardware Agents & Google ADK Diagnostics (`test/artemis/recipes/08-cloud-agents-and-adk.md`)**:
+  - Added on-device automated end-to-end verification recipe for Google ARTEMIS testing the Unified Hardware Tool Registry, autonomous cloud agent loop (`runCloudAgent`), and the Google ADK multi-agent diagnostic team (`runDiagnosticTeam`).
+  - Added `agents` and `adk` runner aliases to `scripts/run-artemis-e2e.js`.
+  - Updated repository map in `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` to reflect recipe coverage through 08.
+
 ## [1.6.15] - 2026-09-15
 
 ### Added

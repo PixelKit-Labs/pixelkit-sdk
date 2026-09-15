@@ -69,5 +69,5 @@ scripts/
   run-artemis-e2e.js      executes ARTEMIS automated on-device test recipes
 test/
   *.test.ts               unit tests, run by `npm test` with Node's own test runner
-  artemis/                ARTEMIS test recipes (01-silicon-telemetry through 07-next-gen-hardware)
+  artemis/                ARTEMIS test recipes (01-silicon-telemetry through 08-cloud-agents-and-adk)
 ```
