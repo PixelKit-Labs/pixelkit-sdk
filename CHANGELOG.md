@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.14] - 2026-09-15
+
+### Added
+- **Autonomous Multi-Turn Cloud Agent Loop (`packages/sdk/src/ai/agent/cloudAgent.ts`, `runCloudAgent`)**:
+  - Implemented `runCloudAgent()` executing autonomous multi-turn reasoning loops with Google Gen AI SDK (`@google/genai`).
+  - Supports automatic function call dispatch, parallel tool execution, configurable step bounds (`maxSteps`, defaulting to 6 to prevent runaway invocation loops), sampling temperature, live step callbacks (`onStep`), and full execution audit trails (`AgentStepInfo[]`).
+  - Added unit test suite `test/agent.test.ts` validating autonomous dispatch, dynamic hardware inspection, multi-step conversation histories, and graceful cutoff on step limit exhaustion.
+  - Exported `runCloudAgent`, `DEFAULT_AGENT_MODEL`, `DEFAULT_MAX_STEPS`, and agent types (`CloudAgentOptions`, `CloudAgentResult`, `AgentStepInfo`) from `@pixelkit-labs/sdk`.
+
 ## [1.6.13] - 2026-09-15
 
 ### Added

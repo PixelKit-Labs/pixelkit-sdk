@@ -125,5 +125,16 @@ export {
   type HardwareContext,
 } from './ai/tools/registry';
 
+// Autonomous Agent Loop (Google Gen AI SDK)
+export {
+  runCloudAgent,
+  DEFAULT_AGENT_MODEL,
+  DEFAULT_MAX_STEPS,
+  type CloudAgentOptions,
+  type CloudAgentResult,
+  type AgentStepInfo,
+} from './ai/agent/cloudAgent';
+
 export * from './core/observability';
+
 

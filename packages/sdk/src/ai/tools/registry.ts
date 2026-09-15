@@ -3,9 +3,10 @@
  * @description Unified Hardware Tool Registry for Google Gen AI SDK (`@google/genai`)
  * and the Google Agent Development Kit (ADK). Converts strongly-typed parameter definitions into Gemini
  * FunctionDeclaration schemas, validates arguments, and executes tools with structured observability.
+ * Also includes the autonomous multi-turn cloud agent loop (runCloudAgent).
  */
 
-import { Type, type FunctionDeclaration, type Schema } from '@google/genai';
+import { FunctionCallingConfigMode, Type, type Content, type FunctionDeclaration, type GoogleGenAI, type Schema } from '@google/genai';
 
 const MODULE = 'ToolRegistry';
 
@@ -106,6 +107,39 @@ export interface HardwareContext {
     aggregateSpeedMbps: number | null;
     links: Array<{ band: string; rssi: number; rxLinkSpeedMbps: number; txLinkSpeedMbps: number }>;
   };
+}
+
+export const DEFAULT_AGENT_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_MAX_STEPS = 6;
+
+export interface AgentStepInfo {
+  step: number;
+  call: { id?: string; name: string; args: any };
+  result: unknown;
+  durationMs: number;
+}
+
+export interface CloudAgentOptions {
+  /** Model to use for reasoning, defaults to 'gemini-3.8-flash' */
+  model?: string;
+  /** System instruction prompt guiding agent behavior and personality */
+  systemInstruction?: string;
+  /** Maximum number of tool execution turns before stopping (prevents runaway loops) */
+  maxSteps?: number;
+  /** Sampling temperature, lower (0.2) is recommended for deterministic tool calling */
+  temperature?: number;
+  /** Specific subset of tools to make available; defaults to listTools() */
+  tools?: ToolDef[];
+  /** Callback fired as each tool executes for live UI streaming or logging */
+  onStep?: (step: AgentStepInfo) => void;
+}
+
+export interface CloudAgentResult {
+  text: string;
+  contents: Content[];
+  steps: AgentStepInfo[];
+  totalSteps: number;
+  stoppedReason: 'completed' | 'max_steps_exceeded';
 }
 
 const toolsMap = new Map<string, ToolDef>();
@@ -314,6 +348,90 @@ export async function runTool(name: string, rawArgs: unknown): Promise<ToolExecu
     log('tool_failed', { name, message }, 'error');
     return { ok: false, error: message || 'tool_failed' };
   }
+}
+
+/**
+ * Executes a multi-turn autonomous agent loop with Gemini and PixelKit hardware tools.
+ */
+export async function runCloudAgent(
+  ai: GoogleGenAI,
+  prompt: string,
+  history: Content[] = [],
+  options: CloudAgentOptions = {},
+): Promise<CloudAgentResult> {
+  const model = options.model ?? DEFAULT_AGENT_MODEL;
+  const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
+  const temperature = options.temperature ?? 0.2;
+  const systemInstruction = options.systemInstruction;
+  const toolDefs = options.tools ?? listTools();
+  const tools = [{ functionDeclarations: toFunctionDeclarations(toolDefs) }];
+
+  const contents: Content[] = [...history, { role: 'user', parts: [{ text: prompt }] }];
+  const steps: AgentStepInfo[] = [];
+
+  for (let step = 0; step < maxSteps; step++) {
+    const res = await ai.models.generateContent({
+      model,
+      contents,
+      config: {
+        systemInstruction,
+        tools,
+        toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
+        temperature,
+      },
+    });
+
+    const calls = res.functionCalls ?? [];
+    const modelContent = res.candidates?.[0]?.content;
+    if (modelContent) {
+      contents.push(modelContent);
+    }
+
+    if (calls.length === 0) {
+      return {
+        text: res.text ?? '',
+        contents,
+        steps,
+        totalSteps: step,
+        stoppedReason: 'completed',
+      };
+    }
+
+    for (const call of calls) {
+      const callName = call.name ?? '';
+      const start = performance.now();
+      const toolRes = await runTool(callName, call.args);
+      const durationMs = Math.round(performance.now() - start);
+
+      const stepInfo: AgentStepInfo = {
+        step: step + 1,
+        call: { id: call.id, name: callName, args: call.args },
+        result: toolRes,
+        durationMs,
+      };
+      steps.push(stepInfo);
+      options.onStep?.(stepInfo);
+    }
+
+    contents.push({
+      role: 'user',
+      parts: calls.map((c, i) => ({
+        functionResponse: {
+          id: c.id,
+          name: c.name ?? '',
+          response: steps[steps.length - calls.length + i].result as Record<string, unknown>,
+        },
+      })),
+    });
+  }
+
+  return {
+    text: 'Stopped: maximum tool steps exceeded.',
+    contents,
+    steps,
+    totalSteps: maxSteps,
+    stoppedReason: 'max_steps_exceeded',
+  };
 }
 
 /**
