@@ -54,13 +54,13 @@ paths:
   /hooks:
     get:
       summary: "List All PixelKit Hardware & AI Hooks"
-      description: "Lists all 51 available hooks, their categories, descriptions, and hardware chip badges."
+      description: "Lists all 53 available hooks, their categories, descriptions, and hardware chip badges."
       operationId: listHooks
       tags:
         - silicon-compute
       responses:
         200:
-          description: List of all 51 hooks.
+          description: List of all 53 hooks.
           content:
             application/json:
               schema:

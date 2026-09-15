@@ -18,7 +18,7 @@ See [`docs/release-pipeline.html`](docs/release-pipeline.html) for the same flow
 | :--- | :--- | :--- |
 | `@pixelkit-labs/native` | Kotlin Expo Module: telemetry, actuators | Zero third-party dependencies |
 | `@pixelkit-labs/mlkit` | Kotlin Expo Module: Gemini Nano, vision, natural language | 19 ML Kit artifacts, and it rewrites the consumer's Gradle build |
-| `@pixelkit-labs/sdk` | The 51 hooks, the DevTools HUD, observability | The package people install |
+| `@pixelkit-labs/sdk` | The 53 hooks, the DevTools HUD, observability | The package people install |
 
 `pixelkit` depends on `@pixelkit-labs/native` only. `@pixelkit-labs/mlkit` is an **optional peer
 dependency**, reached through the `@pixelkit-labs/sdk/mlkit` subpath, so a project that only wants telemetry

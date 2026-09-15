@@ -55,8 +55,8 @@ into the app, and Expo Go contains only the native code Expo shipped.
 ## Supported devices
 
 Built for the Google Pixel 11 Pro, Pro Fold and Pro XL. It degrades rather than fails elsewhere:
-**13 of the 51 hooks are pure Expo and JavaScript** — camera, audio, sensors, location, biometrics,
-the keystore, cloud Gemini — and work on any Android device. Another 37 call the Kotlin modules and
+**15 of the 53 hooks are pure Expo and JavaScript** — camera, audio, sensors, location, biometrics,
+the keystore, cloud Gemini, cloud hardware agent, Gemini Live duplex — and work on any Android device. Another 37 call the Kotlin modules and
 report `unsupported` where the silicon is not there. `useHiLight` is the exception to both: Android
 restricts the camera-bar LEDs to privileged apps, so it drives them through a local ADB daemon.
 

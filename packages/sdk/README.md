@@ -44,7 +44,7 @@ the app, and Expo Go contains only the native code Expo shipped.
 ## Supported devices
 
 Built for the Google Pixel 11 Pro, Pro Fold and Pro XL. It degrades rather than fails elsewhere:
-13 of the 51 hooks are pure Expo and JavaScript and work on any Android device; another 37 call the
+15 of the 53 hooks are pure Expo and JavaScript and work on any Android device; another 37 call the
 Kotlin modules and report `unsupported` where the silicon is not there. `useHiLight` is neither: it
 drives the camera-bar LEDs through a local ADB daemon, because Android restricts them to privileged
 apps.
@@ -62,7 +62,7 @@ npx @pixelkit-labs/cli doctor   # tells you which case you are in
 | Actuators | `useHaptics`, `useTorch`, `useHiLight` |
 | Radios | `useBLE`, `useChannelSounding`, `useNFC`, `useUWB`, `useRadios`, `useWifi7MLO`, `useWifiRTT`, `useSatelliteNTN` |
 | Security | `useBiometrics`, `useSecurity`, `useKeyAgreement`, `usePrivateSpace`, `usePlayIntegrity` |
-| AI (main entry) | `useGemini`, `useAppFunctions`, `useSpeechAI`, `useSpeech` |
+| AI (main entry) | `useGemini`, `useCloudHardwareAgent`, `useGeminiLive`, `useAppFunctions`, `useSpeechAI`, `useSpeech` |
 | AI (`@pixelkit-labs/sdk/mlkit`) | `useGeminiNano`, `useGenAITasks`, `useVisionAI`, `useNaturalLanguageAI`, `useEmbeddings` |
 
 Plus the observability layer (`traced`, `logError`, `useObservability`) that every hook
@@ -80,7 +80,7 @@ counts at runtime.
 
 ## Documentation
 
-Full input and output tables for all 51 hooks, with a contract for every function:
+Full input and output tables for all 53 hooks, with a contract for every function:
 [the documentation](https://pixelkit-labs.github.io/pixelkit-docs/).
 
 ## Licence

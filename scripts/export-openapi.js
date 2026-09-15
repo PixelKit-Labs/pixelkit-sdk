@@ -244,12 +244,12 @@ Covers all ${hooks.length} typed hardware and AI hooks, low-overhead native tele
       '/hooks': {
         get: {
           summary: 'List All PixelKit Hardware & AI Hooks',
-          description: 'Lists all 51 available hooks, their categories, descriptions, and hardware chip badges.',
+          description: `Lists all ${hooks.length} available hooks, their categories, descriptions, and hardware chip badges.`,
           operationId: 'listHooks',
           tags: ['silicon-compute'],
           responses: {
             '200': {
-              description: 'List of all 51 hooks.',
+              description: `List of all ${hooks.length} hooks.`,
               content: {
                 'application/json': {
                   schema: {
@@ -660,7 +660,8 @@ function main() {
     opCount += Object.keys(p).length;
   }
   const schemaCount = Object.keys(spec.components.schemas).length;
-  console.log(`[export-openapi] Verified: ${pathCount} paths, ${opCount} operations, ${schemaCount} schemas across all 51 hooks.`);
+  const hooksCount = fs.readdirSync(hooksDir).filter(f => f.endsWith('.json')).length;
+  console.log(`[export-openapi] Verified: ${pathCount} paths, ${opCount} operations, ${schemaCount} schemas across all ${hooksCount} hooks.`);
 }
 
 if (require.main === module) {
