@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.13] - 2026-09-15
+
+### Added
+- **Unified Hardware Tool Registry for Google Gen AI SDK & ADK (`packages/sdk/src/ai/tools/`)**:
+  - Implemented `registry.ts` and `hardwareTools.ts` providing typed tool registration (`defineTool`, `getTool`, `listTools`, `runTool`) and translation to `@google/genai` `FunctionDeclaration` schemas (`toFunctionDeclarations`).
+  - Added `registerHardwareTools()` exposing physical actuators (`set_torch`, `play_haptic`, `set_hilight`, `set_battery_share`) and real-time telemetry readers (`get_thermal_headroom`, `get_barometer`, `get_thermometer`, `get_battery_health`, `get_wifi7_status`) with strict Zero-Simulation enforcement.
+  - Added complete unit test suite `test/tools.test.ts` with 5 behavioral tests covering parameter validation, Gemini schema conversion, error handling, and hardware execution.
+
 ## [1.6.12] - 2026-09-15
 
 ### Added

@@ -106,5 +106,24 @@ export { getStoredApiKey, saveApiKey, createGeminiClient } from './ai/geminiClie
 // In-App Developer HUD & Diagnostics
 export { PixelKitDevTools, type PixelKitDevToolsProps } from './ui/PixelKitDevTools';
 
+// Hardware Tool Registry & Agent Function Calling (Google Gen AI SDK & ADK)
+export {
+  defineTool,
+  getTool,
+  listTools,
+  clearTools,
+  toFunctionDeclarations,
+  toGeminiParametersSchema,
+  runTool,
+  validateParameters,
+  registerHardwareTools,
+  type ToolDef,
+  type ToolType,
+  type ToolPropertySchema,
+  type ToolParametersSchema,
+  type ToolExecutionResult,
+  type HardwareContext,
+} from './ai/tools/registry';
+
 export * from './core/observability';
 
