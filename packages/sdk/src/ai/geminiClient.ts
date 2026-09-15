@@ -61,6 +61,8 @@ export async function saveApiKey(key: string): Promise<boolean> {
 /** Default models list when API list is loading or unauthenticated */
 export const DEFAULT_MODELS = [
   'gemini-3.8-flash',
+  'gemini-3.8-live',
+  'gemini-3.8-live-extended-thinking',
   'gemini-2.5-flash',
   'gemini-2.5-pro',
   'gemini-2.0-flash',
@@ -80,7 +82,7 @@ export async function listAvailableModels(apiKey?: string | null): Promise<strin
     const models: string[] = [];
     for await (const m of response) {
       const id = m.name ? m.name.replace(/^models\//, '') : '';
-      if (id && (id.includes('gemini') || id.includes('flash') || id.includes('pro'))) {
+      if (id && (id.includes('gemini') || id.includes('flash') || id.includes('pro') || id.includes('live'))) {
         if (!id.includes('embedding') && !id.includes('aqa')) {
           models.push(id);
         }
