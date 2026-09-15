@@ -23,6 +23,7 @@ const RECIPES = {
   expansion: path.join(__dirname, '../test/artemis/recipes/07-next-gen-hardware.md'),
   agents: path.join(__dirname, '../test/artemis/recipes/08-cloud-agents-and-adk.md'),
   adk: path.join(__dirname, '../test/artemis/recipes/08-cloud-agents-and-adk.md'),
+  live: path.join(__dirname, '../test/artemis/recipes/08-cloud-agents-and-adk.md'),
 };
 
 function resolveArtemisBinary() {
