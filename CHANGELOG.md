@@ -4,6 +4,17 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.15] - 2026-09-15
+
+### Added
+- **Google Agent Development Kit (ADK) Integration (`packages/sdk/src/ai/adk/`)**:
+  - Implemented ADK-compatible tool definitions (`createADKTool`, `ADKTool`) wrapping `@google/genai` FunctionDeclarations with strongly-typed execution handlers.
+  - Implemented `createADKAgent()` providing autonomous specialist reasoning agents capable of multi-turn tool loops.
+  - Implemented `createDiagnosticSpecialists()` and `runDiagnosticTeam()` orchestrating a multi-agent diagnostic team (Silicon & Thermals Architect, Battery & Power Specialist, Radios & Sensor Specialist, and Lead Diagnostic Coordinator).
+  - Generates structured, zero-simulation diagnostic reports (`DiagnosticReport`) with severity verdicts (`healthy` | `warning` | `critical`), root-cause summaries, and actionable hardware recommendations.
+  - Added unit test suite `test/adk.test.ts` verifying tool declaration creation, specialist reasoning loops, and coordinator report synthesis.
+  - Exported ADK types and team runners from `@pixelkit-labs/sdk`.
+
 ## [1.6.14] - 2026-09-15
 
 ### Added

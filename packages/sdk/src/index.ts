@@ -135,6 +135,22 @@ export {
   type AgentStepInfo,
 } from './ai/agent/cloudAgent';
 
+// Google Agent Development Kit (ADK) Integration & Multi-Agent Diagnostic Team
+export {
+  createADKTool,
+  createADKAgent,
+  createDiagnosticSpecialists,
+  runDiagnosticTeam,
+  type ADKTool,
+  type ADKAgentConfig,
+  type ADKAgent,
+  type ADKAgentStep,
+  type ADKAgentExecutionResult,
+  type DiagnosticSeverity,
+  type DiagnosticReport,
+  type DiagnosticTeamOptions,
+} from './ai/adk/index';
+
 export * from './core/observability';
 
 
