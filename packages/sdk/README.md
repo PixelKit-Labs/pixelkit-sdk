@@ -1,88 +1,89 @@
 # @pixelkit-labs/sdk
 
-PixelKit is an SDK for building Expo and React Native applications on Google Pixel devices. It
-provides typed React hooks for the CPU, GPU and TPU, device sensors, radios, secure hardware, camera and audio, display
-and power telemetry, haptics, on-device AI, and Cloud AI.
+**PixelKit** is the Expo & React Native SDK for Google Pixel hardware and on-device AI.
+It provides 53 typed React hooks for CPU/GPU/TPU silicon, ADPF thermals, modern sensors and acoustics, next-gen radios, Titan M2 security, camera/audio capture, on-device Gemini Nano, and real-time Gemini Live bidirectional duplex streaming.
 
-Telemetry, sensors, radios, security and cloud Gemini:
+---
+
+## Installation
 
 ```bash
+# Core SDK and Kotlin hardware telemetry module
 npx expo install @pixelkit-labs/sdk @pixelkit-labs/native
-```
 
-On-device ML - Gemini Nano, vision, natural language - is opt-in, because it puts 19 ML Kit
-artifacts in your APK. Install it only if you want those hooks:
-
-```bash
+# On-device Edge AI: Gemini Nano, ML Kit vision & translation, local vector embeddings (opt-in)
 npx expo install @pixelkit-labs/mlkit
 ```
 
-```tsx
-import { useCPU, useGemini } from '@pixelkit-labs/sdk';
-import { useGeminiNano } from '@pixelkit-labs/sdk/mlkit'; // only with @pixelkit-labs/mlkit installed
+---
 
-function Compute() {
+## Quick Example
+
+```tsx
+import React from 'react';
+import { View, Text } from 'react-native';
+import { useCPU, useADPF, useHiLight } from '@pixelkit-labs/sdk';
+import { useGeminiNano } from '@pixelkit-labs/sdk/mlkit';
+
+export function HardwareScreen() {
   const cpu = useCPU();
-  // cpu.source is 'hardware' | 'derived' | 'unavailable'; curMHz is null when it cannot be read
-  return <Text>{cpu.cores[0]?.curMHz ?? '—'} MHz</Text>;
+  const { thermalHeadroom } = useADPF();
+  const { isAvailable } = useGeminiNano();
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text>CPU Core 0: {cpu.cores[0]?.curMHz ?? '—'} MHz</Text>
+      <Text>Thermal Headroom: {thermalHeadroom?.toFixed(2) ?? '—'}</Text>
+      <Text>Gemini Nano Ready: {isAvailable ? 'Yes' : 'No'}</Text>
+    </View>
+  );
 }
 ```
 
+---
+
+## Hooks Overview (53 Total)
+
+| Category | Hooks |
+| :--- | :--- |
+| **Silicon & System** | `useCPU`, `useGPU`, `useTPU`, `useMemory`, `useADPF`, `useADPFHintSession`, `useBatteryShare`, `useChargingIntelligence`, `usePerfetto`, `useDevice`, `useDisplay`, `useNetwork`, `useCellular`, `useCapabilities` |
+| **Sensors & Capture** | `useSensors`, `useAltimeter`, `useThermometer`, `useLocation`, `useCamera`, `useCameraExtensions`, `useVideo`, `useMediaLibrary`, `useAudio`, `useMicrophoneArray`, `useSpatialAudio`, `useHealthConnect` |
+| **Actuators** | `useHaptics`, `useTorch`, `useHiLight` |
+| **Radios & Wireless** | `useBLE`, `useChannelSounding`, `useNFC`, `useUWB`, `useRadios`, `useWifi7MLO`, `useWifiRTT`, `useSatelliteNTN` |
+| **Security & Privacy** | `useBiometrics`, `useSecurity`, `useKeyAgreement`, `usePrivateSpace`, `usePlayIntegrity` |
+| **AI (Cloud & Live Duplex)** | `useGemini`, `useCloudHardwareAgent`, `useGeminiLive`, `useSpeechAI`, `useSpeech`, `useAppFunctions` |
+| **On-Device AI (`mlkit`)** | `useGeminiNano`, `useGenAITasks`, `useVisionAI`, `useNaturalLanguageAI`, `useEmbeddings` |
+
+---
+
+## Key Capabilities
+
+- **Tensor G6 Silicon**: Real-time per-core cpufreq, GPU clock/load, memory bandwidth, and ADPF thermal headroom.
+- **Edge AI on AICore**: Run Gemini Nano locally without network latency or cloud costs, plus local 512/768-dim text embeddings and ML Kit vision pipelines.
+- **Real-Time Gemini Live Duplex**: Stream bidirectional voice and text over WebSockets (`useGeminiLive`) with real-time function calling.
+- **Acoustic Beamforming & Sensors**: Directional microphone array control (`useMicrophoneArray`), non-contact MLX90632 FIR thermometer (`useThermometer`), and ICAO barometric altimeter (`useAltimeter`).
+- **Next-Gen Radios**: Wi-Fi 7 Multi-Link Operation (MLO), 802.11mc/az Wi-Fi RTT ranging, and Satellite NTN emergency states.
+- **Hardware Actuators**: Camera-bar HiLight LED sequences, custom LRA haptic waveforms, torch intensity, and reverse wireless battery sharing.
+- **Built-in Observability**: Every hardware operation is timed, traced, and logged via `traced()`. Inspect trace latencies and health summaries in the `<PixelKitDevTools />` in-app HUD.
+- **Typed Hardware Provenance**: Every hook returns `source: 'hardware' | 'derived' | 'unavailable'`. When a sensor or feature is absent on a device, values cleanly evaluate to `null`.
+
+---
+
 ## Requirements
 
-| | |
-| :--- | :--- |
-| Platform | Android only |
-| Expo SDK | `~57.0.20` |
-| React Native | `0.86.3` |
-| React | `19.2.3` |
-| Build | A development build — `npx expo run:android`, or an EAS development profile |
+- **Platform**: Android 14+ (API 34+), optimized for Tensor G5/G6 & Android 17 (API 37).
+- **Environment**: Expo Development Build (`npx expo run:android`) or EAS Build.
+- **Hardware**: Google Pixel 11 Pro, Pro XL, Pro Fold, and Pixel 8/9/10/11 series. Non-Pixel Android devices support JavaScript/Expo hooks and gracefully report `unavailable` for hardware-specific features.
 
-This cannot run in Expo Go. The hooks call two Kotlin Expo Modules that have to be compiled into
-the app, and Expo Go contains only the native code Expo shipped.
-
-## Supported devices
-
-Built for the Google Pixel 11 Pro, Pro Fold and Pro XL. It degrades rather than fails elsewhere:
-15 of the 53 hooks are pure Expo and JavaScript and work on any Android device; another 37 call the
-Kotlin modules and report `unsupported` where the silicon is not there. `useHiLight` is neither: it
-drives the camera-bar LEDs through a local ADB daemon, because Android restricts them to privileged
-apps.
-
-```bash
-npx @pixelkit-labs/cli doctor   # tells you which case you are in
-```
-
-## What is in it
-
-| Area | Hooks |
-| :--- | :--- |
-| Silicon & System | `useCPU`, `useGPU`, `useTPU`, `useMemory`, `useADPF`, `useADPFHintSession`, `usePerfetto`, `useBatteryShare`, `useChargingIntelligence`, `useDevice`, `useDisplay`, `useNetwork`, `useCellular`, `useCapabilities` |
-| Sensors & Capture | `useSensors`, `useAltimeter`, `useThermometer`, `useLocation`, `useCamera`, `useCameraExtensions`, `useHealthConnect`, `useVideo`, `useMediaLibrary`, `useAudio`, `useMicrophoneArray`, `useSpatialAudio` |
-| Actuators | `useHaptics`, `useTorch`, `useHiLight` |
-| Radios | `useBLE`, `useChannelSounding`, `useNFC`, `useUWB`, `useRadios`, `useWifi7MLO`, `useWifiRTT`, `useSatelliteNTN` |
-| Security | `useBiometrics`, `useSecurity`, `useKeyAgreement`, `usePrivateSpace`, `usePlayIntegrity` |
-| AI (main entry) | `useGemini`, `useCloudHardwareAgent`, `useGeminiLive`, `useAppFunctions`, `useSpeechAI`, `useSpeech` |
-| AI (`@pixelkit-labs/sdk/mlkit`) | `useGeminiNano`, `useGenAITasks`, `useVisionAI`, `useNaturalLanguageAI`, `useEmbeddings` |
-
-Plus the observability layer (`traced`, `logError`, `useObservability`) that every hook
-reports through, and `<PixelKitDevTools />` in-app HUD.
-
-Every hook also reports where its value came from — `source: 'hardware' | 'derived' | 'unavailable'` —
-and returns `null` rather than a substitute when a reading cannot be taken.
-
-## Observability
-
-Every function that touches hardware, the network, a native module or the file system is wrapped
-in `traced()`, so it is timed and correlated, and surfaces failure through an `error` field rather
-than an empty catch. `useObservability()` gives you the event log, the slowest traces and the error
-counts at runtime.
+---
 
 ## Documentation
 
-Full input and output tables for all 53 hooks, with a contract for every function:
-[the documentation](https://pixelkit-labs.github.io/pixelkit-docs/).
+Full interactive documentation, API references, parameter schemas, and contracts:
+[https://pixelkit-labs.github.io/pixelkit-docs/](https://pixelkit-labs.github.io/pixelkit-docs/)
 
-## Licence
+---
 
-MIT
+## License
+
+MIT © PixelKit Labs

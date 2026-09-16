@@ -224,7 +224,7 @@ Covers all ${hooks.length} typed hardware and AI hooks, low-overhead native tele
         get: {
           summary: 'Get Full Device Hardware Telemetry Snapshot',
           description:
-            'Atomic snapshot of instantaneous telemetry across all 51 hardware and AI subsystems. Values are strictly measured from real hardware or null.',
+            `Atomic snapshot of instantaneous telemetry across all ${hooks.length} hardware and AI subsystems. Values are strictly measured from real hardware or null.`,
           operationId: 'getFullDeviceState',
           tags: ['silicon-compute'],
           responses: {

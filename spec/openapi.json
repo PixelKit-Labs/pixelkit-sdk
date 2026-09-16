@@ -53,7 +53,7 @@
     "/state": {
       "get": {
         "summary": "Get Full Device Hardware Telemetry Snapshot",
-        "description": "Atomic snapshot of instantaneous telemetry across all 51 hardware and AI subsystems. Values are strictly measured from real hardware or null.",
+        "description": "Atomic snapshot of instantaneous telemetry across all 53 hardware and AI subsystems. Values are strictly measured from real hardware or null.",
         "operationId": "getFullDeviceState",
         "tags": [
           "silicon-compute"
