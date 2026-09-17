@@ -4,6 +4,25 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.18] - 2026-09-16
+
+### Added
+- **Multimodal Camera Streaming for Gemini Live (`packages/sdk/src/ai/useGeminiLive.ts`)**:
+  - Extended `useGeminiLive()` to support real-time camera video and image ingestion over full-duplex WebSockets.
+  - Added `sendImageChunk(base64Data, mimeType)` and `sendVideoFrame(base64Jpeg)` streaming raw camera frames into `realtimeInput.mediaChunks` alongside audio PCM streams.
+  - Added `sendMultimodalTurn(text, images)` allowing conversational prompts with attached camera snapshots.
+  - Exposed `isStreamingMedia` tracking media streaming activity.
+- **Display Hardware Actuator Controls (`packages/native/`, `packages/sdk/src/hardware/useDisplay.ts`)**:
+  - Implemented `setHighBrightnessMode(enabled)` in Kotlin native module and TypeScript hook, forcing `WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL` and Android 14+ `Window.setDesiredHdrHeadroom(3.0f)` for sunlight legibility boost.
+  - Implemented `setPreferredDisplayMode(modeId)` enabling apps to switch active panel configurations (resolution + refresh rate).
+  - Implemented `setDesiredHdrHeadroom(headroom)` for granular HDR boost control.
+  - Exposed `hdrSdrRatio` (real-time HDR to SDR ratio on Android 14+) and `isHbmActive` state on `useDisplay()`.
+- **Unit Tests & Contracts (`test/display.test.ts`, `test/live.test.ts`)**:
+  - Added test suite `test/display.test.ts` validating refresh rate bounds, HDR headroom clamping, and HBM flags.
+  - Extended `test/live.test.ts` verifying camera image frame chunks and multimodal turn payload serialization.
+  - Updated hook contracts and documentation in `pixelkit-docs` for `useDisplay` and `useGeminiLive`.
+  - Regenerated OpenAPI 3.1.0 specification (266 paths, 542 schemas).
+
 ## [1.6.17] - 2026-09-15
 
 ### Added

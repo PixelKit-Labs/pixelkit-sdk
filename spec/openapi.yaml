@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: PixelKit SDK API
-  version: 1.6.17
+  version: 1.6.18
   description: |
   OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).
   
@@ -1345,11 +1345,11 @@ paths:
                 $ref: "#/components/schemas/useDevice_refresh_Response"
   /hooks/useDisplay:
     get:
-      summary: "Refresh rate, HDR capability, brightness and the screen wake lock."
+      summary: "Refresh rate, HDR capability, brightness, high brightness mode, and the screen wake lock."
       description: |
   Reads what the screen is doing and lets you influence it. The refresh rate changes constantly on this panel to save power, so it is re-read live rather than assumed.
   
-  Display mode, supported refresh rates, HDR types and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate; the platform may ignore it, so read refreshRateHz back rather than assuming it took.
+  Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode toggles peak sunlight luminance, and setPreferredDisplayMode selects panel modes directly.
       operationId: get_useDisplay
       tags:
         - system-media
@@ -1383,6 +1383,75 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useDisplay_setPreferredRefreshRate_Response"
+  /hooks/useDisplay/actions/setHighBrightnessMode:
+    post:
+      summary: Invoke setHighBrightnessMode (useDisplay)
+      description: |
+  Engages High Brightness Mode (HBM) peak sunlight boost and maximum HDR headroom override.
+  
+  **Output Contract**: Resolves true when applied.
+      operationId: useDisplay_setHighBrightnessMode
+      tags:
+        - system-media
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/useDisplay_setHighBrightnessMode_Request"
+      responses:
+        200:
+          description: Result of invoking setHighBrightnessMode.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useDisplay_setHighBrightnessMode_Response"
+  /hooks/useDisplay/actions/setPreferredDisplayMode:
+    post:
+      summary: Invoke setPreferredDisplayMode (useDisplay)
+      description: |
+  Requests a specific display mode configuration by its numeric ID.
+  
+  **Output Contract**: Resolves true when applied.
+      operationId: useDisplay_setPreferredDisplayMode
+      tags:
+        - system-media
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/useDisplay_setPreferredDisplayMode_Request"
+      responses:
+        200:
+          description: Result of invoking setPreferredDisplayMode.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useDisplay_setPreferredDisplayMode_Response"
+  /hooks/useDisplay/actions/setDesiredHdrHeadroom:
+    post:
+      summary: Invoke setDesiredHdrHeadroom (useDisplay)
+      description: |
+  Requests desired HDR headroom ratio on Android 14+ (1.0 to 3.0+).
+  
+  **Output Contract**: Resolves true when applied.
+      operationId: useDisplay_setDesiredHdrHeadroom
+      tags:
+        - system-media
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/useDisplay_setDesiredHdrHeadroom_Request"
+      responses:
+        200:
+          description: Result of invoking setDesiredHdrHeadroom.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useDisplay_setDesiredHdrHeadroom_Response"
   /hooks/useDisplay/actions/setScreenBrightness:
     post:
       summary: Invoke setScreenBrightness (useDisplay)
@@ -1797,11 +1866,11 @@ paths:
                 $ref: "#/components/schemas/useGemini_setApiKey_Response"
   /hooks/useGeminiLive:
     get:
-      summary: "Real-time bidirectional streaming audio, text, and hardware tool execution with Gemini 3.8 Multimodal Live API."
+      summary: "Real-time bidirectional streaming audio, camera video frames, text, and hardware tool execution with Gemini 3.8 Multimodal Live API."
       description: |
-  Streams live bidirectional voice and text with Gemini in the cloud over WebSockets, executing real-time hardware diagnostics and actions with low-latency audio duplexing.
+  Streams live bidirectional voice, camera video frames, and text with Gemini in the cloud over WebSockets, executing real-time hardware diagnostics and actions with low-latency audio duplexing.
   
-  Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks from device microphones, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
+  Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks and camera image/video frames from device sensors, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
       operationId: get_useGeminiLive
       tags:
         - neural-ai
@@ -1875,6 +1944,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useGeminiLive_sendAudioChunk_Response"
+  /hooks/useGeminiLive/actions/sendImageChunk:
+    post:
+      summary: Invoke sendImageChunk (useGeminiLive)
+      description: Streams a base64 camera frame into the live multimodal session.
+      operationId: useGeminiLive_sendImageChunk
+      tags:
+        - neural-ai
+      responses:
+        200:
+          description: Result of invoking sendImageChunk.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useGeminiLive_sendImageChunk_Response"
+  /hooks/useGeminiLive/actions/sendVideoFrame:
+    post:
+      summary: Invoke sendVideoFrame (useGeminiLive)
+      description: Streams a continuous camera video frame into the live session.
+      operationId: useGeminiLive_sendVideoFrame
+      tags:
+        - neural-ai
+      responses:
+        200:
+          description: Result of invoking sendVideoFrame.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useGeminiLive_sendVideoFrame_Response"
+  /hooks/useGeminiLive/actions/sendMultimodalTurn:
+    post:
+      summary: Invoke sendMultimodalTurn (useGeminiLive)
+      description: Sends a user turn with both text and image attachments.
+      operationId: useGeminiLive_sendMultimodalTurn
+      tags:
+        - neural-ai
+      responses:
+        200:
+          description: Result of invoking sendMultimodalTurn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useGeminiLive_sendMultimodalTurn_Response"
   /hooks/useGeminiLive/actions/interrupt:
     post:
       summary: Invoke interrupt (useGeminiLive)
@@ -7443,9 +7554,9 @@ components:
     useDisplayTelemetry:
       type: object
       description: |
-  Refresh rate, HDR capability, brightness and the screen wake lock.
+  Refresh rate, HDR capability, brightness, high brightness mode, and the screen wake lock.
   
-  Display mode, supported refresh rates, HDR types and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate; the platform may ignore it, so read refreshRateHz back rather than assuming it took.
+  Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode toggles peak sunlight luminance, and setPreferredDisplayMode selects panel modes directly.
       properties:
         refreshRateHz:
           type: number
@@ -7479,12 +7590,25 @@ components:
             - type: number
             - type: null
           description: "Peak luminance the panel reports, when it reports one."
+        hdrSdrRatio:
+          anyOf:
+            - type: number
+            - type: null
+          description: "Current HDR to SDR luminance boost ratio (Android 14+ / API 34+), or null if not reported."
+        isHbmActive:
+          type: boolean
+          description: Whether High Brightness Mode (HBM) override is currently engaged.
         brightness:
           type: number
           description: Current screen brightness from 0 to 1.
         isKeepAwake:
           type: boolean
           description: Whether this app is currently holding the screen on.
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: "Latest failure message, or null."
         source:
           type: string
           enum:
@@ -7512,6 +7636,90 @@ components:
           description: Whether the hardware accepted the command.
         output:
           description: "Resolves true when the request was applied. It is a request, not a guarantee: the system may pick another mode."
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
+    useDisplay_setHighBrightnessMode_Request:
+      type: object
+      description: Request payload for setHighBrightnessMode on useDisplay.
+      properties:
+        enabled:
+          type: boolean
+          description: Whether HBM should be forced on.
+      required:
+        - enabled
+    useDisplay_setHighBrightnessMode_Response:
+      type: object
+      description: Response payload for setHighBrightnessMode on useDisplay.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: Resolves true when applied.
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
+    useDisplay_setPreferredDisplayMode_Request:
+      type: object
+      description: Request payload for setPreferredDisplayMode on useDisplay.
+      properties:
+        modeId:
+          type: number
+          description: Display mode ID from modes list.
+      required:
+        - modeId
+    useDisplay_setPreferredDisplayMode_Response:
+      type: object
+      description: Response payload for setPreferredDisplayMode on useDisplay.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: Resolves true when applied.
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
+    useDisplay_setDesiredHdrHeadroom_Request:
+      type: object
+      description: Request payload for setDesiredHdrHeadroom on useDisplay.
+      properties:
+        headroom:
+          type: number
+          description: Desired HDR headroom multiplier.
+      required:
+        - headroom
+    useDisplay_setDesiredHdrHeadroom_Response:
+      type: object
+      description: Response payload for setDesiredHdrHeadroom on useDisplay.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: Resolves true when applied.
         error:
           anyOf:
             - type: string
@@ -8148,9 +8356,9 @@ components:
     useGeminiLiveTelemetry:
       type: object
       description: |
-  Real-time bidirectional streaming audio, text, and hardware tool execution with Gemini 3.8 Multimodal Live API.
+  Real-time bidirectional streaming audio, camera video frames, text, and hardware tool execution with Gemini 3.8 Multimodal Live API.
   
-  Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks from device microphones, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
+  Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks and camera image/video frames from device sensors, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
       properties:
         isConnected:
           type: boolean
@@ -8164,6 +8372,9 @@ components:
         isListening:
           type: boolean
           description: Whether the client is streaming microphone audio chunks to the server.
+        isStreamingMedia:
+          type: boolean
+          description: Whether the client is actively streaming media (camera video frames or images) to the server.
         transcript:
           type: array
           items:
@@ -8265,6 +8476,75 @@ components:
     useGeminiLive_sendAudioChunk_Response:
       type: object
       description: Response payload for sendAudioChunk on useGeminiLive.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: Result description
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
+    useGeminiLive_sendImageChunk_Request:
+      type: object
+      description: Request payload for sendImageChunk on useGeminiLive.
+      properties:{}
+    useGeminiLive_sendImageChunk_Response:
+      type: object
+      description: Response payload for sendImageChunk on useGeminiLive.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: Result description
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
+    useGeminiLive_sendVideoFrame_Request:
+      type: object
+      description: Request payload for sendVideoFrame on useGeminiLive.
+      properties:{}
+    useGeminiLive_sendVideoFrame_Response:
+      type: object
+      description: Response payload for sendVideoFrame on useGeminiLive.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: Result description
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
+    useGeminiLive_sendMultimodalTurn_Request:
+      type: object
+      description: Request payload for sendMultimodalTurn on useGeminiLive.
+      properties:{}
+    useGeminiLive_sendMultimodalTurn_Response:
+      type: object
+      description: Response payload for sendMultimodalTurn on useGeminiLive.
       properties:
         success:
           type: boolean

@@ -202,6 +202,37 @@ class PixelNativeModule : Module() {
       true
     }.runOnQueue(Queues.MAIN)
 
+    AsyncFunction("setHighBrightnessMode") { enabled: Boolean ->
+      val activity = appContext.currentActivity ?: throw NativeUnavailableException("Activity", "not resumed")
+      val window = activity.window
+      val attrs = window.attributes
+      attrs.screenBrightness = if (enabled) WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+      window.attributes = attrs
+      if (Build.VERSION.SDK_INT >= 34) {
+        window.setDesiredHdrHeadroom(if (enabled) 3.0f else 0.0f)
+      }
+      true
+    }.runOnQueue(Queues.MAIN)
+
+    AsyncFunction("setPreferredDisplayMode") { modeId: Int ->
+      val activity = appContext.currentActivity ?: throw NativeUnavailableException("Activity", "not resumed")
+      val window = activity.window
+      val attrs = window.attributes
+      attrs.preferredDisplayModeId = modeId
+      window.attributes = attrs
+      true
+    }.runOnQueue(Queues.MAIN)
+
+    AsyncFunction("setDesiredHdrHeadroom") { headroom: Double ->
+      if (Build.VERSION.SDK_INT >= 34) {
+        val activity = appContext.currentActivity ?: throw NativeUnavailableException("Activity", "not resumed")
+        activity.window.setDesiredHdrHeadroom(headroom.toFloat())
+        true
+      } else {
+        false
+      }
+    }.runOnQueue(Queues.MAIN)
+
     // ───────────────────────── GPU ─────────────────────────
     Function("getGpuInfo") { gpuInfo() }
 
@@ -1702,6 +1733,7 @@ class PixelNativeModule : Module() {
       "maxAverageLuminance" to hdr?.desiredMaxAverageLuminance,
       "isHdr" to d.isHdr,
       "isWideColorGamut" to d.isWideColorGamut,
+      "hdrSdrRatio" to if (Build.VERSION.SDK_INT >= 34) try { d.hdrSdrRatio } catch (e: Throwable) { null } else null,
       "hasArrSupport" to arr,
       "supportedRefreshRates" to rates,
       "suggestedFrameRateHigh" to suggestedHigh,

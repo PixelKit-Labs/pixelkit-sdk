@@ -79,11 +79,40 @@ export function useDisplay() {
     }
   }, []);
 
+  const [isHbmActive, setIsHbmActive] = useState<boolean>(false);
+
   /** Ask the system for a preferred refresh rate for this window (e.g. 120 during animation, 60 otherwise). */
   const setPreferredRefreshRate = useCallback(async (rateHz: number): Promise<boolean> => {
     if (!PixelNative) return false;
     try { return await PixelNative.setPreferredRefreshRate(rateHz); }
     catch (e: any) { logEvent(MODULE, 'setPreferredRefreshRate error', { message: e?.message }, 'warn'); return false; }
+  }, []);
+
+  /** Toggles High Brightness Mode (HBM) / peak luminance boost for sunlight legibility or HDR presentation. */
+  const setHighBrightnessMode = useCallback(async (enabled: boolean): Promise<boolean> => {
+    if (!PixelNative) return false;
+    try {
+      const res = await PixelNative.setHighBrightnessMode(enabled);
+      if (res) setIsHbmActive(enabled);
+      return res;
+    } catch (e: any) {
+      logEvent(MODULE, 'setHighBrightnessMode error', { message: e?.message }, 'warn');
+      return false;
+    }
+  }, []);
+
+  /** Requests a specific physical display mode by ID (resolution + refresh rate configuration). */
+  const setPreferredDisplayMode = useCallback(async (modeId: number): Promise<boolean> => {
+    if (!PixelNative) return false;
+    try { return await PixelNative.setPreferredDisplayMode(modeId); }
+    catch (e: any) { logEvent(MODULE, 'setPreferredDisplayMode error', { message: e?.message }, 'warn'); return false; }
+  }, []);
+
+  /** Requests desired HDR headroom ratio on Android 14+ (1.0 = standard SDR, up to 3.0+ = peak HDR boost). */
+  const setDesiredHdrHeadroom = useCallback(async (headroom: number): Promise<boolean> => {
+    if (!PixelNative) return false;
+    try { return await PixelNative.setDesiredHdrHeadroom(headroom); }
+    catch (e: any) { logEvent(MODULE, 'setDesiredHdrHeadroom error', { message: e?.message }, 'warn'); return false; }
   }, []);
 
   return {
@@ -103,7 +132,14 @@ export function useDisplay() {
     hdrTypes: display?.hdrTypes ?? [],
     isHdr: display?.isHdr ?? false,
     maxLuminance: display?.maxLuminance ?? null,
+    /** Current HDR to SDR luminance boost ratio (Android 14+ / API 34+), or null if not reported */
+    hdrSdrRatio: display?.hdrSdrRatio ?? null,
+    /** Whether High Brightness Mode (HBM) override is currently engaged */
+    isHbmActive,
     setPreferredRefreshRate,
+    setHighBrightnessMode,
+    setPreferredDisplayMode,
+    setDesiredHdrHeadroom,
     /** Latest failure message, or null. Failures are also logged and counted. */
     error,
     /** Telemetry provenance */

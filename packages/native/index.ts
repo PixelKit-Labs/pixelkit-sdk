@@ -37,6 +37,7 @@ export type DisplayInfo = {
   refreshRate: number; modeId: number; physicalWidth: number; physicalHeight: number; densityDpi: number;
   modes: DisplayMode[]; hdrTypes: number[] | null; maxLuminance: number | null; maxAverageLuminance: number | null;
   isHdr: boolean; isWideColorGamut: boolean; hasArrSupport: boolean | null; supportedRefreshRates: number[] | null;
+  hdrSdrRatio?: number | null;
   suggestedFrameRateHigh: number | null; suggestedFrameRateNormal: number | null;
 };
 
@@ -440,6 +441,9 @@ declare class PixelNativeModule extends NativeModule<Events> {
   getThermal(): ThermalInfo;
   getDisplayInfo(): DisplayInfo;
   setPreferredRefreshRate(rate: number): Promise<boolean>;
+  setHighBrightnessMode(enabled: boolean): Promise<boolean>;
+  setPreferredDisplayMode(modeId: number): Promise<boolean>;
+  setDesiredHdrHeadroom(headroom: number): Promise<boolean>;
   getGpuInfo(): GpuInfo;
   getTorchInfo(): TorchInfo;
   setTorch(on: boolean, strengthLevel?: number | null): Promise<boolean>;

@@ -45,6 +45,8 @@ export interface GeminiLiveTelemetry {
   isSpeaking: boolean;
   /** Whether the client is streaming microphone audio chunks to the server. */
   isListening: boolean;
+  /** Whether the client is actively streaming media (camera video frames or images) to the server. */
+  isStreamingMedia: boolean;
   /** Real-time transcript of conversational dialogue. */
   transcript: LiveMessage[];
   /** Latest reasoning thoughts emitted by the model during extended thinking. */
@@ -63,6 +65,12 @@ export interface GeminiLiveTelemetry {
   sendText: (text: string) => void;
   /** Streams a base64 PCM audio chunk (16kHz 16-bit mono) from the microphone array. */
   sendAudioChunk: (pcmBase64: string) => void;
+  /** Streams a base64 camera image/video frame into the real-time multimodal live session. */
+  sendImageChunk: (base64Data: string, mimeType?: string) => void;
+  /** Streams a continuous camera video frame (JPEG base64) into the real-time live session. */
+  sendVideoFrame: (base64Jpeg: string) => void;
+  /** Sends a multimodal user turn containing both text and image attachments. */
+  sendMultimodalTurn: (text: string, images?: Array<{ data: string; mimeType?: string }>) => void;
   /** Signals the model to interrupt speech immediately. */
   interrupt: () => void;
   /** Clears the transcript and active tool calls. */
@@ -74,6 +82,7 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isStreamingMedia, setIsStreamingMedia] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<LiveMessage[]>([]);
   const [currentThinking, setCurrentThinking] = useState<string | null>(null);
   const [activeToolCalls, setActiveToolCalls] = useState<LiveToolCall[]>([]);
@@ -93,6 +102,7 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     setIsStreaming(false);
     setIsSpeaking(false);
     setIsListening(false);
+    setIsStreamingMedia(false);
     logEvent(MODULE, 'disconnected', {});
   }, []);
 
@@ -284,6 +294,7 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
             setIsStreaming(false);
             setIsSpeaking(false);
             setIsListening(false);
+            setIsStreamingMedia(false);
             logEvent(MODULE, 'socket_closed', {});
           };
         });
@@ -346,6 +357,79 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     [],
   );
 
+  const sendImageChunk = useCallback(
+    (base64Data: string, mimeType: string = 'image/jpeg') => {
+      if (!base64Data || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+
+      setIsStreamingMedia(true);
+      const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
+      const imageMsg = {
+        realtimeInput: {
+          mediaChunks: [
+            {
+              mimeType,
+              data: cleanBase64,
+            },
+          ],
+        },
+      };
+
+      socketRef.current.send(JSON.stringify(imageMsg));
+      logEvent(MODULE, 'image_chunk_sent', { mimeType, bytes: cleanBase64.length });
+    },
+    [],
+  );
+
+  const sendVideoFrame = useCallback(
+    (base64Jpeg: string) => {
+      sendImageChunk(base64Jpeg, 'image/jpeg');
+    },
+    [sendImageChunk],
+  );
+
+  const sendMultimodalTurn = useCallback(
+    (text: string, images?: Array<{ data: string; mimeType?: string }>) => {
+      const q = text.trim();
+      if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+      if (!q && (!images || images.length === 0)) return;
+
+      setTranscript(prev => [
+        ...prev,
+        { id: `u-${Date.now()}`, role: 'user', text: q || '[Attached Image Frame]', timestamp: Date.now() },
+      ]);
+
+      const parts: Array<Record<string, unknown>> = [];
+      if (q) parts.push({ text: q });
+      if (images && images.length > 0) {
+        for (const img of images) {
+          const clean = img.data.replace(/^data:image\/[a-z]+;base64,/, '');
+          parts.push({
+            inlineData: {
+              mimeType: img.mimeType || 'image/jpeg',
+              data: clean,
+            },
+          });
+        }
+      }
+
+      const clientMsg = {
+        clientContent: {
+          turns: [
+            {
+              role: 'user',
+              parts,
+            },
+          ],
+          turnComplete: true,
+        },
+      };
+
+      socketRef.current.send(JSON.stringify(clientMsg));
+      logEvent(MODULE, 'multimodal_turn_sent', { text: q, imageCount: images?.length ?? 0 });
+    },
+    [],
+  );
+
   const interrupt = useCallback(() => {
     setIsSpeaking(false);
     setIsStreaming(false);
@@ -372,6 +456,7 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     isStreaming,
     isSpeaking,
     isListening,
+    isStreamingMedia,
     transcript,
     currentThinking,
     activeToolCalls,
@@ -381,6 +466,9 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     disconnect,
     sendText,
     sendAudioChunk,
+    sendImageChunk,
+    sendVideoFrame,
+    sendMultimodalTurn,
     interrupt,
     clearTranscript,
   };

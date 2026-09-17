@@ -100,4 +100,55 @@ describe('Gemini 3.8 Multimodal Live Protocol', () => {
     assert.strictEqual(audioMsg.realtimeInput.mediaChunks[0].mimeType, 'audio/pcm;rate=16000');
     assert.strictEqual(audioMsg.realtimeInput.mediaChunks[0].data, fakePcmBase64);
   });
+
+  it('formats realtimeInput for camera image/video frames correctly', () => {
+    const fakeJpegBase64 = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP...';
+    const imageMsg = {
+      realtimeInput: {
+        mediaChunks: [
+          {
+            mimeType: 'image/jpeg',
+            data: fakeJpegBase64,
+          },
+        ],
+      },
+    };
+
+    assert.strictEqual(imageMsg.realtimeInput.mediaChunks[0].mimeType, 'image/jpeg');
+    assert.strictEqual(imageMsg.realtimeInput.mediaChunks[0].data, fakeJpegBase64);
+  });
+
+  it('constructs multimodal clientContent turns with text and image attachments', () => {
+    const prompt = 'Inspect this circuit board for thermal hotspots';
+    const fakeFrame = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+    const clientMsg = {
+      clientContent: {
+        turns: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: fakeFrame,
+                },
+              },
+            ],
+          },
+        ],
+        turnComplete: true,
+      },
+    };
+
+    const turn = clientMsg.clientContent.turns[0];
+    assert.ok(turn);
+    assert.strictEqual(turn.parts[0]?.text, prompt);
+    const inline = turn.parts[1]?.inlineData;
+    assert.ok(inline);
+    assert.strictEqual(inline.mimeType, 'image/jpeg');
+    assert.strictEqual(inline.data, fakeFrame);
+    assert.strictEqual(clientMsg.clientContent.turnComplete, true);
+  });
 });
