@@ -175,7 +175,7 @@ export function useGeminiNano() {
   }, []);
 
   /** Chat turn with streaming. Tokens accumulate in `partial` until the reply is appended to `messages`. */
-  const sendMessage = useCallback(async (userPrompt: string): Promise<void> => {
+  const sendMessage = useCallback(async (userPrompt: string, sendOptions?: Partial<NanoOptions>): Promise<void> => {
     const prompt = userPrompt.trim();
     if (!prompt) return;
     const now = Date.now();
@@ -212,6 +212,7 @@ export function useGeminiNano() {
         maxOutputTokens,
         thinking: thinkingMode && info?.thinkingModeAvailable === true,
         ...(useSystemPart ? { systemInstruction } : {}),
+        ...sendOptions,
       };
 
       const res = await PixelNano.stream(requestId, text, options);
