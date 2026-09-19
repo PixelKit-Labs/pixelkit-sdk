@@ -1,0 +1,10 @@
+[mcp_servers.artemis]
+command = "artemis"
+args = ["mcp"]
+
+[mcp_servers.artemis.env]
+PYTHONUNBUFFERED = "1"
+ARTEMIS_DESKTOP_NOTIFY = "true"
+
+[mcp_servers.expo]
+url = "https://mcp.expo.dev/mcp"
