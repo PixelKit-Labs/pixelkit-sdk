@@ -67,9 +67,17 @@ class PixelNativeModule : Module() {
 
   private val mainHandler = Handler(Looper.getMainLooper())
   private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
+  // Unsupported headroom is a device capability, not a transient sampling failure.
+  private val unavailableHeadroomKinds = mutableSetOf<String>()
+  private var lastThermalSampleAt: Long? = null
+  private var lastThermalSample: Double? = null
+  private val deniedSysPaths = mutableSetOf<String>()
+  private val sysReadErrors = mutableMapOf<String, String>()
   private var frameCallback: Choreographer.FrameCallback? = null
   private var torchCallback: CameraManager.TorchCallback? = null
   private var speechRecognizer: android.speech.SpeechRecognizer? = null
+  private var speechStartPromise: expo.modules.kotlin.Promise? = null
+  private var speechStartTimeout: Runnable? = null
   private var bleScanCallback: ScanCallback? = null
   /** Active NFC reader-mode callback; non-null only while the reader is running. */
   private var nfcReaderCallback: NfcAdapter.ReaderCallback? = null
@@ -163,12 +171,12 @@ class PixelNativeModule : Module() {
     // ───────────────────────── Thermal / ADPF ─────────────────────────
     Function("getThermal") {
       val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-      val headroom = try { pm.getThermalHeadroom(0) } catch (e: Throwable) { Float.NaN }
+      val headroom = thermalHeadroom(pm)
       val thresholds: Map<String, Float>? = if (Build.VERSION.SDK_INT >= 35) {
         try { pm.thermalHeadroomThresholds.entries.associate { it.key.toString() to it.value } } catch (e: Throwable) { null }
       } else null
       mapOf(
-        "thermalHeadroom" to (if (headroom.isNaN()) null else headroom.toDouble()),
+        "thermalHeadroom" to headroom,
         "thermalStatus" to pm.currentThermalStatus,
         "thresholds" to thresholds,
         "cpuHeadroom" to healthHeadroom("Cpu"),
@@ -449,18 +457,25 @@ class PixelNativeModule : Module() {
 
     // ───────────────────────── Speech Recognition (On-Device / Offline STT) ─────────────────────────
     Function("isOfflineSpeechAvailable") {
-      if (Build.VERSION.SDK_INT >= 33) {
+      if (Build.VERSION.SDK_INT >= 31) {
         android.speech.SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
       } else {
         false
       }
     }
 
-    Function("startSpeechRecognition") { requestId: String, onDevice: Boolean ->
+    AsyncFunction("startSpeechRecognition") { requestId: String, onDevice: Boolean, promise: expo.modules.kotlin.Promise ->
       mainHandler.post {
+        if (speechRecognizer != null) {
+          promise.reject("ERR_SPEECH_BUSY", "Speech recognition is already active", null)
+          return@post
+        }
+        speechStartPromise = promise
         try {
-          speechRecognizer?.destroy()
-          val recognizer = if (onDevice && Build.VERSION.SDK_INT >= 33 && android.speech.SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
+          if (onDevice && (Build.VERSION.SDK_INT < 31 || !android.speech.SpeechRecognizer.isOnDeviceRecognitionAvailable(context))) {
+            throw IllegalStateException("On-device speech recognition unavailable; cloud recognition was not started")
+          }
+          val recognizer = if (onDevice) {
             android.speech.SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
           } else {
             android.speech.SpeechRecognizer.createSpeechRecognizer(context)
@@ -477,14 +492,22 @@ class PixelNativeModule : Module() {
           }
 
           recognizer.setRecognitionListener(object : android.speech.RecognitionListener {
-            override fun onReadyForSpeech(params: android.os.Bundle?) {}
+            override fun onReadyForSpeech(params: android.os.Bundle?) {
+              if (speechRecognizer !== recognizer) return
+              speechStartTimeout?.let { mainHandler.removeCallbacks(it) }
+              speechStartTimeout = null
+              speechStartPromise?.resolve(true)
+              speechStartPromise = null
+            }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {
+              if (speechRecognizer !== recognizer) return
               sendEvent("onSpeechRms", mapOf("requestId" to requestId, "rmsdB" to rmsdB))
             }
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onError(error: Int) {
+              if (speechRecognizer !== recognizer) return
               val msg = when (error) {
                 android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
                 android.speech.SpeechRecognizer.ERROR_CLIENT -> "Client side error"
@@ -494,17 +517,24 @@ class PixelNativeModule : Module() {
                 android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognized"
                 android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer busy"
                 android.speech.SpeechRecognizer.ERROR_SERVER -> "Server error"
+                android.speech.SpeechRecognizer.ERROR_SERVER_DISCONNECTED -> "Speech recognition service disconnected (11)"
+                android.speech.SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "Speech recognition language not supported"
+                android.speech.SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "Speech recognition language unavailable on device"
                 android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
                 else -> "Recognition error ($error)"
               }
+              releaseSpeechRecognition("ERR_SPEECH_$error", msg)
               sendEvent("onSpeechError", mapOf("requestId" to requestId, "error" to msg, "code" to error))
             }
             override fun onResults(results: android.os.Bundle?) {
+              if (speechRecognizer !== recognizer) return
               val matches = results?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
               val text = matches?.firstOrNull() ?: ""
+              releaseSpeechRecognition("ERR_SPEECH_ENDED", "Recognition ended before readiness")
               sendEvent("onSpeechResult", mapOf("requestId" to requestId, "text" to text, "isFinal" to true))
             }
             override fun onPartialResults(partialResults: android.os.Bundle?) {
+              if (speechRecognizer !== recognizer) return
               val matches = partialResults?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
               val text = matches?.firstOrNull() ?: ""
               sendEvent("onSpeechPartial", mapOf("requestId" to requestId, "text" to text))
@@ -512,30 +542,34 @@ class PixelNativeModule : Module() {
             override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
           })
 
+          speechStartTimeout = Runnable {
+            if (speechRecognizer === recognizer && speechStartPromise != null) {
+              val message = "Speech recognizer did not become ready within 10 seconds"
+              releaseSpeechRecognition("ERR_SPEECH_START_TIMEOUT", message)
+              sendEvent("onSpeechError", mapOf("requestId" to requestId, "error" to message))
+            }
+          }.also { mainHandler.postDelayed(it, 10_000L) }
           recognizer.startListening(intent)
         } catch (e: Throwable) {
+          releaseSpeechRecognition("ERR_SPEECH_START", e.message ?: "Failed to start speech recognition")
           sendEvent("onSpeechError", mapOf("requestId" to requestId, "error" to (e.message ?: "Failed to start speech recognition")))
         }
       }
-      true
     }
 
     Function("stopSpeechRecognition") {
       mainHandler.post {
         try {
-          speechRecognizer?.stopListening()
-        } catch (_: Throwable) {}
+          if (speechStartPromise != null) releaseSpeechRecognition("ERR_SPEECH_CANCELLED", "Recognition stopped before readiness")
+          else speechRecognizer?.stopListening()
+        } catch (e: Exception) { releaseSpeechRecognition("ERR_SPEECH_STOP", e.message ?: "Could not stop recognition") }
       }
       true
     }
 
     Function("cancelSpeechRecognition") {
       mainHandler.post {
-        try {
-          speechRecognizer?.cancel()
-          speechRecognizer?.destroy()
-          speechRecognizer = null
-        } catch (_: Throwable) {}
+        releaseSpeechRecognition("ERR_SPEECH_CANCELLED", "Speech recognition cancelled")
       }
       true
     }
@@ -799,7 +833,7 @@ class PixelNativeModule : Module() {
         }
         "getSiliconStatus" -> {
           val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-          val headroom = if (Build.VERSION.SDK_INT >= 30) pm.getThermalHeadroom(10) else -1.0f
+          val headroom = thermalHeadroom(pm)
           val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
           val mem = ActivityManager.MemoryInfo()
           am.getMemoryInfo(mem)
@@ -929,8 +963,7 @@ class PixelNativeModule : Module() {
       } catch (_: Throwable) {}
       mainHandler.post {
         try {
-          speechRecognizer?.destroy()
-          speechRecognizer = null
+          releaseSpeechRecognition("ERR_SPEECH_CANCELLED", "Speech module destroyed")
         } catch (_: Throwable) {}
       }
     }
@@ -1461,7 +1494,67 @@ class PixelNativeModule : Module() {
   private fun defaultDisplay(): Display =
     (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
 
-  private fun readSys(path: String): String? = try { File(path).readText().trim() } catch (e: Throwable) { null }
+  /** Main-thread only. Invalidate the session before destroying it to ignore late callbacks. */
+  private fun releaseSpeechRecognition(code: String, message: String) {
+    speechStartTimeout?.let { mainHandler.removeCallbacks(it) }
+    speechStartTimeout = null
+    val pending = speechStartPromise
+    speechStartPromise = null
+    val recognizer = speechRecognizer
+    speechRecognizer = null
+    pending?.reject(code, message, null)
+    try { recognizer?.destroy() } catch (e: Exception) {
+      android.util.Log.w("PixelKit", "Speech recognizer cleanup failed: ${e.message}")
+    }
+  }
+
+  /** Share Android's sampling budget across hook instances and native tool callers. */
+  @Synchronized
+  private fun thermalHeadroom(pm: PowerManager): Double? {
+    if (Build.VERSION.SDK_INT < 30) return null
+    val now = SystemClock.elapsedRealtime()
+    val previous = lastThermalSampleAt
+    if (previous != null && now - previous < 10_000L) return lastThermalSample
+    // Count failed/NaN attempts too: immediate retries can prolong Android's rate limit.
+    lastThermalSampleAt = now
+    lastThermalSample = try {
+      pm.getThermalHeadroom(0).toDouble().takeIf { it.isFinite() && it >= 0.0 }
+    } catch (e: Exception) {
+      android.util.Log.w("PixelKit", "thermalHeadroom unavailable: ${e.javaClass.simpleName}: ${e.message}")
+      null
+    }
+    android.util.Log.d("PixelKit", "thermalHeadroom sampled: elapsedRealtimeMs=$now, value=$lastThermalSample")
+    return lastThermalSample
+  }
+
+  /** Cache access denial only, never a reading or a temporarily absent sysfs node. */
+  @Synchronized
+  internal fun readSys(path: String): String? {
+    if (path in deniedSysPaths) return null
+    return try {
+      val value = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(path)).toString(Charsets.UTF_8).trim()
+      sysReadErrors.remove(path)
+      value
+    } catch (e: Exception) {
+      recordSysFailure(path, e)
+      null
+    }
+  }
+
+  @Synchronized
+  internal fun sysReadError(paths: List<String>): String? = paths.mapNotNull { sysReadErrors[it] }.distinct().joinToString("; ").ifEmpty { null }
+
+  private fun recordSysFailure(path: String, error: Exception) {
+    if (error is java.nio.file.NoSuchFileException) {
+      sysReadErrors.remove(path)
+      return
+    }
+    val denied = error is java.nio.file.AccessDeniedException || error is SecurityException
+    val message = "$path: ${if (denied) "access denied" else error.message ?: error.javaClass.simpleName}"
+    sysReadErrors[path] = message
+    if (denied && path.startsWith("/sys/")) deniedSysPaths.add(path)
+    android.util.Log.w("PixelKit", "sysfs unavailable: $message")
+  }
 
   /** Per-core "CPU part" ids parsed from /proc/cpuinfo (index → part hex string). */
   private fun corePartIds(): Map<Int, String> {
@@ -1655,12 +1748,14 @@ class PixelNativeModule : Module() {
     )
   }
 
+  @Synchronized
   private fun thermalZones(): List<Map<String, Any?>> {
     val zones = mutableListOf<Map<String, Any?>>()
+    val path = "/sys/class/thermal"
+    if (path in deniedSysPaths) return zones
     try {
-      val dir = File("/sys/class/thermal")
-      if (dir.exists() && dir.canRead()) {
-        val files = dir.listFiles { d -> d.name.startsWith("thermal_zone") } ?: emptyArray()
+      java.nio.file.Files.newDirectoryStream(java.nio.file.Paths.get(path), "thermal_zone*").use { entries ->
+        val files = entries.map { it.toFile() }
         for (z in files.sortedBy { it.name }) {
           val type = readSys("${z.absolutePath}/type")
           val tempRaw = readSys("${z.absolutePath}/temp")?.toLongOrNull()
@@ -1672,44 +1767,32 @@ class PixelNativeModule : Module() {
           }
         }
       }
-    } catch (_: Throwable) {}
+    } catch (e: Exception) { recordSysFailure(path, e) }
     return zones
   }
 
-  /** SystemHealthManager.get{Cpu,Gpu}Headroom (Android 16+) via reflection with proper Parameter builder. */
-  private fun healthHeadroom(kind: String): Double? = try {
-    if (Build.VERSION.SDK_INT < 36) null else {
+  /** Android returns CPU/GPU capacity percentages (0..100); expose fractions (0..1). */
+  @Synchronized
+  private fun healthHeadroom(kind: String): Double? {
+    if (Build.VERSION.SDK_INT < 36 || kind in unavailableHeadroomKinds) return null
+    return try {
       val shm = context.getSystemService("systemhealth") ?: return null
-      val builderCls = Class.forName("android.os.${kind}HeadroomParams\$Builder")
-      val builder = builderCls.getConstructor().newInstance()
-
-      try {
-        val setWindowMethod = builderCls.getMethod("setCalculationWindowMillis", Int::class.javaPrimitiveType)
-        setWindowMethod.invoke(builder, 500)
-      } catch (_: Throwable) {}
-
-      try {
-        val setTypeMethod = builderCls.getMethod("setCalculationType", Int::class.javaPrimitiveType)
-        setTypeMethod.invoke(builder, 1) // 1 = AVERAGE
-      } catch (_: Throwable) {}
-
-      val params = builderCls.getMethod("build").invoke(builder) ?: return null
-      val m = shm.javaClass.getMethod("get${kind}Headroom", params.javaClass)
-      val res = m.invoke(shm, params)
-      when (res) {
-        is Number -> {
-          val v = res.toDouble()
-          if (!v.isNaN() && v >= 0.0) {
-            if (v > 1.0) v / 100.0 else v
-          } else null
+      val paramsClass = Class.forName("android.os.${kind}HeadroomParams")
+      // Null selects device defaults. A hard-coded calculation window need not be supported.
+      val result = shm.javaClass.getMethod("get${kind}Headroom", paramsClass).invoke(shm, null)
+      val percent = (result as? Number)?.toDouble() ?: return null
+      if (percent.isFinite() && percent in 0.0..100.0) percent / 100.0 else null
+    } catch (e: Exception) {
+      val cause = if (e is java.lang.reflect.InvocationTargetException) e.targetException else e
+      when (cause) {
+        is UnsupportedOperationException, is ClassNotFoundException, is NoSuchMethodException -> {
+          unavailableHeadroomKinds.add(kind)
+          android.util.Log.i("PixelKit", "healthHeadroom($kind) unavailable: ${cause.javaClass.simpleName}; further probes disabled for this module")
         }
-        else -> null
+        else -> android.util.Log.w("PixelKit", "healthHeadroom($kind) failed: ${cause.javaClass.name}: ${cause.message}")
       }
+      null
     }
-  } catch (e: Throwable) {
-    val cause = if (e is java.lang.reflect.InvocationTargetException) e.targetException else e
-    android.util.Log.w("PixelKit", "healthHeadroom($kind) failed: ${cause.javaClass.name}: ${cause.message}")
-    null
   }
 
   private fun displayInfo(): Map<String, Any?> {

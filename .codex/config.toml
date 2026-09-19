@@ -6,5 +6,17 @@ args = ["mcp"]
 PYTHONUNBUFFERED = "1"
 ARTEMIS_DESKTOP_NOTIFY = "true"
 
+[mcp_servers.artemis.tools.mobile_run_task]
+approval_mode = "approve"
+
+[mcp_servers.artemis.tools.mobile_manage_task]
+approval_mode = "approve"
+
+[mcp_servers.artemis.tools.mobile_diagnose]
+approval_mode = "approve"
+
+[mcp_servers.artemis.tools.mobile_get_device_state]
+approval_mode = "approve"
+
 [mcp_servers.expo]
 url = "https://mcp.expo.dev/mcp"

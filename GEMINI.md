@@ -50,6 +50,16 @@ PixelKit is several repositories in the PixelKit-Labs organisation, and a change
 
 8. **Coordinate with other agents.** Run `git status` and `git log --oneline -5` before editing and `git pull --rebase` before pushing; another agent may have committed. Prefer targeted edits over whole-file rewrites on files touched recently by others.
 
+## Living Delta system guide and implementation evidence
+
+Delta is the user's personal assistant (she). Treat the agent harness, tools, memory, voice, perception, integrations and presentation as explicit subsystem responsibilities.
+
+- On every change, check whether the local system guide's chapters, diagrams, references, glossary, feature status or design decisions need to be added, updated, corrected, moved or deleted. Do not leave obsolete claims or disconnected functionality presented as working. The canonical guide is pixelkit-sdk/docs/harness-review/ (the SDK checkout may be named Pixel delta); Delta Mobile uses the sibling guide. Keep its local site current by running node docs/harness-review/build-site.mjs from the SDK repository. Record unchanged guide sections explicitly in the change's verification notes when no update is needed.
+- Document work in chapters, with source/build references, a glossary, observed evidence, open questions and an implementation/decision log. Distinguish proposed architecture from implemented and device-verified flows. Elicit user feedback on form and function at meaningful design checkpoints; never treat an unanswered proposal as accepted.
+- Clear, reversible user requests execute immediately through the normal tool boundary, followed by brief verified confirmation. Model prose cannot authorize hardware actions. Explain Nano limitations and ask before cloud fallback; optional JEV integration must disclose its cloud data use and remain independent of the core harness.
+- After each implementation increment, run appropriate checks plus real end-to-end exploration/verification and benchmarks on the authorized USB phone. Use the Android USB ADB skill and ARTEMIS; establish exact UI paths before authoring mobile tests. Record device serial, app/native/JS build identity, scenario, repeats, successes/failures, measured timing and trace/artifact references. Never count agent/model exploration latency as application performance or hide flakes with unreported retries. Unavailable infrastructure or credentials means the affected check is unverified, not passed.
+- Keep optional providers optional: disabling JEV, missing credentials, timeouts or provider errors must preserve the local harness, tool validation, capability checks and confirmation policy. Do not replace provider failures with fabricated model confidence or tool success.
+
 ## Validation
 
 - `npm run verify`: runs `typecheck`, `test`, `build`, and `check-docs`. `check-docs` clones pixelkit-docs, so it checks against what is pushed there, not a local copy — pass a path to `node scripts/check-docs-contract.js <data/hooks>` to check unpushed changes.

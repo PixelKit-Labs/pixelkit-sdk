@@ -479,6 +479,7 @@ declare class PixelNativeModule extends NativeModule<Events> {
   startUwbRanging(sessionId?: number): Promise<UwbRangingResult>;
   stopUwbRanging(): boolean;
   isOfflineSpeechAvailable(): boolean;
+  /** Resolves true on service readiness; rejects startup failure, timeout, cancellation or busy state. */
   startSpeechRecognition(requestId: string, onDevice: boolean): Promise<boolean>;
   stopSpeechRecognition(): boolean;
   cancelSpeechRecognition(): boolean;

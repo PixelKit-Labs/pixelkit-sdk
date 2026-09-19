@@ -1,9 +1,8 @@
 /**
  * @file useSpeechAI.ts
- * @description Voice capture (expo-audio via useAudio) and transcription through Gemini's audio
- * understanding. Without an API key the recording is kept and an error is returned; there is no
- * simulated transcript. On-device streaming recognition (ML Kit GenAI Speech Recognition) is the
- * planned replacement; see docs/guides/voice.md.
+ * @description Android on-device streaming recognition, or explicitly selected cloud recording
+ * and Gemini transcription. Native startup waits for recognition-service readiness; an unavailable
+ * on-device recognizer never silently switches to the default/cloud recognition service.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -12,10 +11,12 @@ import * as FileSystem from 'expo-file-system';
 import { useAudio } from '../hardware/useAudio';
 import { SpeechTranscriptionResult } from '../core/types';
 import { getStoredApiKey, createGeminiClient, GEMINI_MODEL, NO_API_KEY_MESSAGE } from './geminiClient';
-import { logEvent, recordMetric, noteExpected, type TelemetrySource } from '../core/observability';
+import { logEvent, recordMetric, noteExpected, traced, type TelemetrySource } from '../core/observability';
 import PixelNative from '@pixelkit-labs/native';
 
 const MODULE = 'useSpeechAI';
+let nativeSpeechOwner: symbol | null = null;
+let speechRequestSequence = 0;
 
 export function useSpeechAI() {
   const audio = useAudio();
@@ -34,6 +35,8 @@ export function useSpeechAI() {
   const source: TelemetrySource = isOfflineAvailable ? 'hardware' : 'unavailable';
 
   const currentRequestIdRef = useRef<string | null>(null);
+  const ownerRef = useRef(Symbol('speech-recognition'));
+  const mountedRef = useRef(true);
   const startTimeRef = useRef<number | null>(null);
   const webRecognitionRef = useRef<any>(null);
   const webTranscriptRef = useRef<string>('');
@@ -50,7 +53,9 @@ export function useSpeechAI() {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     if (!PixelNative) return;
+    const native = PixelNative;
     const s1 = PixelNative.addListener('onSpeechPartial', e => {
       if (e.requestId === currentRequestIdRef.current) {
         setStreamingPartial(e.text);
@@ -62,12 +67,14 @@ export function useSpeechAI() {
         const latencyMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
         const result: SpeechTranscriptionResult = {
           transcript: e.text,
-          confidence: 0.98,
+          confidence: null,
           durationSeconds,
           latencyMs,
           language: 'auto (on-device ASI)',
         };
         setLastTranscript(result);
+        currentRequestIdRef.current = null;
+        if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
         setStreamingPartial('');
         setIsListening(false);
         recordMetric(MODULE, 'onDeviceLatencyMs', latencyMs, 'hardware');
@@ -82,12 +89,21 @@ export function useSpeechAI() {
     const s4 = PixelNative.addListener('onSpeechError', e => {
       if (e.requestId === currentRequestIdRef.current) {
         setError(e.error);
+        currentRequestIdRef.current = null;
+        if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
         setIsListening(false);
         logEvent(MODULE, 'speechError', { error: e.error, code: e.code }, 'warn');
       }
     });
 
     return () => {
+      mountedRef.current = false;
+      currentRequestIdRef.current = null;
+      if (nativeSpeechOwner === ownerRef.current) {
+        nativeSpeechOwner = null;
+        void traced(MODULE, 'cancelSpeechRecognition', async () => native.cancelSpeechRecognition())
+          .catch((e: any) => logEvent(MODULE, 'recognizer cleanup failed', { message: e?.message }, 'warn'));
+      }
       s1.remove();
       s2.remove();
       s3.remove();
@@ -149,18 +165,37 @@ export function useSpeechAI() {
       }
     }
 
+    if (recognitionMode === 'on-device' && !PixelNative) {
+      setError('On-device speech recognition unavailable; cloud recognition was not started');
+      return false;
+    }
     if (recognitionMode === 'on-device' && PixelNative) {
-      const reqId = `speech_${Date.now()}`;
+      const native = PixelNative;
+      if (nativeSpeechOwner !== null) {
+        setError('Speech recognition is already active');
+        return false;
+      }
+      nativeSpeechOwner = ownerRef.current;
+      const reqId = `speech_${Date.now()}_${++speechRequestSequence}`;
       currentRequestIdRef.current = reqId;
       startTimeRef.current = Date.now();
-      setIsListening(true);
       try {
-        await PixelNative.startSpeechRecognition(reqId, true);
+        const ready = await traced(MODULE, 'startSpeechRecognition', async () => native.startSpeechRecognition(reqId, true), { reqId });
+        if (!mountedRef.current || currentRequestIdRef.current !== reqId) return false;
+        if (!ready) throw new Error('Speech recognizer did not become ready');
+        setIsListening(true);
         logEvent(MODULE, 'startOnDeviceSpeech', { reqId });
         return true;
       } catch (e: any) {
-        setError(e?.message ?? 'Failed to start on-device recognizer');
-        setIsListening(false);
+        if (currentRequestIdRef.current === reqId) {
+          currentRequestIdRef.current = null;
+          if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
+          if (mountedRef.current) {
+            setError(e?.message ?? 'Failed to start on-device recognizer');
+            setIsListening(false);
+            logEvent(MODULE, 'speech startup failed', { message: e?.message, code: e?.code }, 'warn');
+          }
+        }
         return false;
       }
     } else {
@@ -188,7 +223,7 @@ export function useSpeechAI() {
       const latencyMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
       const result: SpeechTranscriptionResult = {
         transcript: text,
-        confidence: 0.95,
+        confidence: null,
         durationSeconds,
         latencyMs,
         language: 'Web Speech API',

@@ -4,6 +4,88 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.33] - 2026-09-19
+
+### Changed
+- Consolidated accumulated SDK/native speech and telemetry work with a fresh cross-repository UI review plan in docs/FRESH_START.md.
+- Recorded the missing local harness guide as unresolved; prior guide/workbench changelog entries are historical, not evidence of current availability.
+- Removed obsolete generated release-pipeline artifacts as part of the existing cleanup; retained release instructions and workflows.
+- Excluded local browser scratch output and device evidence from source commits.
+
+## [1.6.32] - 2026-09-19
+
+### Changed
+- Restyled the local Delta guide using the supplied documentation reference: dark reading layout, chapter sidebar, page outline, local full-text search, keyboard navigation, and responsive menu. Preserved interactive diagrams and the component workbench.
+- Added Chapter 13 with design decisions, source references, glossary, and desktop/mobile browser evidence; enabled CSS/JavaScript asset MIME types in the local server.
+
+## [1.6.31] - 2026-09-19
+
+### Added
+- Generated individual source-derived contract pages for all 22 shared mobile component files,
+  with detected props, handlers, token references, output boundaries, and audit status.
+
+## [1.6.30] - 2026-09-19
+
+### Added
+- Expanded the local UI gallery with the full visual-surface inventory: conversation messages,
+  composer, streaming response, action result, confirmation, unavailable state, session header,
+  tool trace, modal frame, settings rows, media attachments, reactor modes, screen scaffolding,
+  metric grids, camera viewfinder, and Docs cards.
+
+## [1.6.29] - 2026-09-19
+
+### Added
+- Local design-system workbench token editor now writes the mobile app's shared token source through
+  the localhost review server, allowing Metro to refresh the real UI after token changes.
+
+## [1.6.28] - 2026-09-19
+
+### Added
+- Added a visible UI component gallery to the local harness site for buttons, panels, metrics,
+  data rows, meters, status primitives, and unavailable states.
+
+## [1.6.27] - 2026-09-19
+
+### Fixed
+- Speech recognition startup now waits for Android readiness, rejects service disconnection and
+  bounded startup timeout truthfully, preserves explicit on-device routing, and cleans up pending
+  sessions on cancellation/unmount instead of leaving recognition running without an owner.
+- Removed fabricated native/browser transcription confidence values; unmeasured confidence is null.
+
+### Added
+- Added a direct **Design system catalog** entry to the local harness site's system-map sidebar.
+
+## [1.6.26] - 2026-09-19
+
+### Added
+- Harness documentation now records the implemented mobile living design-system catalog and its
+  shared-source relationship with application components.
+
+## [1.6.25] - 2026-09-19
+
+### Added
+- Expanded the local Delta guide landing page with a full site map, architecture entry point,
+  and a design-system overview card linking the token-to-runtime boundary.
+
+## [1.6.24] - 2026-09-19
+
+### Added
+- Chapter 11 of the local Delta harness guide documents the design-system dependency boundary,
+  reusable component decomposition, visual language, migration plan, and evidence status.
+
+## [1.6.23] - 2026-09-19
+
+### Fixed
+- Cache permanently unsupported CPU/GPU headroom APIs independently, use platform-default parameters, and correctly normalize all valid Android percentages, including values at or below 1 percent.
+- Share thermal headroom samples across native callers to avoid competing pollers; cache permanently denied sysfs paths instead of repeatedly triggering Android access violations.
+- Remove fabricated reverse-charging wattage and preserve unavailable readings with provider error details.
+- Keep workspace lockfile version metadata synchronized with package manifests.
+
+### Added
+- Local chapter-based Delta system guide with diagrams, glossary, references, product decisions and USB verification evidence.
+- Agent rules requiring the guide and real-device evidence to remain current after implementation changes.
+- Reproducible Gradle source override for validating local native fixes without editing installed package sources.
+
 ## [1.6.22] - 2026-09-19
 
 ### Fixed

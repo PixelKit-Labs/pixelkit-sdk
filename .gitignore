@@ -25,6 +25,14 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+debug.log
+.preview-check.mjs
+/%SystemDrive%/
+
+# Local device evidence and generated review output
+docs/harness-review/*.log
+docs/harness-review/*override.json
+docs/harness-review/usb-harness-*.json
 
 # macOS
 .DS_Store

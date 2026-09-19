@@ -168,28 +168,27 @@ private val REVERSE_CHG_SYSFS = listOf(
 )
 
 internal fun PixelNativeModule.batteryShareStatus(): Map<String, Any?> {
-  val targetFile = REVERSE_CHG_SYSFS.map { File(it) }.firstOrNull { it.exists() }
-  if (targetFile == null) {
+  val content = REVERSE_CHG_SYSFS.firstNotNullOfOrNull { readSys(it) }
+  if (content == null) {
     return mapOf(
       "isSupported" to false,
       "isActive" to false,
       "isReceiverDetected" to false,
       "transmittedWatts" to null,
       "batteryThreshold" to 15,
-      "error" to null
+      "error" to sysReadError(REVERSE_CHG_SYSFS)
     )
   }
 
   return try {
-    val content = targetFile.readText().trim()
-    val mode = content.toIntOrNull() ?: 0
+    val mode = content.toIntOrNull() ?: throw IllegalStateException("Unrecognized reverse charging mode")
     val active = mode > 0
 
     mapOf(
       "isSupported" to true,
       "isActive" to active,
       "isReceiverDetected" to active,
-      "transmittedWatts" to if (active) 4.5 else null,
+      "transmittedWatts" to null,
       "batteryThreshold" to 15,
       "error" to null
     )
@@ -234,21 +233,15 @@ internal fun PixelNativeModule.chargingIntelligence(): Map<String, Any?> {
   } else null
 
   // State of health (SoH) via Pixel sysfs or BatteryManager
-  val sohFile = File("/sys/class/power_supply/battery/soh")
-  val sohPercent: Int? = if (sohFile.exists()) {
-    try { sohFile.readText().trim().toIntOrNull() } catch (_: Throwable) { null }
-  } else null
+  val sohPath = "/sys/class/power_supply/battery/soh"
+  val sohPercent: Int? = readSys(sohPath)?.toIntOrNull()
 
   // Manufacture & First Usage dates via Pixel sysfs
-  val mfgFile = File("/sys/class/power_supply/battery/manufacturing_date")
-  val mfgDate: String? = if (mfgFile.exists()) {
-    try { mfgFile.readText().trim().ifEmpty { null } } catch (_: Throwable) { null }
-  } else null
+  val mfgPath = "/sys/class/power_supply/battery/manufacturing_date"
+  val mfgDate: String? = readSys(mfgPath)?.ifEmpty { null }
 
-  val firstUseFile = File("/sys/class/power_supply/battery/first_usage_date")
-  val firstUseDate: String? = if (firstUseFile.exists()) {
-    try { firstUseFile.readText().trim().ifEmpty { null } } catch (_: Throwable) { null }
-  } else null
+  val firstUsePath = "/sys/class/power_supply/battery/first_usage_date"
+  val firstUseDate: String? = readSys(firstUsePath)?.ifEmpty { null }
 
   // Real-time wattage
   val currentUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) // microamps
@@ -270,10 +263,8 @@ internal fun PixelNativeModule.chargingIntelligence(): Map<String, Any?> {
   }
 
   // Check 80% charge limit toggle (Android 15 / Pixel protect battery feature)
-  val limitFile = File("/sys/class/power_supply/battery/charge_limit_available")
-  val chargeLimitActive = if (limitFile.exists()) {
-    try { limitFile.readText().trim() == "1" } catch (_: Throwable) { false }
-  } else false
+  val limitPath = "/sys/class/power_supply/battery/charge_limit_available"
+  val chargeLimitActive = readSys(limitPath) == "1"
 
   return mapOf(
     "stateOfHealthPercent" to sohPercent,
@@ -283,7 +274,7 @@ internal fun PixelNativeModule.chargingIntelligence(): Map<String, Any?> {
     "chargingWattage" to wattage,
     "chargingTier" to tier,
     "chargeLimitActive" to chargeLimitActive,
-    "error" to null
+    "error" to sysReadError(listOf(sohPath, mfgPath, firstUsePath, limitPath))
   )
 }
 

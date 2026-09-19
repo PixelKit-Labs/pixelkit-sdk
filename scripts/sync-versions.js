@@ -59,6 +59,24 @@ for (const name of NAMES) {
   writeJson(p, pkg);
 }
 
+// Workspace lock metadata must agree with the manifests without resolving new dependencies.
+const lockPath = path.join(ROOT, 'package-lock.json');
+if (fs.existsSync(lockPath)) {
+  const lock = readJson(lockPath);
+  lock.version = version;
+  for (const directory of ['', ...Object.values(PACKAGES).map(dir => `packages/${dir}`)]) {
+    const entry = lock.packages?.[directory];
+    if (!entry) continue;
+    entry.version = version;
+    for (const field of ['dependencies', 'peerDependencies']) {
+      for (const name of NAMES) {
+        if (entry[field]?.[name]) entry[field][name] = version;
+      }
+    }
+  }
+  writeJson(lockPath, lock);
+}
+
 console.log(`version ${version} across the root and ${NAMES.length} packages`);
 
 // Automatically regenerate OpenAPI specification with the updated version

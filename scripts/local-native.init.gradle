@@ -1,0 +1,18 @@
+// Local validation only: compile this SDK checkout into an existing devclient.
+// Usage: gradlew -I <sdk>/scripts/local-native.init.gradle -PpixelkitNativeSource=<sdk>/packages/native/android :app:assembleDebug
+// Leaves package dependencies and installed node_modules source files unchanged.
+gradle.beforeProject { project ->
+  if (project.projectDir.path.replace('\\', '/').endsWith('/@pixelkit-labs/native/android')) {
+    def localSource = gradle.startParameter.projectProperties['pixelkitNativeSource']
+    if (!localSource) throw new GradleException('Provide -PpixelkitNativeSource=<SDK>/packages/native/android')
+    def sourceDir = new File(localSource, 'src/main/java')
+    if (!new File(sourceDir, 'expo/modules/pixelnative/PixelNativeModule.kt').isFile()) {
+      throw new GradleException('PixelNative source does not exist: ' + sourceDir)
+    }
+    project.afterEvaluate {
+      project.android.sourceSets.main.java.setSrcDirs([sourceDir])
+      project.kotlin.sourceSets.getByName('main').kotlin.setSrcDirs([sourceDir])
+      println('PixelKit local native validation source: ' + sourceDir.canonicalPath)
+    }
+  }
+}
