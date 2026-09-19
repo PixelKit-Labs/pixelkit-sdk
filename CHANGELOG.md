@@ -4,6 +4,13 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.19] - 2026-09-18
+
+### Fixed
+- **Resolved Abstract Class Number Instantiation in Battery Telemetry (`@pixelkit-labs/native`)**:
+  - In `PixelNativeExtensions.kt`, removed invalid `Number(w).toDouble()` constructor invocation in `chargingIntelligence()` real-time wattage calculation, directly returning the computed `Double` wattage value `w`.
+  - Fixes Android Kotlin compilation under Gradle 9.3.1.
+
 ## [1.6.18] - 2026-09-16
 
 ### Added

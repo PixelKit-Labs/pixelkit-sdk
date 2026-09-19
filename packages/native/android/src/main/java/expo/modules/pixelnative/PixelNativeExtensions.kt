@@ -258,7 +258,7 @@ internal fun PixelNativeModule.chargingIntelligence(): Map<String, Any?> {
     val amps = currentUa.toDouble() / 1_000_000.0
     val volts = voltageMv.toDouble() / 1_000.0
     val w = amps * volts
-    Number(w).toDouble()
+    w
   } else null
 
   val tier = when {
