@@ -22,7 +22,13 @@ const MODULE = 'useTorch';
  * ```
  */
 export function useTorch() {
-  const [info, setInfo] = useState<TorchInfo | null>(null);
+  const [info, setInfo] = useState<TorchInfo | null>(() => {
+    try {
+      return PixelNative?.getTorchInfo() ?? null;
+    } catch {
+      return null;
+    }
+  });
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [isStrobing, setIsStrobing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +67,7 @@ export function useTorch() {
 
   /** Set torch on/off. `strengthLevel` (1..maxStrengthLevel) is honoured on Android 13+. */
   const setTorch = useCallback(async (on: boolean, strengthLevel?: number): Promise<boolean> => {
-    if (!PixelNative || !info?.available) { setError('Torch hardware unavailable'); return false; }
+    if (!PixelNative) { setError('Torch hardware unavailable'); return false; }
     try {
       await PixelNative.setTorch(on, strengthLevel ?? null);
       setError(null);
@@ -71,7 +77,7 @@ export function useTorch() {
       logEvent(MODULE, 'setTorch error', { on, message: e?.message }, 'error');
       return false;
     }
-  }, [info]);
+  }, []);
 
   const stopStrobe = useCallback((): void => {
     if (strobeTimer.current) { clearInterval(strobeTimer.current); strobeTimer.current = null; }
