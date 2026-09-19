@@ -179,7 +179,8 @@ export function useGeminiNano() {
     const prompt = userPrompt.trim();
     if (!prompt) return;
     const now = Date.now();
-    setMessages(prev => [...prev, { id: `user_${now}`, role: 'user', content: prompt, timestamp: now }]);
+    const displayContent = sendOptions?.displayContent?.trim() || prompt;
+    setMessages(prev => [...prev, { id: `user_${now}`, role: 'user', content: displayContent, timestamp: now }]);
 
     const fail = (content: string) => {
       setMessages(prev => [...prev, { id: `err_${Date.now()}`, role: 'system', content, timestamp: Date.now() }]);

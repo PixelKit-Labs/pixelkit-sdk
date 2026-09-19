@@ -39,6 +39,8 @@ export type NanoOptions = {
   thinking?: boolean;
   /** One JPEG/PNG as base64 (no data: prefix). The Prompt API request builder takes one image. */
   imageBase64?: string;
+  /** Clean user-facing text to display in conversation history when prompt is wrapped with directives */
+  displayContent?: string;
 };
 
 export type NanoResult = {
