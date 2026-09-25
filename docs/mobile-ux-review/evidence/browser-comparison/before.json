@@ -1,0 +1,62 @@
+{
+  "phase": "before",
+  "capturedAt": "2026-09-20T07:12:02.306Z",
+  "results": [
+    {
+      "screen": "hub",
+      "width": 320,
+      "filename": "before-hub-320.png",
+      "board": "01",
+      "overflow": false
+    },
+    {
+      "screen": "models",
+      "width": 320,
+      "filename": "before-models-320.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "voice",
+      "width": 320,
+      "filename": "before-voice-320.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "external-services",
+      "width": 320,
+      "filename": "before-external-services-320.png",
+      "board": "05",
+      "overflow": false
+    },
+    {
+      "screen": "hub",
+      "width": 412,
+      "filename": "before-hub-412.png",
+      "board": "01",
+      "overflow": false
+    },
+    {
+      "screen": "models",
+      "width": 412,
+      "filename": "before-models-412.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "voice",
+      "width": 412,
+      "filename": "before-voice-412.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "external-services",
+      "width": 412,
+      "filename": "before-external-services-412.png",
+      "board": "05",
+      "overflow": false
+    }
+  ]
+}

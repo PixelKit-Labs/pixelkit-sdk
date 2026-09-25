@@ -1,0 +1,1918 @@
+{
+  "status": "design catalog; includes aliases, overlays and states, not a production route registry",
+  "navigationContract": "NAVIGATION.md",
+  "submenuReview": "SUBMENU-REVIEW.md",
+  "pages": [
+    {
+      "id": "C01",
+      "title": "Conversation hub",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C01 — Conversation hub",
+      "frames": [
+        {
+          "board": "01",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C02",
+      "title": "Active conversation",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C02 — Active conversation",
+      "frames": [
+        {
+          "board": "01",
+          "frame": 1
+        },
+        {
+          "board": "01",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C03",
+      "title": "Composer and draft",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C03 — Composer and draft",
+      "frames": [
+        {
+          "board": "02",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C04",
+      "title": "Voice listening / speech partial",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C04 — Voice listening / speech partial",
+      "frames": [
+        {
+          "board": "02",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C05",
+      "title": "Generating / thinking / speaking",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C05 — Generating / thinking / speaking",
+      "frames": [],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C06",
+      "title": "Confirmation barrier",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C06 — Confirmation barrier",
+      "frames": [
+        {
+          "board": "02",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C07",
+      "title": "Media attachment unavailable state",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C07 — Media attachment unavailable state",
+      "frames": [
+        {
+          "board": "02",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C08",
+      "title": "Image gallery",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C08 — Image gallery",
+      "frames": [
+        {
+          "board": "02",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C09",
+      "title": "Camera capture",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C09 — Camera capture",
+      "frames": [
+        {
+          "board": "02",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C10",
+      "title": "Session hub sheet (legacy)",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C10 — Session hub sheet (legacy)",
+      "frames": [],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C11",
+      "title": "Session detail",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C11 — Session detail",
+      "frames": [],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C12",
+      "title": "Conversation search",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C12 — Conversation search",
+      "frames": [
+        {
+          "board": "01",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C13",
+      "title": "Topic channel hub",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C13 — Topic channel hub",
+      "frames": [],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C14",
+      "title": "Channel detail with sessions",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C14 — Channel detail with sessions",
+      "frames": [
+        {
+          "board": "01",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C15",
+      "title": "Session/channel management",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C15 — Session/channel management",
+      "frames": [
+        {
+          "board": "01",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "C16",
+      "title": "Recovery / unavailable conversation",
+      "area": "conversations",
+      "spec": "specs/conversations.md",
+      "heading": "C16 — Recovery / unavailable conversation",
+      "frames": [
+        {
+          "board": "08",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "01",
+        "02"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A01",
+      "title": "Agent hub",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A01 — Agent hub",
+      "frames": [
+        {
+          "board": "03",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A02",
+      "title": "Identity and hardware target",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A02 — Identity and hardware target",
+      "frames": [
+        {
+          "board": "03",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A03",
+      "title": "Specialist agent roster",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A03 — Specialist agent roster",
+      "frames": [
+        {
+          "board": "03",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A04",
+      "title": "Memory overview and budget",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A04 — Memory overview and budget",
+      "frames": [
+        {
+          "board": "03",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A05",
+      "title": "Memory semantic search/results",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A05 — Memory semantic search/results",
+      "frames": [],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A06",
+      "title": "Memory editor/detail",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A06 — Memory editor/detail",
+      "frames": [
+        {
+          "board": "03",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A07",
+      "title": "Procedural skills catalogue",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A07 — Procedural skills catalogue",
+      "frames": [
+        {
+          "board": "03",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A08",
+      "title": "Skill editor",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A08 — Skill editor",
+      "frames": [
+        {
+          "board": "04",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A09",
+      "title": "Wiki and skill proposals",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A09 — Wiki and skill proposals",
+      "frames": [
+        {
+          "board": "04",
+          "frame": 2
+        },
+        {
+          "board": "04",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A10",
+      "title": "MCP feeds and connections",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A10 — MCP feeds and connections",
+      "frames": [],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A11",
+      "title": "Registered tools",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A11 — Registered tools",
+      "frames": [
+        {
+          "board": "04",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A12",
+      "title": "Saved prompt library",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A12 — Saved prompt library",
+      "frames": [
+        {
+          "board": "04",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A13",
+      "title": "Prompt editor",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A13 — Prompt editor",
+      "frames": [],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A14",
+      "title": "Voice/persona behavior review",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A14 — Voice/persona behavior review",
+      "frames": [],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "A15",
+      "title": "Agent/session routing",
+      "area": "agent",
+      "spec": "specs/agent.md",
+      "heading": "A15 — Agent/session routing",
+      "frames": [],
+      "boardFamily": [
+        "03",
+        "04"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N01",
+      "title": "Connections home",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N01 — Connections home",
+      "frames": [
+        {
+          "board": "05",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N02",
+      "title": "Local server configuration",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N02 — Local server configuration",
+      "frames": [
+        {
+          "board": "05",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N03",
+      "title": "Client setup instructions",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N03 — Client setup instructions",
+      "frames": [
+        {
+          "board": "05",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N04",
+      "title": "Request inspector",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N04 — Request inspector",
+      "frames": [
+        {
+          "board": "05",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N05",
+      "title": "External service list",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N05 — External service list",
+      "frames": [
+        {
+          "board": "05",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N06",
+      "title": "External service editor",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N06 — External service editor",
+      "frames": [
+        {
+          "board": "05",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N07",
+      "title": "Configuration import",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N07 — Configuration import",
+      "frames": [
+        {
+          "board": "06",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N08",
+      "title": "External service detail",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N08 — External service detail",
+      "frames": [
+        {
+          "board": "06",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N09",
+      "title": "Event feeds",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N09 — Event feeds",
+      "frames": [
+        {
+          "board": "06",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N10",
+      "title": "Optional TypeSafe / Jev provider",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N10 — Optional TypeSafe / Jev provider",
+      "frames": [
+        {
+          "board": "06",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N11",
+      "title": "Relay configuration",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N11 — Relay configuration",
+      "frames": [
+        {
+          "board": "06",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N12",
+      "title": "WhatsApp integration",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N12 — WhatsApp integration",
+      "frames": [
+        {
+          "board": "06",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "N13",
+      "title": "Hosted tool catalogue",
+      "area": "connections",
+      "spec": "specs/connections.md",
+      "heading": "N13 — Hosted tool catalogue",
+      "frames": [
+        {
+          "board": "04",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "05",
+        "06"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T00",
+      "title": "Activity & Telemetry Hub Shell",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T00: Activity & Telemetry Hub Shell",
+      "frames": [],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T01",
+      "title": "Silicon Telemetry & Real-Time Hardware Overview",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T01: Silicon Telemetry & Real-Time Hardware Overview",
+      "frames": [
+        {
+          "board": "07",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T02",
+      "title": "Tool Execution Traffic & Latency Analytics",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T02: Tool Execution Traffic & Latency Analytics",
+      "frames": [
+        {
+          "board": "07",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T03",
+      "title": "Pipeline Trace Waterfall (Gantt-Chart Execution Spans)",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T03: Pipeline Trace Waterfall (Gantt-Chart Execution Spans)",
+      "frames": [
+        {
+          "board": "07",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T03.1",
+      "title": "Span Detail Inspector Drawer",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T03.1: Span Detail Inspector Drawer",
+      "frames": [
+        {
+          "board": "07",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T04",
+      "title": "Live Diagnostic Log Buffer & Event Stream",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T04: Live Diagnostic Log Buffer & Event Stream",
+      "frames": [
+        {
+          "board": "07",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T05",
+      "title": "System & Native Error Occurrences",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T05: System & Native Error Occurrences",
+      "frames": [
+        {
+          "board": "07",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T06",
+      "title": "Standing Event Streams & SSE Feeds (Alias Route)",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T06: Standing Event Streams & SSE Feeds (Alias Route)",
+      "frames": [],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T07",
+      "title": "Generated Visual Artifacts & Archive",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T07: Generated Visual Artifacts & Archive",
+      "frames": [],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T07.1",
+      "title": "Image Detail & Prompt Crosslink Modal",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T07.1: Image Detail & Prompt Crosslink Modal",
+      "frames": [],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "T08",
+      "title": "Acoustic Hardware & Harmonic Benchmark",
+      "area": "activity",
+      "spec": "specs/activity.md",
+      "heading": "T08: Acoustic Hardware & Harmonic Benchmark",
+      "frames": [
+        {
+          "board": "08",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "07",
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S00",
+      "title": "Settings index and search",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S00: Settings index and search",
+      "frames": [
+        {
+          "board": "09",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S01",
+      "title": "Assistant identity",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S01: Assistant identity",
+      "frames": [
+        {
+          "board": "09",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S01.1",
+      "title": "Models",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S01.1: Models",
+      "frames": [
+        {
+          "board": "09",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S02",
+      "title": "API Keys & Security Credentials",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S02: API Keys & Security Credentials",
+      "frames": [
+        {
+          "board": "09",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S03",
+      "title": "Model Context Protocol (MCP) Feeds (Alias Route)",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S03: Model Context Protocol (MCP) Feeds (Alias Route)",
+      "frames": [],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S04",
+      "title": "Voice Activity Detection (VAD) & Wake Word",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S04: Voice Activity Detection (VAD) & Wake Word",
+      "frames": [
+        {
+          "board": "09",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S04.1",
+      "title": "Unavailable Wake Enrollment State",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S04.1: Unavailable Wake Enrollment State",
+      "frames": [
+        {
+          "board": "09",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S05",
+      "title": "Audio Subsystem, Earcons & 3-Mic Beam",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S05: Audio Subsystem, Earcons & 3-Mic Beam",
+      "frames": [
+        {
+          "board": "10",
+          "frame": 1
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S06",
+      "title": "Cost Control, Token Ledger & Currency",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S06: Cost Control, Token Ledger & Currency",
+      "frames": [
+        {
+          "board": "10",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S07",
+      "title": "Safety Gate, SSRF Shield & Gating",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S07: Safety Gate, SSRF Shield & Gating",
+      "frames": [
+        {
+          "board": "10",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S08",
+      "title": "External Relay & WhatsApp Bridge",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S08: External Relay & WhatsApp Bridge",
+      "frames": [],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S09",
+      "title": "TypeSafe AI / Jev Service",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S09: TypeSafe AI / Jev Service",
+      "frames": [],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S10",
+      "title": "About, Hardware Diagnostics & Reset",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S10: About, Hardware Diagnostics & Reset",
+      "frames": [
+        {
+          "board": "10",
+          "frame": 4
+        },
+        {
+          "board": "10",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S10.1",
+      "title": "Doctor Failure & Settings Reset Failure States",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S10.1: Doctor Failure & Settings Reset Failure States",
+      "frames": [],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S10.2",
+      "title": "Floating Unsaved Configuration Bar",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S10.2: Floating Unsaved Configuration Bar",
+      "frames": [
+        {
+          "board": "10",
+          "frame": 6
+        }
+      ],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S11",
+      "title": "Confirmation Barrier Dialog Overlay",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S11: Confirmation Barrier Dialog Overlay",
+      "frames": [],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "S10.3",
+      "title": "Developer overlay",
+      "area": "settings",
+      "spec": "specs/settings.md",
+      "heading": "S10.3: Developer overlay",
+      "frames": [],
+      "boardFamily": [
+        "09",
+        "10"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G00",
+      "title": "Operational Guide & Knowledge Hub Shell",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G00: Operational Guide & Knowledge Hub Shell",
+      "frames": [
+        {
+          "board": "08",
+          "frame": 2
+        }
+      ],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G01",
+      "title": "Running It: Voice Operations & Edge Execution",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G01: Running It: Voice Operations & Edge Execution",
+      "frames": [],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G02",
+      "title": "Reference: Hardware Subsystems & Security",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G02: Reference: Hardware Subsystems & Security",
+      "frames": [
+        {
+          "board": "08",
+          "frame": 3
+        }
+      ],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G03",
+      "title": "Living Component Gallery",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G03: Living Component Gallery",
+      "frames": [
+        {
+          "board": "08",
+          "frame": 4
+        }
+      ],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G03.1",
+      "title": "Gallery Component Detail & Token Drawer",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G03.1: Gallery Component Detail & Token Drawer",
+      "frames": [],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G04",
+      "title": "On-Device API Reference & SDK Hook Viewer (Proposed Reuse)",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G04: On-Device API Reference & SDK Hook Viewer (Proposed Reuse)",
+      "frames": [],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G04.1",
+      "title": "Search Empty State & Deep-Link Error",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G04.1: Search Empty State & Deep-Link Error",
+      "frames": [],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G05",
+      "title": "Golden Rules & Architectural Directives (Proposed Reuse)",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G05: Golden Rules & Architectural Directives (Proposed Reuse)",
+      "frames": [],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "written specification; board family supplies shared visual pattern",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    },
+    {
+      "id": "G06",
+      "title": "Interface Recovery & Error Boundary Screen",
+      "area": "guide",
+      "spec": "specs/guide.md",
+      "heading": "G06: Interface Recovery & Error Boundary Screen",
+      "frames": [
+        {
+          "board": "08",
+          "frame": 5
+        }
+      ],
+      "boardFamily": [
+        "08"
+      ],
+      "coverage": "illustrated concept frame; see corrections",
+      "implementation": "see source-specific implementation status and limitations in spec",
+      "deviceVerification": "not verified for proposed redesign"
+    }
+  ],
+  "boards": [
+    {
+      "id": "01",
+      "title": "Conversations and navigation",
+      "file": "boards/board-01.png",
+      "bytes": 1491776,
+      "sha256": "662577f56e6f39e8b829e8af7f0551d0188f0a11713d67fbb4f4cfa939187c09",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "C02"
+        },
+        {
+          "frame": 2,
+          "page": "C01"
+        },
+        {
+          "frame": 3,
+          "page": "C14"
+        },
+        {
+          "frame": 4,
+          "page": "C02"
+        },
+        {
+          "frame": 5,
+          "page": "C12"
+        },
+        {
+          "frame": 6,
+          "page": "C15"
+        }
+      ],
+      "provenance": {
+        "id": "01",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-9fc494b0-dde3-4aa1-b60e-3481bf496860.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  BOARD 01: 'Conversations & navigation'. Screen 1 label H01 Welcome: menu Delta On-device dropdown header; large authentic glossy orb, 'What’s on your mind?', Plan my day and Explore an idea chips, large rounded composer plus Message Delta mic. Screen 2 H02 Full-screen hub: full width opaque hub (no sliver of chat), Delta Conversations header X close; search; New conversation; vertical channels General Work Ideas with Work selected, recent session rows Website refresh and Weekend plans with previews/time; secondary destinations Agent, Connections, Activity, Settings, Help. Screen 3 H03 Channel sessions: Work channel heading, search, pinned Website refresh and recent Launch checklist, New session action, no cards on each row. Screen 4 H04 Conversation: hamburger Work / Website refresh header, Traves and Delta ORB avatars, sender times, unboxed grouped conversation about simplifying navigation, plus/message/mic composer bottom. Screen 5 H05 Search: search 'navigation', segmented Sessions / Messages, grouped matching session title and message excerpts with #Work context, clear search and back. Screen 6 H06 Session actions: underlying conversation dimmed behind bottom sheet title Website refresh, Rename, Move to channel, Pin, Export, Delete, Cancel; clear danger treatment only Delete. Bottom note 'Menu or edge swipe opens hub • X, swipe left or Back closes • Selecting a session resumes it'."
+      }
+    },
+    {
+      "id": "02",
+      "title": "Voice, media and confirmation",
+      "file": "boards/board-02.png",
+      "bytes": 1518784,
+      "sha256": "0ad9a5eb71e062d89351bede638970e094f817cd36d47c9cc4cecaa37bfaa81b",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "C04"
+        },
+        {
+          "frame": 2,
+          "page": "C03"
+        },
+        {
+          "frame": 3,
+          "page": "C07"
+        },
+        {
+          "frame": 4,
+          "page": "C09"
+        },
+        {
+          "frame": 5,
+          "page": "C08"
+        },
+        {
+          "frame": 6,
+          "page": "C06"
+        }
+      ],
+      "provenance": {
+        "id": "02",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-ec07f695-3819-4255-8150-e41116b9c978.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  BOARD 02: 'Voice, media and approval'. Six screens in reading order: M01 Voice: large Delta glossy orb, text 'Listening on device', live transcript 'Help me plan tomorrow', stop listening and cancel buttons, no invented decibel readout. M02 Keyboard conversation: Discord sender/grouped text, rounded composer above realistic Android QWERTY keyboard; plus attachment and send, no footer. M03 Attachment tray: conversation with selected photo thumbnail marked 'Sample image', remove X, explicit banner 'Image chat unavailable in this build', text draft preserved; bottom attachment picker Camera / Photo library. M04 Camera permission: camera header, neutral camera symbol (not orb), explanation 'Allow camera access to take a photo', Allow camera and Not now; no fake camera preview. M05 Image archive/detail: library title search, 4 small sample abstract photo thumbnails, selected thumbnail opens large neutral sample landscape with Share and Delete actions, sample labels. M06 Confirmation: amber small orb, 'Clear conversation history?', exact scope 'All saved conversations on this device', buttons Cancel and 'Clear history'; warning irreversible, never show already-completed success. Small board note 'Voice and media states require real permissions and capability checks'."
+      }
+    },
+    {
+      "id": "03",
+      "title": "Agent identity, memory and skills",
+      "file": "boards/board-03.png",
+      "bytes": 1558812,
+      "sha256": "1597d16d39ddee466a006c64cc8d6820636af6dd102a7fc58ddace1bc553bf58",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "A01"
+        },
+        {
+          "frame": 2,
+          "page": "A02"
+        },
+        {
+          "frame": 3,
+          "page": "A03"
+        },
+        {
+          "frame": 4,
+          "page": "A04"
+        },
+        {
+          "frame": 5,
+          "page": "A06"
+        },
+        {
+          "frame": 6,
+          "page": "A07"
+        }
+      ],
+      "provenance": {
+        "id": "03",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-9b087962-4ce5-4ddc-b7ec-5dfaaee23f3f.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  BOARD 03: 'Agent identity, memory and skills'. Six screens in reading order: A01 Agent overview: list Identity, Specialists, Memory, Skills, Wiki, Tools, Prompts, Connections, small orb in header. A02 Identity editor: name Delta, editable instructions field, Save changes, Reset; 'Voice tone not connected yet' disabled row, no fake success. A03 Specialists: selected General assistant and available source-neutral Writing and Research cards labelled 'Proposed roles'; switch selection confirmation describing context change. A04 Memory: search field, sample memory list labelled examples, Add memory button, each item shows source and delete overflow; footer 'You control what is saved'. A05 Memory edit: text field 'Prefer concise explanations', source 'Added by you', save/cancel, no secret/private actual user data. A06 Skills: search, two clearly sample skill rows Morning brief and Summarise notes with enabled/disabled labels, Create skill; display permission needed chip not fake tool success.",
+        "previousPath": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-0370f9c6-2e0b-4acf-b042-7f2f2a0a6ef7.png",
+        "revision": 2,
+        "revisionNote": "Neutral enabled toggle and corrected identity guidance"
+      }
+    },
+    {
+      "id": "04",
+      "title": "Knowledge, tools and prompts",
+      "file": "boards/board-04.png",
+      "bytes": 1605924,
+      "sha256": "c5934e5259ab52284348841f5e21131ac6c09ac908149adba5d17f911038a1ef",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "A08"
+        },
+        {
+          "frame": 2,
+          "page": "A09"
+        },
+        {
+          "frame": 3,
+          "page": "A09"
+        },
+        {
+          "frame": 4,
+          "page": "A11"
+        },
+        {
+          "frame": 5,
+          "page": "N13"
+        },
+        {
+          "frame": 6,
+          "page": "A12"
+        }
+      ],
+      "provenance": {
+        "id": "04",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-42d6f53b-da86-4c82-bc67-3e0ef1d76b48.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 04: 'Knowledge, tools and prompts'. Six screens in reading order: A07 Skill editor: labelled Name / Instructions / Required tools fields, Save draft and Cancel, plain text not code wall. A08 Wiki: search knowledge, sample Project notes and Preferences pages, pending proposal chip, new page button. A09 Wiki proposal: compare current and proposed paragraph, source 'Conversation suggestion', Accept / Reject, clear 'Not saved yet', rollback entry in history. A10 Tools: search and category filter, Read device status 'Available when supported', Torch 'Requires device capability', disabled 'Enable controls not connected yet' explanatory banner; no pretend enforcement switch. A11 Tool detail: description, permission needed, expandable input fields, provenance label 'Capability not checked', no Execute button on schema view. A12 Saved prompts: category chips, sample Plan a day and Summarise notes compact rows, plus add prompt; small bottom prompt editor preview with title/text Save; Use in conversation action fills draft, never automatically sends."
+      }
+    },
+    {
+      "id": "05",
+      "title": "Connections: local and external",
+      "file": "boards/board-05.png",
+      "bytes": 1618910,
+      "sha256": "c4a00cea98af558bdf84d6d2d68bf8a21ef1951cfc0ce604363dc0cef37abdc9",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "N01"
+        },
+        {
+          "frame": 2,
+          "page": "N02"
+        },
+        {
+          "frame": 3,
+          "page": "N03"
+        },
+        {
+          "frame": 4,
+          "page": "N04"
+        },
+        {
+          "frame": 5,
+          "page": "N05"
+        },
+        {
+          "frame": 6,
+          "page": "N06"
+        }
+      ],
+      "provenance": {
+        "id": "05",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-f30e9af1-b891-4ea7-b4d6-d28cf087d49b.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 05: 'Connections: local and external'. Six screens in reading order: N01 Connections home: rows 'Local tool server', 'External services', 'Event feeds', 'Optional cloud assistant', 'Relay'; each status Not checked / Not configured; no false Connected badges. N02 Local server: Stopped status, port field 8080, binding Loopback selected, authentication Required, explicit Start server button; note access restricted until started. N03 Client setup: Android USB connection guidance, Copy setup action, readable sample endpoint localhost:8080, transport selection, no real keys. N04 Request inspector: 'No requests yet' empty state, filter, Refresh disabled while server stopped. N05 External services: sample 'Project tools' marked Not tested, add service plus, import configuration, each row has edit and test actions. N06 Service editor: Name, endpoint https://example.invalid/mcp, transport selector, masked credential optional, Save and Test connection distinct, validation error 'Enter a reachable endpoint'; no cleartext secrets."
+      }
+    },
+    {
+      "id": "06",
+      "title": "Connections: providers and availability",
+      "file": "boards/board-06.png",
+      "bytes": 1427166,
+      "sha256": "cae824e079f4e95b00e38081953a6ae14a643adf46ab7b017e8c6b3d0d227db6",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "N07"
+        },
+        {
+          "frame": 2,
+          "page": "N08"
+        },
+        {
+          "frame": 3,
+          "page": "N09"
+        },
+        {
+          "frame": 4,
+          "page": "N10"
+        },
+        {
+          "frame": 5,
+          "page": "N11"
+        },
+        {
+          "frame": 6,
+          "page": "N12"
+        }
+      ],
+      "provenance": {
+        "id": "06",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-5371520c-834b-4277-b494-ab44c8bbfc6e.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 06: 'Connections: feeds, cloud and unavailable services'. Six screens in reading order: N07 Import configuration: back Import services title, multiline JSON draft with just name/endpoint sample no secret, Validate button, preview '1 service ready to review', Import and Cancel; no automatic network request. N08 Service detail: Project tools status Not tested, endpoint example.invalid, Test button; Tools 'No tools discovered yet', Edit / Remove actions. N09 Event feeds: feed URL editor, Disconnected badge, Connect action, empty events list 'Events appear after connecting', no fake live data. N10 Optional cloud assistant: 'TypeSafe / Jev', clearly 'Optional cloud service. Your request is sent to this provider when enabled.', switch off white/grey, masked key field, Save key / Test / Remove, local assistant remains available. N11 Relay: 'Not available in this build', explanation 'Delivery and saved webhook configuration are not connected yet', endpoint field disabled, no success toast, Back. N12 WhatsApp: 'Not connected', 'Pairing is not available yet', no QR code no fake phone number no Pair success, disabled future action 'Link account', 'You can keep using Delta locally'."
+      }
+    },
+    {
+      "id": "07",
+      "title": "Activity and diagnostics",
+      "file": "boards/board-07.png",
+      "bytes": 1448891,
+      "sha256": "ef46cf9dc49a003525835c4ef033fe0d462d1fb33cf63886048b6fb01d5025bd",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "T01"
+        },
+        {
+          "frame": 2,
+          "page": "T02"
+        },
+        {
+          "frame": 3,
+          "page": "T03"
+        },
+        {
+          "frame": 4,
+          "page": "T03.1"
+        },
+        {
+          "frame": 5,
+          "page": "T04"
+        },
+        {
+          "frame": 6,
+          "page": "T05"
+        }
+      ],
+      "provenance": {
+        "id": "07",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-3f0693c8-943e-4e5f-9856-cb16089ad5fe.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 07: 'Activity and diagnostics'. Six screens in reading order: T01 Activity overview: battery, thermal headroom, memory tiles ALL display em dash and 'Unavailable' with refresh last checked label 'Not checked', real-source requirement footer, no invented values. T02 Tool activity: 'No tool calls yet' empty list, filters All / Local / External, no fake counts, link to tool permissions. T03 Traces: search proposed, sample trace labelled 'Illustrative trace', status failed, selected trace id abbreviated, tap detail; no measured numbers. T04 Trace detail: illustrative timeline showing Validate -> Permission -> Tool unavailable, nested spans selectable, explanation 'Sample structure, not a recorded run', no confident timing. T05 Logs: severity filter Info Warning Error, example rows labelled 'Sample log', Copy and Clear actions with no personal content. T06 Errors: camera permission denied sample card, What happened / What you can do / Retry / Open permissions, clear failure state; no silent retry."
+      }
+    },
+    {
+      "id": "08",
+      "title": "Help and recovery",
+      "file": "boards/board-08.png",
+      "bytes": 1446144,
+      "sha256": "0d3fa757f4094e47d2dbbc91732a2b0af5d7161f983cd6368e23057d9a356ae6",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "T08"
+        },
+        {
+          "frame": 2,
+          "page": "G00"
+        },
+        {
+          "frame": 3,
+          "page": "G02"
+        },
+        {
+          "frame": 4,
+          "page": "G03"
+        },
+        {
+          "frame": 5,
+          "page": "G06"
+        },
+        {
+          "frame": 6,
+          "page": "C16"
+        }
+      ],
+      "provenance": {
+        "id": "08",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-3c3dbdc6-4d13-4d17-8c49-65cb20ecf399.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 08: 'Help, component states and recovery'. Six screens in reading order: G01 Audio test: title Sound check, explanation 'Play a short tone to check your speaker', Start test, result Not run, microphone level em dash Unavailable; no acoustic success claim. G02 Help home / Running: simple steps Start a conversation / Organise sessions / Permissions / Troubleshooting, search and back. G03 Reference: topic list Conversations / Tools and permissions / Local and cloud / Privacy, selected local/cloud explanation preview, factual labels, no invented APIs. G04 Components: gallery visibly labelled 'Design specimens', small orb state samples Idle / Listening / Approval / Unavailable (gray), button/Input/Warning examples, reduced-motion toggle WHITE, no fake device metrics. G05 App recovery: small muted gray orb, 'This screen couldn’t load', explanation 'Your latest changes may not have been saved', Retry / Return to safe start / Copy error, no guarantee of restored data. G06 Connection loss: conversation draft visible, 'Cloud connection lost', Retry / Keep draft / Choose on-device, disclosure 'Switching engine is your choice', no automatic cloud call or silent resend."
+      }
+    },
+    {
+      "id": "09",
+      "title": "Preferences: assistant and voice",
+      "file": "boards/board-09.png",
+      "bytes": 1507686,
+      "sha256": "8c971e5444f22378733af7438c02273495833f1978151a1059d75adc943deb45",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "S00"
+        },
+        {
+          "frame": 2,
+          "page": "S01"
+        },
+        {
+          "frame": 3,
+          "page": "S01.1"
+        },
+        {
+          "frame": 4,
+          "page": "S02"
+        },
+        {
+          "frame": 5,
+          "page": "S04"
+        },
+        {
+          "frame": 6,
+          "page": "S04.1"
+        }
+      ],
+      "provenance": {
+        "id": "09",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-5437bb55-e54b-42b6-bc46-8d75bb12050d.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 09: 'Settings: identity, models and voice'. Six screens in reading order: P01 Settings index: search, simple rows Assistant, Models, Credentials, Voice, Audio, Cost, Safety, About; links Connections and Help, back to full hub. P02 Assistant settings: name Delta, instructions editable with Save/Cancel, no avatar replacement star; orb identity only. P03 Model choice: clearly On-device selected, Cloud option requires consent, title 'Where your request runs', provider-specific capability details 'Availability checked on this device', no invented model/version badges. P04 Credentials: provider list one Google Gemini entry, masked key field, deliberate reveal icon, Save/Test/Remove, test Not run; no real secret, honest local-storage explanation not unsupported universal secure claim. P05 Voice: microphone permission status Not checked, Push to talk / VAD settings white toggles, silence timeout slider, Continuous listening off, Wake enrollment link marked Unavailable. P06 Wake enrollment: large muted orb, 'Voice enrollment unavailable', 'Recording and matching are not connected in this build', disabled 'Start enrollment', Back to voice; no waveform or sample success."
+      }
+    },
+    {
+      "id": "10",
+      "title": "Preferences: audio, safety and recovery",
+      "file": "boards/board-10.png",
+      "bytes": 1594971,
+      "sha256": "8675c0b38fd8f735d69f1d5fc1d7032d383de8c8489be7f48f6f48598db6ee84",
+      "width": 1536,
+      "height": 1024,
+      "frames": [
+        {
+          "frame": 1,
+          "page": "S05"
+        },
+        {
+          "frame": 2,
+          "page": "S06"
+        },
+        {
+          "frame": 3,
+          "page": "S07"
+        },
+        {
+          "frame": 4,
+          "page": "S10"
+        },
+        {
+          "frame": 5,
+          "page": "S10"
+        },
+        {
+          "frame": 6,
+          "page": "S10.2"
+        }
+      ],
+      "provenance": {
+        "id": "10",
+        "path": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-78d0c88c-88ca-4212-bb3a-642813e34092.png",
+        "prompt": "High-fidelity DELTA mobile UI design review board. Landscape 3:2 large canvas with SIX readable portrait Android screens arranged in a 3-column by 2-row grid, generous outer spacing, small numbered labels under each. Crisp modern Geist-like typography, practical 48dp controls. All screens consistent: neutral near-black #090909, charcoal glass surfaces, off-white text, restrained pearl buttons, NO blue background, NO bottom tab bar, no horizontal header/footer borders. Delta identity is a completely ROUND glossy luminous ORB: layered flowing pearl pink magenta violet lobes, upper-left white sheen, thin bright rim and shadowed lower edge, subtle bloom. NO star/sparkle/Gemini logo, no triangle, no surrounding rings. Use a tiny orb beside Delta name and large orb only appropriate on welcome/voice screens. Orb palette is proposed mobile adaptation. Conversation messages are Discord style unboxed shared surface with avatar, sender, time and grouped text; no speech bubbles. All content is clearly labelled sample/proposed, never fake real telemetry. Page chrome: back or menu top left, page name, appropriate action; no developer implementation jargon in product copy. Presentation title and subtitle 'Design proposal • Sample content'. Each screen has unique meaningful content, not a repeated generic list.  STRICT PALETTE: every toggle, selected control, link and focus caret uses WHITE/PEARL not native blue. No blue pixels in UI chrome. Use initials for human avatars, not invented portraits. No extra slogans or promises. Never invent a capability not specified. BOARD 10: 'Settings: audio, cost, safety and device'. Six screens in reading order: P07 Audio: earcon toggle white, volume slider, preview tone button explicit, preferred output Device default, microphone steering unavailable until checked; no fake dB. P08 Cost: Usage not available state, estimated cost em dash, USD label, Currency conversion unavailable, proposed Budget field clearly marked 'Planned', no invented ledger totals or savings. P09 Safety: plain readable 'You approve sensitive actions', show example approval scope, local/cloud disclosure, link permissions and clear history, no meaningless shields or unsupported guaranteed enforcement toggles. P10 About and diagnostics: App version 'Read from installed build', Device 'Not checked', native/JS build fields unavailable, Run diagnostics action, Help and License links. P11 Diagnostics result: 'Checks need attention', 'Illustrative result' label, Camera permission denied, Microphone not checked, Model not checked; View details / Retry selected, no 14/14 success. P12 Unsaved changes and reset: full settings screen behind bottom sheet 'Discard your changes?' with Keep editing / Discard; under main screen visible separate danger area Factory reset opens its OWN explicit destructive confirmation, not triggered by dismissing this sheet.",
+        "previousPath": "C:\\Users\\trave\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\generated_images\\01a0bae4-8dd4-75e0-ac61-cba80423b26a\\exec-acd63aad-c9ef-4767-b256-0e9ba449c4e4.png",
+        "revision": 2,
+        "revisionNote": "Settings-only reset scope, actual tool examples, unrun diagnostics"
+      }
+    }
+  ]
+}

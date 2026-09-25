@@ -13,3 +13,8 @@ this checkpoint.
 `scripts/prepare-speech-device-validation.mjs` is an explicit development override
 that replaces selected files in the sibling app's installed SDK. A subsequent npm
 install replaces those overrides; it is not a published dependency upgrade.
+
+The current [mobile UI foundation chapter](mobile-ui-foundation.md) and
+[visual review gallery](../mobile-ux-review/index.html) record the new overhaul.
+They distinguish current implementation work from proposals and blocked phone
+verification. The original chapter-site builder remains absent.

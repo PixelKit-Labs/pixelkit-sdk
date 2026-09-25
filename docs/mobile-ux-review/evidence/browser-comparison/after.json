@@ -1,0 +1,90 @@
+{
+  "phase": "after",
+  "capturedAt": "2026-09-20T07:20:39.071Z",
+  "results": [
+    {
+      "screen": "hub",
+      "width": 320,
+      "filename": "after-hub-320.png",
+      "board": "01",
+      "overflow": false
+    },
+    {
+      "screen": "models",
+      "width": 320,
+      "filename": "after-models-320.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "voice",
+      "width": 320,
+      "filename": "after-voice-320.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "add-service",
+      "width": 320,
+      "filename": "after-add-service-320.png",
+      "board": "05",
+      "overflow": false
+    },
+    {
+      "screen": "import-service",
+      "width": 320,
+      "filename": "after-import-service-320.png",
+      "board": "05",
+      "overflow": false
+    },
+    {
+      "screen": "external-services",
+      "width": 320,
+      "filename": "after-external-services-320.png",
+      "board": "05",
+      "overflow": false
+    },
+    {
+      "screen": "hub",
+      "width": 412,
+      "filename": "after-hub-412.png",
+      "board": "01",
+      "overflow": false
+    },
+    {
+      "screen": "models",
+      "width": 412,
+      "filename": "after-models-412.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "voice",
+      "width": 412,
+      "filename": "after-voice-412.png",
+      "board": "09",
+      "overflow": false
+    },
+    {
+      "screen": "add-service",
+      "width": 412,
+      "filename": "after-add-service-412.png",
+      "board": "05",
+      "overflow": false
+    },
+    {
+      "screen": "import-service",
+      "width": 412,
+      "filename": "after-import-service-412.png",
+      "board": "05",
+      "overflow": false
+    },
+    {
+      "screen": "external-services",
+      "width": 412,
+      "filename": "after-external-services-412.png",
+      "board": "05",
+      "overflow": false
+    }
+  ]
+}

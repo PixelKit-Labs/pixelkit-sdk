@@ -1,0 +1,25 @@
+{
+  "status": "proposed; not yet wired into delta-mobile",
+  "color": {
+    "background": "#090909",
+    "surface": "#191919",
+    "surfaceRaised": "#252525",
+    "surfaceSelected": "#303030",
+    "text": "#F2EFEB",
+    "textSecondary": "#BAB7B3",
+    "textMuted": "#96938F",
+    "action": "#EEE9E3",
+    "onAction": "#141414",
+    "focus": "#EEE9E3",
+    "success": "#7DDCA0",
+    "warning": "#E8BE71",
+    "danger": "#F29A9A",
+    "borderSubtle": "#383838"
+  },
+  "orb": { "pearl": "#F3EBEF", "pink": "#E2A0BE", "magenta": "#B85C96", "violet": "#9C7BAA", "approval": "#E8BE71", "unavailable": "#96938F" },
+  "spacing": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32, "hero": 48 },
+  "radius": { "small": 8, "surface": 16, "composer": 28, "pill": 999 },
+  "typography": { "caption": 13, "secondary": 14, "body": 16, "input": 16, "title": 22, "hero": 30, "bodyLineHeight": 24 },
+  "interaction": { "minimumTarget": 48, "icon": 22, "pageGutter": 16 },
+  "motion": { "fastMs": 160, "standardMs": 220, "reducedMotionMs": 0 }
+}
