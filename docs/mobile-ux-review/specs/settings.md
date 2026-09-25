@@ -64,7 +64,7 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 | **S00** | Settings Hub Shell & Universal Search | `SettingsScreen.tsx`, `SettingsModal.tsx` | Partially Implemented (Mounted tab; search is local keyword match) | Hub navigation, search query filter, subtab routing |
 | **S01** | Assistant identity | AssistantSection.tsx | Implemented, device acceptance pending | Name and instructions |
 | **S01.1** | Models | ModelsSection.tsx | Preferences with runtime limitations disclosed | Voice/cloud/image preferences |
-| **S02** | API Keys & Security Credentials | `SettingsScreen.tsx:83` | Partially Implemented (SecureStore backed; live GET /models probe; Gemini only) | Gemini API key, write-only masking, live probe diagnostics |
+| **S02** | API Keys & Security Credentials | `KeysSection.tsx`, `JevKeyControls.tsx`, `jevService.ts` | Gemini generic-JSON legacy path; Jev credential controls in Settings; device acceptance pending | Provider credentials and explicit probes |
 | **S03** | Model Context Protocol (MCP) Feeds (Alias) | `SettingsScreen.tsx:84`, `McpFeedsPanel.tsx` | Implemented (Local hosting active; external feeds defer to MOM) | Alias route linking to canonical `connections.md` |
 | **S04** | Voice Activity Detection (VAD) & Wake | `SettingsScreen.tsx:85`, `WakeEnroll.tsx` | **Prototype Formula / Flawed** (Sample-count formula, random take metrics) | VAD threshold, silence timeout, wake enrollment UI |
 | **S04.1**| Unavailable Wake Enrollment State | `WakeEnroll.tsx` | Proposed (Defines explicit failure/missing mic state) | Fallback UI when mic permissions or hardware missing |
@@ -72,7 +72,7 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 | **S06** | Cost Control, Token Ledger & Currency | `SettingsScreen.tsx:87`, `usageStore.ts` | Partially Implemented (**Currency selector toast-only; USD fixed**) | Spending caps, token ledger, USD-fixed budget display |
 | **S07** | Safety Gate, SSRF Shield & Gating | `SettingsScreen.tsx:88`, `confirmation.ts` | Implemented (Confirmation gate & RFC 1918 filter active) | Tool sensitivity gating, destructive tool whitelist, SSRF shield |
 | **S08** | External Relay & WhatsApp Bridge | `SettingsScreen.tsx:89`, `WhatsAppPanel.tsx` | **Simulated / Fabricated** (Mock QR and mock pairing state) | External webhook relay, bridge status, pending integration |
-| **S09** | TypeSafe AI / Jev Service | `JevSettingsPanel.tsx`, `jevService.ts` | Implemented (System One classification with cloud disclosure) | Optional cloud classifier toggle, endpoint, consent |
+| **S09** | TypeSafe AI / Jev Service | `JevAssistantSection.tsx`, `jevService.ts` | Runtime torch classification and Settings destination implemented; device acceptance pending | Optional intent toggle and cloud disclosure; key in S02 |
 | **S10** | About, Hardware Diagnostics & Reset | `SettingsScreen.tsx:90` | Partially Implemented (**Hardcoded device strings; doctor probe**) | Static specs, developer overlay toggle, doctor self-test, reset |
 | **S11** | Confirmation Barrier Dialog Overlay | `confirmation.ts`, `ConfirmBar.tsx` | Implemented (Verbal & physical press barriers) | Modal gate intercepting destructive wipes & mutations |
 
@@ -114,11 +114,11 @@ Native selection and persistence acceptance remain pending. These implementation
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Purpose:** Securely store and probe Gemini API credentials using Android Keystore-backed `SecureStore`.
+- **Purpose:** Edit and probe provider credentials. The Jev key uses the SecureStore adapter where available; the legacy Gemini key currently persists through SettingsStore generic JSON storage. Neither UI placement nor a masked field proves hardware-backed protection.
 - **Source Path:** `SettingsScreen.tsx:83` (lines 521–640).
 - **Implementation Status:** Partially Implemented.
   - **Live Probe Truth:** `handleProbeKey` executes a real live HTTP GET request to `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`. It is an actual network check, not a mock.
-  - **Provider Reality:** Only `geminiKeyInput` is currently implemented in `SettingsScreen.tsx`. Tavily and Replicate are NOT current controls in the code and are classified as proposed future additions.
+  - **Provider Reality:** Gemini and the Jev key are currently edited here; Jev controls live in `JevKeyControls.tsx`. Tavily and Replicate are NOT current controls and remain proposed.
 - **Probe States:**
   - *Idle:* Initial unprobed state.
   - *Probing:* Button shows `"PROBING..."` with disabled state.
@@ -273,9 +273,11 @@ Native selection and persistence acceptance remain pending. These implementation
 
 ### S09: TypeSafe AI / Jev Service
 
-- **Purpose:** Optional TypeSafe AI System One classification and calibrated confidence scoring.
-- **Source Path:** `src/components/JevSettingsPanel.tsx`; `src/core/jevService.ts`.
-- **Implementation Status:** Implemented. Optional provider; preserves full core functionality when disabled. Clearly discloses cloud data routing.
+- **Purpose:** Optional cloud assistance for ambiguous flashlight intent, not a general chat or tool provider.
+- **Canonical route:** Settings S00 → S09. This page owns the opt-in switch and a plain disclosure that the ambiguous request text is sent to TypeSafe AI when enabled. Settings S02 owns the masked Jev credential editor and explicit Save/Test/Remove actions. Connections N10 is a superseded board concept, not a second live route.
+- **Source status:** The runtime path exists in `src/core/deltaAgent.ts`, `src/core/torchIntent.ts` and `src/core/jevService.ts`; `jevIntentEnabled` is off by default in `src/core/settingsStore.ts`. SettingsScreen now mounts `JevAssistantSection.tsx` as S09, and KeysSection mounts `JevKeyControls.tsx` as S02. ConnectionsHome no longer offers a Jev row. This source integration is not device verified.
+- **State and privacy:** Clear flashlight commands stay local. Only ambiguous requests are eligible for the Jev call after opt-in; service failure returns local clarification. Jev does not execute the chosen tool. The credential remains in the SecureStore adapter when available and must not enter SettingsStore JSON. Gemini's key still uses generic JSON storage. A key probe is an explicit network action and sends no conversation content.
+- **Acceptance:** Save, toggle, probe and removal must report actual persistence/network outcomes. Unsupported secure storage, offline and provider errors must not claim success. Android Back and keyboard must work on both Settings destinations; real provider/device checks remain pending.
 
 ---
 

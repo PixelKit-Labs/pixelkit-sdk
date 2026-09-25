@@ -9,7 +9,7 @@ All ten PNGs are saved concept art containing illustrative content. They are not
 | 03 | Revision 2 corrects the blue switch to pearl. Role examples and voice-tone controls do not prove functioning specialist routing or persistent voice settings. |
 | 04 | Tool toggles cannot imply enforcement until runtime policy consumes them. Documentation must use actual exported hook contracts. |
 | 05 | Authentication labels are proposed UI, not evidence that transport authentication is enforced. |
-| 06 | Remove promised release timelines. Cloud consent describes data leaving the device; secure storage guarantees must match the platform adapter. WhatsApp remains unavailable until genuine pairing exists. |
+| 06 | Frame 4 places Optional Cloud Assistant in Connections; that placement is superseded. Settings S09 owns the opt-in and disclosure, while Settings S02 owns the Jev key. Preserve the PNG as historical provenance. Remove promised release timelines. Cloud consent describes the ambiguous flashlight utterance leaving the device when enabled; secure storage guarantees must match the platform adapter. WhatsApp remains unavailable until genuine pairing exists. |
 | 07 | Readings, traces and timings require actual provenance. Missing values are an em dash; sample values are never seeded into production. |
 | 08 | Cloud processing does not imply cross-device chat sync. Replace that reference copy. Approval orb is amber. Help/component routes are proposed reuse where currently unmounted. |
 | 09 | Remove unmeasured “faster responses” claims. Model readiness and voice availability come from runtime capabilities. |

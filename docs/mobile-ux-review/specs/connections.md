@@ -1,11 +1,11 @@
 # Connections — canonical page specifications
 
-Design proposal, not a claim of deployed functionality. Boards 05–06 illustrate these pages. Existing source entry points Agent/MCP, Settings/MCP and Telemetry/Streams all embed `delta-mobile/src/components/McpFeedsPanel.tsx`; consolidate them into one destination and keep contextual Back routes. `JevSettingsPanel.tsx` and `WhatsAppPanel.tsx` are additional references. Read the shared contract in `../README.md` before implementation.
+Design proposal, not a claim of deployed functionality. Boards 05–06 illustrate these pages; the board 06 Jev frame is superseded by the Settings route in S09. Existing source entry points Agent/MCP, Settings/MCP and Telemetry/Streams all embed `delta-mobile/src/components/McpFeedsPanel.tsx`; consolidate them into one destination and keep contextual Back routes. `WhatsAppPanel.tsx` is an additional reference. Read the shared contract in `../README.md` before implementation.
 
 ## N01 — Connections home
 - **Purpose/status:** proposed single index for existing scattered connection panels. Source has separate Host/External/Feeds sections; this information architecture is new.
 - **Entry/exit:** full-screen hub → Connections; contextual links from Agent, Activity or Settings preserve their origin. Back returns to that origin, then the conversation hub; it never disconnects a service.
-- **Hierarchy/actions:** title; Local server, External services, Event feeds, Optional cloud assistant, Relay rows with actual state and last check time. One Add service action routes N06. Details open only on deliberate tap.
+- **Hierarchy/actions:** title; Local server, External services, Event feeds and Relay rows with actual state and last check time. Optional cloud assistant is a Settings preference (S09), not a Connections destination. One Add service action routes N06. Details open only on deliberate tap.
 - **State/data:** counts derive from configured records, not sample data. Loading skeleton; empty setup guidance; stale state explicitly dated. Local server and external provider status are independent. Failure to fetch status does not imply disconnected or healthy.
 - **Acceptance:** every alias reaches the same configured records; Back preserves draft and active session. Screen-reader row combines name, status and action; status cannot rely on colour.
 
@@ -65,12 +65,11 @@ Design proposal, not a claim of deployed functionality. Boards 05–06 illustrat
 - **State/data:** idle/connecting/connected/reconnecting/failed are tied to actual transport events. Empty and disconnected are separate. Display bounded retention, pause-display only if implemented, and indicate stale events rather than erasing them.
 - **Acceptance:** repeated Connect cannot create duplicate streams; background/foreground transition policy is tested before promising persistence. Screen readers announce state changes without reading every event unsolicited.
 
-## N10 — Optional TypeSafe / Jev provider
-- **Purpose/status:** existing optional provider panel/service paths; mockup is a proposed presentation, not credential or provider verification.
-- **Entry/exit:** N01 or Settings provider link → N10; Back returns origin. Disabled provider must preserve local functionality.
-- **Hierarchy/actions:** plain disclosure of data sent off-device, optional enable control, endpoint/model only if supported, masked key, Save/Test/Remove. Consent precedes enable or any cloud test; revocation is reachable.
-- **State/data:** missing key, disabled, timeout, quota, provider rejection and network loss do not become fabricated classifications or confidence. Key storage must be proven secure on each supported platform; do not assert native SecureStore semantics for web without implementation evidence.
-- **Acceptance:** no implicit cloud fallback, no log leakage, no connection test triggered by merely visiting. Removals clear real storage and explain failures. Local tool authorization remains independent of model output.
+## N10 — Superseded Connections cloud concept
+- **Purpose/status:** historical board 06 frame 4. It shows the optional TypeSafe/Jev control in Connections; the user's revised navigation places the functional destination at Settings S09 and the credential at Settings S02. Preserve this frame for provenance, not as an implementation route.
+- **Entry/exit:** N01 does not offer a Jev row. Settings S00 → S09 is the canonical optional-provider path; S00 → S02 owns key Save/Test/Remove.
+- **Runtime boundary:** current Jev use is limited to opted-in ambiguous flashlight intent. It does not classify every chat or execute tools. Missing key, timeout, rejection and network loss keep local clarification available. See [S09](settings.md#s09-typesafe-ai--jev-service) and the mobile `docs/TYPESAFE_INTEGRATION.md` for the active source path.
+- **Acceptance:** the old frame stays labeled superseded in the review package. Current source removes the duplicate Jev control from Connections; Android navigation and provider verification remain pending.
 
 ## N11 — Relay configuration
 - **Purpose/status:** existing UI includes a toast-only save path. Functional persistence/delivery is unavailable; new working integration is a future proposal.

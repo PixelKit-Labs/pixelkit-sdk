@@ -768,10 +768,10 @@
     },
     {
       "id": "N10",
-      "title": "Optional TypeSafe / Jev provider",
+      "title": "Superseded Connections cloud concept",
       "area": "connections",
       "spec": "specs/connections.md",
-      "heading": "N10 — Optional TypeSafe / Jev provider",
+      "heading": "N10 — Superseded Connections cloud concept",
       "frames": [
         {
           "board": "06",

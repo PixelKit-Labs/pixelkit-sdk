@@ -10,6 +10,14 @@ Group chats and agent membership are still a **proposed runtime feature**, even 
 
 [Rendered hub evidence](../evidence/2026-09-25/conversations-hub.png) is a 693×1001 browser capture; board 01 remains the design reference rather than a current-state screenshot. Native phone acceptance remains unverified. The original page-family specifications below retain proposed states and historical source references; this checkpoint is authoritative for current implementation status.
 
+### Message-thread refinement — source 1.0.64
+
+User messages render as compact, right-aligned neutral bubbles with icon-only Copy and Edit actions beneath them. Assistant replies remain open on the page, led by the Delta orb and speaker, with Regenerate, Copy and optional Speak actions beneath the text. There are no thumbs-up/down controls. All icon targets are 48dp. The [thread](../evidence/2026-09-25/thread-user.png) and [inline editor](../evidence/2026-09-25/thread-edit.png) browser captures show the user row and opaque header; web cannot load PixelNano, so they do not show a generated assistant reply.
+
+Edit opens an inline editor. Update generates a new model-only response from the transcript prefix; only after that response succeeds does the store atomically replace the edited user turn and all later plain-text turns with the edited turn and new reply. A generation or persistence failure retains the original thread and editor text. Editing is unavailable when the affected suffix contains tool/media/card turns, a submission is busy, or Live owns the transcript. Regenerate appears only for the final plain Nano model reply after a plain user turn. It calls the model directly with transcript context excluding the old answer, never re-enters DeltaAgent or repeats tools, and stores alternative response versions with previous/next controls. Native Nano success and model quality are unverified.
+
+This interaction follows the documented Gemini behavior: [editing a prompt regenerates its response](https://support.google.com/gemini/answer/13275745), and [Regenerate applies to the latest response with version navigation](https://support.google.com/gemini/answer/14262426). Delta narrows availability further when replaying a tool or media outcome would misrepresent what actually happened.
+
 ## Direction and evidence
 
 - **Approved visual direction:** a spacious Gemini-like composer; grouped, unboxed Discord-like messages with avatar/sender/time; compact session previews; no bottom tabs; no blue backgrounds; retain Delta's glossy orb/reactor rather than a Gemini star. The mobile adaptation may use pearl/pink/violet highlights on the authentic spherical orb; this does not assert a provider or hardware capability.

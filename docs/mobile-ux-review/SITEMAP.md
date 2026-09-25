@@ -69,7 +69,7 @@ flowchart TD
 | N07 | Configuration import | [spec](specs/connections.md) | [06, frame 1](boards/board-06.png) |
 | N08 | External service detail | [spec](specs/connections.md) | [06, frame 2](boards/board-06.png) |
 | N09 | Event feeds | [spec](specs/connections.md) | [06, frame 3](boards/board-06.png) |
-| N10 | Optional TypeSafe / Jev provider | [spec](specs/connections.md) | [06, frame 4](boards/board-06.png) |
+| N10 | Superseded Connections cloud concept | [spec](specs/connections.md) | [06, frame 4](boards/board-06.png) |
 | N11 | Relay configuration | [spec](specs/connections.md) | [06, frame 5](boards/board-06.png) |
 | N12 | WhatsApp integration | [spec](specs/connections.md) | [06, frame 6](boards/board-06.png) |
 | N13 | Hosted tool catalogue | [spec](specs/connections.md) | [04, frame 5](boards/board-04.png) |

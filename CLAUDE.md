@@ -49,6 +49,7 @@ PixelKit is several repositories in the PixelKit-Labs organisation, and a change
    | Change a native package name or the template's app id | pixelkit-cli's checks and default `--package`, and its pages under `docs/cli/` in pixelkit-docs | nothing |
 
 8. **Coordinate with other agents.** Run `git status` and `git log --oneline -5` before editing and `git pull --rebase` before pushing; another agent may have committed. Prefer targeted edits over whole-file rewrites on files touched recently by others.
+9. **Fix SDK issues at their source before downstream workarounds.** When Delta reveals a PixelKit SDK or native-module defect, correct it here, add the appropriate changelog/version and verification, and publish the synchronized SDK/native/ML Kit release when the maintainer has requested the downstream upgrade. Then update Delta to that registry-resolvable release and verify the consuming build and device flow. A temporary local patch may unblock diagnosis, but it is never the delivered fix.
 
 ## Living Delta system guide and implementation evidence
 
