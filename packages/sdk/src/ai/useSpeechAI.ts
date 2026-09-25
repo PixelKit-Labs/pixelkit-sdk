@@ -5,16 +5,17 @@
  * on-device recognizer never silently switches to the default/cloud recognition service.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { useAudio } from '../hardware/useAudio';
 import { SpeechTranscriptionResult } from '../core/types';
 import { getStoredApiKey, createGeminiClient, GEMINI_MODEL, NO_API_KEY_MESSAGE } from './geminiClient';
-import { logEvent, recordMetric, noteExpected, traced, type TelemetrySource } from '../core/observability';
+import { logEvent, recordMetric, traced, type TelemetrySource } from '../core/observability';
 import PixelNative from '@pixelkit-labs/native';
 
 const MODULE = 'useSpeechAI';
+const SPEECH_FINAL_RESULT_TIMEOUT_MS = 15_000;
 let nativeSpeechOwner: symbol | null = null;
 let speechRequestSequence = 0;
 
@@ -35,6 +36,7 @@ export function useSpeechAI() {
   const source: TelemetrySource = isOfflineAvailable ? 'hardware' : 'unavailable';
 
   const currentRequestIdRef = useRef<string | null>(null);
+  const pendingFinalRef = useRef<{ requestId: string; promise: Promise<SpeechTranscriptionResult | null>; resolve: (result: SpeechTranscriptionResult | null) => void; timeout: ReturnType<typeof setTimeout> } | null>(null);
   const ownerRef = useRef(Symbol('speech-recognition'));
   const mountedRef = useRef(true);
   const startTimeRef = useRef<number | null>(null);
@@ -73,6 +75,11 @@ export function useSpeechAI() {
           language: 'auto (on-device ASI)',
         };
         setLastTranscript(result);
+        if (pendingFinalRef.current?.requestId === e.requestId) {
+          clearTimeout(pendingFinalRef.current.timeout);
+          pendingFinalRef.current.resolve(result);
+          pendingFinalRef.current = null;
+        }
         currentRequestIdRef.current = null;
         if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
         setStreamingPartial('');
@@ -89,6 +96,11 @@ export function useSpeechAI() {
     const s4 = PixelNative.addListener('onSpeechError', e => {
       if (e.requestId === currentRequestIdRef.current) {
         setError(e.error);
+        if (pendingFinalRef.current?.requestId === e.requestId) {
+          clearTimeout(pendingFinalRef.current.timeout);
+          pendingFinalRef.current.resolve(null);
+          pendingFinalRef.current = null;
+        }
         currentRequestIdRef.current = null;
         if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
         setIsListening(false);
@@ -98,6 +110,11 @@ export function useSpeechAI() {
 
     return () => {
       mountedRef.current = false;
+      if (pendingFinalRef.current) {
+        clearTimeout(pendingFinalRef.current.timeout);
+        pendingFinalRef.current.resolve(null);
+        pendingFinalRef.current = null;
+      }
       currentRequestIdRef.current = null;
       if (nativeSpeechOwner === ownerRef.current) {
         nativeSpeechOwner = null;
@@ -235,11 +252,42 @@ export function useSpeechAI() {
     }
 
     if (recognitionMode === 'on-device' && PixelNative) {
+      const native = PixelNative;
+      if (pendingFinalRef.current) return pendingFinalRef.current.promise;
+      const requestId = currentRequestIdRef.current;
+      if (!requestId) return null;
+      let resolveFinal!: (result: SpeechTranscriptionResult | null) => void;
+      const finalResult = new Promise<SpeechTranscriptionResult | null>(resolve => { resolveFinal = resolve; });
+      const timeout = setTimeout(() => {
+          if (pendingFinalRef.current?.requestId !== requestId) return;
+          pendingFinalRef.current = null;
+          currentRequestIdRef.current = null;
+          if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
+          setError('Speech recognition timed out waiting for a final result');
+          setIsListening(false);
+          logEvent(MODULE, 'speech final result timed out', { requestId }, 'warn');
+          void traced(MODULE, 'cancelSpeechRecognition', async () => native.cancelSpeechRecognition())
+            .catch((e: any) => logEvent(MODULE, 'recognizer cleanup failed', { message: e?.message }, 'warn'));
+          resolveFinal(null);
+      }, SPEECH_FINAL_RESULT_TIMEOUT_MS);
+      pendingFinalRef.current = { requestId, promise: finalResult, resolve: resolveFinal, timeout };
       try {
-        PixelNative.stopSpeechRecognition();
-      } catch { noteExpected(MODULE, 'recognizer already stopped'); }
+        await traced(MODULE, 'stopSpeechRecognition', async () => native.stopSpeechRecognition(), { requestId });
+      } catch (e: any) {
+        if (pendingFinalRef.current?.requestId === requestId) {
+          clearTimeout(pendingFinalRef.current.timeout);
+          pendingFinalRef.current.resolve(null);
+          pendingFinalRef.current = null;
+        }
+        currentRequestIdRef.current = null;
+        if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
+        setError(e?.message ?? 'Could not stop speech recognition');
+        logEvent(MODULE, 'speech stop failed', { message: e?.message }, 'warn');
+        void traced(MODULE, 'cancelSpeechRecognition', async () => native.cancelSpeechRecognition())
+          .catch((cancelError: any) => logEvent(MODULE, 'recognizer cleanup failed', { message: cancelError?.message }, 'warn'));
+      }
       setIsListening(false);
-      return lastTranscript;
+      return finalResult;
     }
 
     // Cloud mode: stop recording and send to Gemini

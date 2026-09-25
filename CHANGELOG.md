@@ -4,6 +4,11 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.36] - 2026-09-25
+
+### Fixed
+- Wait for Android's final speech recognition event before resolving on-device transcription. Return `null` on recognizer errors, cancellation, or timeout instead of returning a stale previous transcript.
+
 ## [1.6.35] - 2026-09-25
 
 ### Changed
