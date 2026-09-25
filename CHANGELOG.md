@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.38] - 2026-09-25
+
+### Fixed
+- Correct explicit Android TTS engine selection: `getDefaultEngine()` reports the user's system-wide preference, not the engine bound to an individual `TextToSpeech` instance. Check installed-service visibility and initialization, and reject a mismatched current engine when Android exposes that non-public diagnostic.
+
+### Recorded late
+| Prior release | Correction |
+| :--- | :--- |
+| 1.6.37 (`72b5a9c`) | The claimed unconditional rejection of Android's silent TTS engine fallback was not supported by the public Android API. A binding failure may still fall back when the active engine cannot be inspected; target-device playback verification is required. |
+
 ## [1.6.37] - 2026-09-25
 
 ### Added

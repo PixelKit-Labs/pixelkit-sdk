@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PixelKit SDK API",
-    "version": "1.6.37",
+    "version": "1.6.38",
     "description": "OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).\n\n### The Zero-Simulation Principle\nEvery telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.\n- Fabricated readings are completely unrepresentable in this specification.\n- Unreadable sensor readings are `null` and report `unavailable`.\n- Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.\n\nCovers all 53 typed hardware and AI hooks, low-overhead native telemetry, and actuators.",
     "contact": {
       "name": "PixelKit Labs",
@@ -5291,7 +5291,7 @@
     "/hooks/useSpeech": {
       "get": {
         "summary": "Speaking text aloud with the voices the phone has installed.",
-        "description": "Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. An explicit service must really initialize as requested; Android fallback is rejected. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
+        "description": "Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. The requested service must be installed and initialize; Android can silently fall back after a binding failure, and public APIs cannot always identify the active engine. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
         "operationId": "get_useSpeech",
         "tags": [
           "neural-ai"
@@ -17141,7 +17141,7 @@
       },
       "useSpeechTelemetry": {
         "type": "object",
-        "description": "Speaking text aloud with the voices the phone has installed.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. An explicit service must really initialize as requested; Android fallback is rejected. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
+        "description": "Speaking text aloud with the voices the phone has installed.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. The requested service must be installed and initialize; Android can silently fall back after a binding failure, and public APIs cannot always identify the active engine. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
         "properties": {
           "isSpeaking": {
             "type": "boolean",
@@ -17255,7 +17255,7 @@
           },
           "options.enginePackage": {
             "type": "string",
-            "description": "Installed Android TTS service package to use for this utterance without changing the system default. Rejects if unavailable or Android selects a different engine."
+            "description": "Installed Android TTS service package to use for this utterance without changing the system default. Rejects when unavailable or when a different active engine can be detected; Android may silently fall back when the active engine cannot be inspected."
           }
         },
         "required": [

@@ -99,7 +99,7 @@ Every hook is typed, observed, and tested across real hardware:
 ### AI & Autonomous Agents (Cloud & Live Duplex)
 `useGemini` &middot; `useCloudHardwareAgent` &middot; `useGeminiLive` &middot; `useSpeechAI` &middot; `useSpeech` &middot; `useAppFunctions`
 
-`useSpeech` can select an installed Android TTS engine for one utterance with `enginePackage`, without changing the system default. It rejects an unavailable engine instead of silently using a different one.
+`useSpeech` can request an installed Android TTS engine for one utterance with `enginePackage`, without changing the system default. It rejects a missing service and checks the active engine when Android exposes it. Android can silently fall back after a binding failure and does not provide a public API to verify the active engine on every device; verify playback on the target phone when exact engine identity matters.
 
 ### On-Device AI (`@pixelkit-labs/sdk/mlkit`)
 `useGeminiNano` &middot; `useGenAITasks` &middot; `useVisionAI` &middot; `useNaturalLanguageAI` &middot; `useEmbeddings`

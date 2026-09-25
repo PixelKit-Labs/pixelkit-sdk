@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import expo.modules.kotlin.Promise
@@ -40,6 +41,10 @@ internal class ExplicitSpeechEngine(private val context: Context, private val ha
         promise.reject("ERR_TTS_INPUT", "Speech engine and text are required", null)
         return@post
       }
+      if (installedEngines().none { it["packageName"] == packageName }) {
+        promise.reject("ERR_TTS_ENGINE", "Requested speech engine $packageName is not installed or visible", null)
+        return@post
+      }
       pending = promise
       pendingText = text
       pendingRate = rate
@@ -60,10 +65,21 @@ internal class ExplicitSpeechEngine(private val context: Context, private val ha
         handler.post {
           if (currentGeneration != generation) return@post
           val selected = engine
-          if (status != TextToSpeech.SUCCESS || selected == null || selected.defaultEngine != packageName) {
-            fail("ERR_TTS_ENGINE", "Requested speech engine $packageName is unavailable or Android selected another engine")
+          if (status != TextToSpeech.SUCCESS || selected == null) {
+            fail("ERR_TTS_ENGINE", "Requested speech engine $packageName could not initialize")
             return@post
           }
+          // getDefaultEngine() names the phone-wide preference, not this instance.
+          // Android exposes getCurrentEngine() only as a hidden API; use it as an
+          // optional check, never as the sole proof that an explicit request worked.
+          val currentEngine = runCatching {
+            TextToSpeech::class.java.getMethod("getCurrentEngine").invoke(selected) as? String
+          }.getOrNull()
+          if (currentEngine != null && currentEngine != packageName) {
+            fail("ERR_TTS_ENGINE", "Android selected $currentEngine instead of $packageName")
+            return@post
+          }
+          if (currentEngine == null) Log.w("PixelKitSpeech", "Android does not expose the active TTS engine; explicit engine selection is unverified")
           selected.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) = Unit
             override fun onDone(id: String) { handler.post { if (utteranceId == id) finish() } }
