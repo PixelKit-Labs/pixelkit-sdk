@@ -636,7 +636,7 @@ function main() {
   fs.writeFileSync(jsonOut, jsonStr, 'utf8');
   console.log(`[export-openapi] Wrote OpenAPI 3.1.0 JSON to: ${jsonOut} (${(jsonStr.length / 1024).toFixed(1)} KB)`);
 
-  const yamlStr = toYaml(spec).trim() + '\n';
+  const yamlStr = toYaml(spec).replace(/[ \t]+(?=\r?$)/gm, '').trim() + '\n';
   const yamlOut = path.join(specDir, 'openapi.yaml');
   fs.writeFileSync(yamlOut, yamlStr, 'utf8');
   console.log(`[export-openapi] Wrote OpenAPI 3.1.0 YAML to: ${yamlOut} (${(yamlStr.length / 1024).toFixed(1)} KB)`);

@@ -483,6 +483,11 @@ declare class PixelNativeModule extends NativeModule<Events> {
   startSpeechRecognition(requestId: string, onDevice: boolean): Promise<boolean>;
   stopSpeechRecognition(): boolean;
   cancelSpeechRecognition(): boolean;
+  /** Android TTS services visible to this app; an explicit engine never changes the system default. */
+  listSpeechEngines(): { packageName: string; label: string }[];
+  speakWithSpeechEngine(packageName: string, text: string, rate: number, pitch: number, volume: number): Promise<void>;
+  stopSpeechEngine(): boolean;
+  isSpeechEngineSpeaking(): boolean;
   getAppFunctions(): AppFunctionInfo[];
   executeAppFunction(functionId: string, params?: Record<string, any>): Promise<any>;
 

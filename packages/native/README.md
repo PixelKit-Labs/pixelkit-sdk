@@ -6,6 +6,8 @@ battery cycles and health, display modes, GPU, MLX90632 FIR thermometer, acousti
 Wi-Fi 7 MLO, Wi-Fi RTT ranging, satellite NTN, Private Space isolation, Titan M2 StrongBox ECDH key agreement,
 torch, and haptic envelopes.
 
+The module also exposes Android's installed speech engines and explicit per-utterance TTS engine selection. It uses the platform TTS service; model weights and speaker settings stay with the separately installed engine.
+
 **Zero third-party dependencies.** It reads Android framework APIs and the kernel directly, so it
 adds nothing to your dependency graph. Its sibling [`@pixelkit-labs/mlkit`](https://www.npmjs.com/package/@pixelkit-labs/mlkit)
 is a separate package precisely so that telemetry does not drag ML Kit in behind it.

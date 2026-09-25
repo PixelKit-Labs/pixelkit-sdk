@@ -8,5 +8,6 @@
     <package android:name="com.google.android.aicore" />
     <package android:name="com.google.android.as.oss" />
     <package android:name="com.google.android.as" />
+    <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
   </queries>
 </manifest>

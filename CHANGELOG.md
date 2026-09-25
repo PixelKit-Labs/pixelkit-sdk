@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.37] - 2026-09-25
+
+### Added
+- Select an installed Android speech engine per utterance through `useSpeech.speak(..., { enginePackage })`, without changing the phone's default. Expose installed engines and reject Android's silent engine fallback. This lets Delta use a separately installed local Kokoro engine while preserving system speech as an option.
+
+### Fixed
+- Stop only speech owned by a `useSpeech` instance on unmount, so a settings screen cannot interrupt an unrelated conversation.
+
 ## [1.6.36] - 2026-09-25
 
 ### Fixed

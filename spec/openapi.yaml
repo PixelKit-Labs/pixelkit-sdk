@@ -1,16 +1,16 @@
 openapi: 3.1.0
 info:
   title: PixelKit SDK API
-  version: 1.6.36
+  version: 1.6.37
   description: |
   OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).
-  
+
   ### The Zero-Simulation Principle
   Every telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.
   - Fabricated readings are completely unrepresentable in this specification.
   - Unreadable sensor readings are `null` and report `unavailable`.
   - Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.
-  
+
   Covers all 53 typed hardware and AI hooks, low-overhead native telemetry, and actuators.
   contact:
     name: PixelKit Labs
@@ -72,7 +72,7 @@ paths:
       summary: How much thermal room is left before the phone slows itself down.
       description: |
   Warns you before the phone gets hot enough to throttle. Check thermalHeadroom before starting sustained work such as camera capture or a long inference run, and back off as it climbs toward 1.
-  
+
   thermalHeadroom comes from PowerManager.getThermalHeadroom and is sampled every ten seconds, which is the cadence Google specifies; polling faster returns NaN. A live thermal-status listener reports the coarse state from NONE through SHUTDOWN. On Android 16 and above, SystemHealthManager can also report CPU and GPU headroom, which stays null when the device does not provide it. Frame figures pair the display mode refresh rate as a target with the Choreographer-measured rate as the actual.
       operationId: get_useADPF
       tags:
@@ -89,7 +89,7 @@ paths:
       summary: Invoke reportWorkDuration (useADPF)
       description: |
   Pure helper that judges a measured piece of work against the frame budget. It computes a verdict for your own scheduling; it does not call the platform performance hint system.
-  
+
   **Output Contract**: 'WITHIN_BUDGET' when the work fits the frame, 'BOOST_REQUESTED' when it overran and you should shed work.
       operationId: useADPF_reportWorkDuration
       tags:
@@ -112,7 +112,7 @@ paths:
       summary: Active frame workload negotiation with Android Dynamic Performance Framework and Tensor EAS.
       description: |
   Creates an active ADPF hint session with the Energy-Aware Scheduler to dynamically adjust CPU clock frequencies based on actual frame render workloads, eliminating stutter without wasting battery.
-  
+
   Interfaces directly with android.os.PerformanceHintManager (Android 12+ API 31+). Manages an active thread hint session allowing apps to report exact frame computation times in nanoseconds. This informs the kernel scheduler in real-time whether the workload is meeting its deadline (e.g. 16.67ms for 60Hz or 8.33ms for 120Hz), scaling frequencies up only when needed.
       operationId: get_useADPFHintSession
       tags:
@@ -178,7 +178,7 @@ paths:
       summary: "Precision barometric altimetry, vertical climb/descent velocity, and weather trends."
       description: |
   Computes real-time altitude from the hardware barometer using the international ICAO hypsometric atmosphere formula. Provides vertical climb velocity in m/s, storm pressure trend detection, and custom sea-level reference calibration (QNH).
-  
+
   Derived from the physical air pressure sensor via expo-sensors. Computes altitude above calibrated sea level using the standard barometric formula: h = 44330 * (1 - (P / P0)^0.1903). Automatically computes vertical velocity (rate of climb/descent in m/s) with exponential smoothing, categorizes atmospheric pressure trends (rising, steady, falling, rapid_fall), and supports local QNH calibration.
       operationId: get_useAltimeter
       tags:
@@ -230,7 +230,7 @@ paths:
       summary: Exposes on-device actions and hardware capabilities to system AI and Gemini Assistant.
       description: |
   Bridges Android 16/17 AppFunctions (API 36+). Allows Gemini and local agents to discover and execute in-app functions, query Tensor silicon thermals, and register custom agentic tool handlers.
-  
+
   Backed by android.app.appfunctions.IAppFunctionManager (system service 133 on Pixel 11 Pro). Exposes built-in hardware actions ('check_phone_thermals', 'purge_memory_cache', 'get_device_silicon_info') and enables developers to register custom AppFunction schemas and handlers dynamically. Reports source: 'hardware' when backed by the real system service.
       operationId: get_useAppFunctions
       tags:
@@ -289,7 +289,7 @@ paths:
       summary: "Microphone recording with levels and input choice, plus playback."
       description: |
   Records from the microphone and plays recordings back. It gives you a live loudness reading for meters and speaking indicators, lets you pause and resume a take, choose which microphone to use, and pick between a speech profile and an unprocessed studio profile.
-  
+
   Built on expo-audio. The speech profile records 16 kHz mono through the voice_recognition source, which is the path that applies the platform noise suppression and is what speech APIs expect; the studio profile records 48 kHz stereo through unprocessed, the raw microphone with no platform processing. Levels are read every 100 ms from the recorder status in dBFS, where -160 is digital silence and 0 is clipping; level maps that onto 0 to 1 with a floor at -60 dBFS so meters behave sensibly. Microphone enumeration only works once the recorder has been prepared, which is why inputs populate after recording starts. Playback routing between speaker and earpiece is an audio-mode setting, so it applies to the whole app.
       operationId: get_useAudio
       tags:
@@ -306,7 +306,7 @@ paths:
       summary: Invoke startRecording (useAudio)
       description: |
   Requests permission if needed, prepares the profile and opens the microphone with metering at 10 Hz.
-  
+
   **Output Contract**: Resolves true when recording started, false with the reason in error when permission was denied or the recorder refused.
       operationId: useAudio_startRecording
       tags:
@@ -329,7 +329,7 @@ paths:
       summary: Invoke pauseRecording (useAudio)
       description: |
   Pauses without finalising the file, so resumeRecording continues the same take.
-  
+
   **Output Contract**: Returns true when the take was paused, false when nothing was recording or it was already paused.
       operationId: useAudio_pauseRecording
       tags:
@@ -346,7 +346,7 @@ paths:
       summary: Invoke resumeRecording (useAudio)
       description: |
   Continues the same take after a pause.
-  
+
   **Output Contract**: Returns true when recording resumed, false when there was nothing paused.
       operationId: useAudio_resumeRecording
       tags:
@@ -363,7 +363,7 @@ paths:
       summary: Invoke stopRecording (useAudio)
       description: |
   Finalises the take and stops metering.
-  
+
   **Output Contract**: Resolves with the recorded file URI, also stored in lastRecordingUri, or null when nothing was recording or the stop failed.
       operationId: useAudio_stopRecording
       tags:
@@ -380,7 +380,7 @@ paths:
       summary: Invoke setSilenceThresholdDbfs (useAudio)
       description: |
   Moves the boundary between silence and speech that isSilent reports against.
-  
+
   **Output Contract**: Returns nothing; isSilent re-evaluates on the next metering sample.
       operationId: useAudio_setSilenceThresholdDbfs
       tags:
@@ -403,7 +403,7 @@ paths:
       summary: Invoke setQuality (useAudio)
       description: |
   Chooses the capture profile for the next recording, not the current one.
-  
+
   **Output Contract**: Returns nothing; quality updates immediately.
       operationId: useAudio_setQuality
       tags:
@@ -426,7 +426,7 @@ paths:
       summary: Invoke refreshInputs (useAudio)
       description: |
   Re-reads the available microphones. Only valid once a recording has been prepared.
-  
+
   **Output Contract**: Returns the list, also written to inputs. Empty when the platform cannot answer.
       operationId: useAudio_refreshInputs
       tags:
@@ -443,7 +443,7 @@ paths:
       summary: Invoke selectInput (useAudio)
       description: |
   Switches to a specific microphone, such as an attached USB or Bluetooth one.
-  
+
   **Output Contract**: Returns true when the platform accepted it, false with the reason in error otherwise.
       operationId: useAudio_selectInput
       tags:
@@ -466,7 +466,7 @@ paths:
       summary: Invoke setRoute (useAudio)
       description: |
   Sends playback to the loudspeaker or the call earpiece, at the audio-mode level.
-  
+
   **Output Contract**: Resolves once the audio mode is applied; on failure route is unchanged and error is set.
       operationId: useAudio_setRoute
       tags:
@@ -489,7 +489,7 @@ paths:
       summary: Invoke playLastRecording (useAudio)
       description: |
   Plays a recording and starts position polling five times a second.
-  
+
   **Output Contract**: Resolves true when playback started, false when there is nothing to play or the player refused.
       operationId: useAudio_playLastRecording
       tags:
@@ -512,7 +512,7 @@ paths:
       summary: Invoke pausePlayback (useAudio)
       description: |
   Pauses playback where it is.
-  
+
   **Output Contract**: Returns nothing; isPlaying becomes false and position polling stops.
       operationId: useAudio_pausePlayback
       tags:
@@ -529,7 +529,7 @@ paths:
       summary: Invoke stopPlayback (useAudio)
       description: |
   Stops playback and rewinds to the start.
-  
+
   **Output Contract**: Resolves once rewound; playbackPositionSeconds returns to 0.
       operationId: useAudio_stopPlayback
       tags:
@@ -546,7 +546,7 @@ paths:
       summary: Invoke seekPlayback (useAudio)
       description: |
   Jumps to a position in the file being played.
-  
+
   **Output Contract**: Resolves once the seek completes; playbackPositionSeconds updates.
       operationId: useAudio_seekPlayback
       tags:
@@ -569,7 +569,7 @@ paths:
       summary: "Bluetooth adapter state, Channel Sounding, bonded devices, and active BLE peripheral discovery."
       description: |
   Reports whether Bluetooth is on, which devices are already paired, whether this phone supports Channel Sounding, and performs live RF peripheral discovery with real RSSI values.
-  
+
   Adapter state, Channel Sounding support and the bonded device list are read from Android BluetoothAdapter through the native module with source hardware. Live peripheral discovery scans for nearby BLE beacons using Android BluetoothLeScanner, returning verified MAC addresses, RSSI (dBm), and log-distance path loss distance estimations.
       operationId: get_useBLE
       tags:
@@ -586,7 +586,7 @@ paths:
       summary: Invoke startScan (useBLE)
       description: |
   Begins physical Bluetooth Low Energy discovery through BluetoothLeScanner.
-  
+
   **Output Contract**: Resolves true when the scan started; false with the reason in scanError otherwise. Results appear in peripherals, polled every 500 ms.
       operationId: useBLE_startScan
       tags:
@@ -609,7 +609,7 @@ paths:
       summary: Invoke stopScan (useBLE)
       description: |
   Stops active BLE discovery and clears the auto-stop timer.
-  
+
   **Output Contract**: Returns nothing; a final results sync runs first, so nothing already discovered is lost.
       operationId: useBLE_stopScan
       tags:
@@ -626,7 +626,7 @@ paths:
       summary: Google Pixel Battery Share (Reverse Wireless Qi Charging) telemetry and actuator.
       description: |
   Monitors and controls the phone's reverse wireless charging transmitter coil to share battery power with accessories like Pixel Buds or other Qi devices docked on the back.
-  
+
   Directly interfaces with the Google Pixel reverse wireless charging subsystem (/sys/class/power_supply/wireless/reverse_chg_mode). Reports whether wireless power transfer is active, whether a compatible Qi receiver is docked, real-time power transmission in watts, and allows programmatically enabling or disabling power transfer with safety cutoff thresholds.
       operationId: get_useBatteryShare
       tags:
@@ -685,7 +685,7 @@ paths:
       summary: Fingerprint and face authentication.
       description: |
   Asks the user to prove who they are with their fingerprint or face. Check that hardware exists and that something is actually enrolled before you offer it, otherwise the prompt will fail.
-  
+
   Uses the platform BiometricPrompt through expo-local-authentication, which on a Pixel is backed by the hardware security module. The two checks matter separately: a device can have the sensor but no enrolled credential, in which case authentication cannot succeed and you should fall back to a passcode path.
       operationId: get_useBiometrics
       tags:
@@ -702,7 +702,7 @@ paths:
       summary: Invoke authenticate (useBiometrics)
       description: |
   Shows the system biometric prompt with a device-passcode fallback.
-  
+
   **Output Contract**: Resolves true only on success. A cancel or a mismatch resolves false without setting error; missing hardware or no enrolment resolves false and sets error. lastResult tells the three apart.
       operationId: useBiometrics_authenticate
       tags:
@@ -725,7 +725,7 @@ paths:
       summary: Invoke refresh (useBiometrics)
       description: |
   Re-reads sensor presence and enrolment. Call it when returning from Settings, where the user may have just enrolled a finger.
-  
+
   **Output Contract**: `Promise<void>` — updates `hasHardware`, `isEnrolled`, `supportedTypes`
       operationId: useBiometrics_refresh
       tags:
@@ -742,7 +742,7 @@ paths:
       summary: What the CPU is and how hard it is working right now.
       description: |
   Tells you the shape of the processor (how many cores, which type, how fast each one can go) and how busy it is at this instant. Use it to decide whether the phone has room for heavy work, or to show a live performance readout.
-  
+
   Core identity comes from /proc/cpuinfo and per-core frequencies from the cpufreq sysfs tree, both read through the PixelNative module. Two different load signals are reported and they mean different things: cpuLoadPercent is how close the cores are running to their maximum clock, read from hardware; appCpuPercent is this app's own share of CPU time, computed from process time over wall time. Android does not let apps read system-wide /proc/stat, so a true "system load" figure does not exist here and is not invented.
       operationId: get_useCPU
       tags:
@@ -759,7 +759,7 @@ paths:
       summary: Invoke benchmarkCPU (useCPU)
       description: |
   Runs a real single-threaded prime sieve on the JS thread. It measures Hermes single-thread throughput, not the system, and blocks the UI while it runs.
-  
+
   **Output Contract**: Resolves with the run duration in milliseconds, which is also written to lastBenchmarkDurationMs. Lower is faster.
       operationId: useCPU_benchmarkCPU
       tags:
@@ -776,7 +776,7 @@ paths:
       summary: "Lens, zoom, flash and torch, plus taking photos and recording video."
       description: |
   Drives the camera and captures from it. Give it a camera view to hold on to and it can take a still or record a clip, both of which land as real files you can play back, save to the gallery or send to a model. Note that the Pixel Camera app's own colour Looks and long-range zoom are not available to other apps.
-  
+
   The hook owns a ref to a CameraView and drives it, so a screen only renders the view and attaches cameraRef and handleCameraReady. takePicture resolves with a file, its dimensions and optionally base64 for the AI hooks; startRecording resolves when the recording ends, either because you called stopRecording or because a duration or size limit was reached. Two things the API does not make obvious: zoom is a 0 to 1 fraction of the lens range rather than an optical multiplier, so a "5x" figure does not map onto it; and Camera Looks, Super Res Zoom and the low-light video mode belong to the Pixel Camera app and cannot be driven from here, so selectedLook is a label for your own interface.
       operationId: get_useCamera
       tags:
@@ -793,7 +793,7 @@ paths:
       summary: Invoke handleCameraReady (useCamera)
       description: |
   Pass to the view's onCameraReady. Lens and picture-size lists only resolve once the preview is running, so they are read here.
-  
+
   **Output Contract**: Resolves once isReady is set and availableLenses and availablePictureSizes have been filled.
       operationId: useCamera_handleCameraReady
       tags:
@@ -810,7 +810,7 @@ paths:
       summary: Invoke takePicture (useCamera)
       description: |
   Takes a still into the app cache. Use useMediaLibrary().save() to keep it.
-  
+
   **Output Contract**: Resolves with { uri, width, height, base64?, exif? }, or null when the view is not mounted or the capture failed, with the reason in error.
       operationId: useCamera_takePicture
       tags:
@@ -833,7 +833,7 @@ paths:
       summary: Invoke startRecording (useCamera)
       description: |
   Records video, switching the view to video mode first.
-  
+
   **Output Contract**: Resolves with the video file URI when recording ends — through stopRecording() or a limit — or null on failure. recordingSeconds ticks while it runs.
       operationId: useCamera_startRecording
       tags:
@@ -856,7 +856,7 @@ paths:
       summary: Invoke stopRecording (useCamera)
       description: |
   Ends the recording. No-op when nothing is recording.
-  
+
   **Output Contract**: Returns nothing; the promise from startRecording resolves with the video file.
       operationId: useCamera_stopRecording
       tags:
@@ -873,7 +873,7 @@ paths:
       summary: Invoke toggleFacing (useCamera)
       description: |
   Switches between the front and rear camera.
-  
+
   **Output Contract**: Returns nothing; facing flips and viewProps carries it to the view.
       operationId: useCamera_toggleFacing
       tags:
@@ -890,7 +890,7 @@ paths:
       summary: Invoke setLook (useCamera)
       description: |
   Records a Look label in state. It does not change the image: Camera Looks belong to the Pixel Camera app and are not reachable from a third-party app.
-  
+
   **Output Contract**: Returns nothing; selectedLook updates so your own interface can show it.
       operationId: useCamera_setLook
       tags:
@@ -913,7 +913,7 @@ paths:
       summary: Invoke setZoom (useCamera)
       description: |
   Sets zoom as a fraction of the lens range, not an optical multiplier.
-  
+
   **Output Contract**: Returns nothing; zoomFactor updates and viewProps carries it to the view.
       operationId: useCamera_setZoom
       tags:
@@ -936,7 +936,7 @@ paths:
       summary: Invoke setZoomStep (useCamera)
       description: |
   Evenly spaced zoom stops, for a control with discrete positions.
-  
+
   **Output Contract**: Returns nothing; sets zoomFactor to step / totalSteps.
       operationId: useCamera_setZoomStep
       tags:
@@ -959,7 +959,7 @@ paths:
       summary: Invoke setFlash (useCamera)
       description: |
   Chooses flash behaviour for the next capture, as distinct from the continuous torch.
-  
+
   **Output Contract**: Returns nothing; flashMode updates.
       operationId: useCamera_setFlash
       tags:
@@ -982,7 +982,7 @@ paths:
       summary: Invoke toggleTorch (useCamera)
       description: |
   Turns the continuous light on or off through the preview. For torch without a preview, use useTorch.
-  
+
   **Output Contract**: Returns nothing; isTorchOn flips.
       operationId: useCamera_toggleTorch
       tags:
@@ -999,7 +999,7 @@ paths:
       summary: Invoke setMode (useCamera)
       description: |
   Switches the view between stills and video.
-  
+
   **Output Contract**: Returns nothing; mode and viewProps update.
       operationId: useCamera_setMode
       tags:
@@ -1022,7 +1022,7 @@ paths:
       summary: Invoke pausePreview (useCamera)
       description: |
   Freezes or restarts the preview without tearing the camera down.
-  
+
   **Output Contract**: Resolves once applied. Silently no-ops when the view has been unmounted.
       operationId: useCamera_pausePreview
       tags:
@@ -1039,7 +1039,7 @@ paths:
       summary: Invoke resumePreview (useCamera)
       description: |
   Freezes or restarts the preview without tearing the camera down.
-  
+
   **Output Contract**: Resolves once applied. Silently no-ops when the view has been unmounted.
       operationId: useCamera_resumePreview
       tags:
@@ -1056,7 +1056,7 @@ paths:
       summary: Invoke toggleUltraLowLightVideo (useCamera)
       description: |
   Flips the UI flag only, for the same reason.
-  
+
   **Output Contract**: void
       operationId: useCamera_toggleUltraLowLightVideo
       tags:
@@ -1073,7 +1073,7 @@ paths:
       summary: "Google computational photography vendor extensions (Night Sight, Ultra HDR, Portrait Bokeh)."
       description: |
   Queries real camera hardware extensions from the Android Camera2 HAL on Google Pixel devices. Detects whether Night Sight, Ultra HDR exposure stacking, and Portrait mode bokeh blur are supported by the camera sensors.
-  
+
   Backed by Android CameraExtensionCharacteristics (API 31+). Queries vendor-specific image processing modes for back and front cameras. Nothing is simulated: reads directly from the camera HAL and reports source: 'hardware' on genuine devices.
       operationId: get_useCameraExtensions
       tags:
@@ -1104,7 +1104,7 @@ paths:
       summary: What this particular phone actually has.
       description: |
   The first hook to call. It answers "does this device have that?" so your interface can hide features the phone does not support, instead of showing a control that will fail.
-  
+
   Resolution starts from a model table keyed on the device name, then upgrades to real PackageManager feature checks when the native module is present, at which point verification changes from model-table to device. Fields that can only be answered by the device are null until that upgrade happens. Evaluates verified platform features including android.hardware.npu, BLE Channel Sounding, and StrongBox KeyStore.
       operationId: get_useCapabilities
       tags:
@@ -1121,7 +1121,7 @@ paths:
       summary: "Carrier, radio generation and network codes from the modem."
       description: |
   Tells you whether the phone is on 5G or something slower, and which carrier is serving it. useNetwork can only say the connection is cellular; this says what kind, which is what you need before deciding to stream or download something large.
-  
+
   Wraps expo-cellular. generation reflects the current data connection, so it changes as the phone moves and reads unknown when there is no cellular data attached, including on Wi-Fi. Carrier name and the mobile country and network codes need the phone-state permission on Android; without it they stay null rather than being guessed. The country and network codes together identify a carrier globally, which is more reliable than matching on the display name.
       operationId: get_useCellular
       tags:
@@ -1138,7 +1138,7 @@ paths:
       summary: Invoke refresh (useCellular)
       description: |
   Re-reads everything the platform answers without prompting.
-  
+
   **Output Contract**: Resolves once generation, carrier and network codes have been updated. Values that need the phone-state permission stay null without it.
       operationId: useCellular_refresh
       tags:
@@ -1155,7 +1155,7 @@ paths:
       summary: Invoke requestPermission (useCellular)
       description: |
   Asks for the phone-state permission, which unlocks carrier name and network codes on Android.
-  
+
   **Output Contract**: Resolves true when granted, and refreshes automatically. Generation is readable without it.
       operationId: useCellular_requestPermission
       tags:
@@ -1172,7 +1172,7 @@ paths:
       summary: Bluetooth Core 6.0 high-accuracy centimeter-precision Phase-Based Ranging (PBR).
       description: |
   Inspects hardware Bluetooth Low Energy 6.0 Channel Sounding transceiver state and manages high-precision spatial distance estimation. Uses multi-channel phase-based ranging (PBR) and round-trip time (RTT) across 79 Bluetooth channels without requiring line of sight.
-  
+
   Backed by android.hardware.bluetooth_le.channel_sounding and the Android 16/17 Ranging HAL service (IBluetoothChannelSounding). Measures distance with sub-decimeter accuracy, complementing UWB for non-line-of-sight spatial positioning. Nothing is simulated: queries actual device hardware capabilities.
       operationId: get_useChannelSounding
       tags:
@@ -1231,7 +1231,7 @@ paths:
       summary: "Deep battery health, cycle count, manufacturing dates, and charging wattage tiers."
       description: |
   Surfaces low-level battery health indicators: lifetime physical charge cycles, maximum state of health (SoH) capacity relative to design, manufacture and first-activation dates, and USB-PD PPS fast charging tiers.
-  
+
   Reads Android 14+ battery health metrics and Google Pixel power supply sysfs telemetry. Provides lifetime charge cycles (BatteryManager.EXTRA_CYCLE_COUNT), state of health percentage (/sys/class/power_supply/battery/soh), factory manufacture date, first-use date, real-time charging wattage, and classifies charging speed into tiers (slow, standard, rapid, ultra_rapid > 30W).
       operationId: get_useChargingIntelligence
       tags:
@@ -1262,7 +1262,7 @@ paths:
       summary: Autonomous cloud hardware reasoning loop with multi-turn tool calling and extended thinking.
       description: |
   Dispatches autonomous multi-turn reasoning loops with Gemini in the cloud, dynamically invoking unified PixelKit hardware tools to diagnose system telemetry and execute hardware actions.
-  
+
   Orchestrates multi-turn agentic hardware problem solving using Google Gen AI SDK (`@google/genai`). Evaluates prompts, plans hardware tool invocations, executes local sensors and actuators, and reflects on results across consecutive turns until the goal is achieved. Surfaces live reasoning thought chains, intermediate tool execution steps, and final diagnostics.
       operationId: get_useCloudHardwareAgent
       tags:
@@ -1314,7 +1314,7 @@ paths:
       summary: "Device identity, battery level, thermistor temperature, voltage, current, and wattage."
       description: |
   Facts about the phone, its hardware identity, and its real physical power state: battery level, fuel gauge thermistor temperature, instantaneous cell voltage and current flow, wattage draw/charging rate, health status, and lifetime charge cycles.
-  
+
   Identity comes from expo-device, live power state from expo-battery listeners, and deep physical battery telemetry from the native fuel gauge PMIC via PixelNative.getBatteryTelemetry(). batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give the cell terminal voltage and live current draw (negative discharging, positive charging); batteryPowerWatts computes real-time wattage (V × I). On Android 14+, batteryCycleCount reads lifetime charge cycles from the PMIC EEPROM. Nothing is simulated: unavailable readings are null.
       operationId: get_useDevice
       tags:
@@ -1331,7 +1331,7 @@ paths:
       summary: Invoke refresh (useDevice)
       description: |
   Re-reads device power, PMIC battery fuel gauge, and network connectivity.
-  
+
   **Output Contract**: Promise<void> — Resolves once all battery, electrical, and network states are refreshed.
       operationId: useDevice_refresh
       tags:
@@ -1348,7 +1348,7 @@ paths:
       summary: "Refresh rate, HDR capability, brightness, high brightness mode, and the screen wake lock."
       description: |
   Reads what the screen is doing and lets you influence it. The refresh rate changes constantly on this panel to save power, so it is re-read live rather than assumed.
-  
+
   Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode toggles peak sunlight luminance, and setPreferredDisplayMode selects panel modes directly.
       operationId: get_useDisplay
       tags:
@@ -1365,7 +1365,7 @@ paths:
       summary: Invoke setPreferredRefreshRate (useDisplay)
       description: |
   Asks the system for a refresh rate for this window, for example 120 during an animation and 60 otherwise.
-  
+
   **Output Contract**: Resolves true when the request was applied. It is a request, not a guarantee: the system may pick another mode.
       operationId: useDisplay_setPreferredRefreshRate
       tags:
@@ -1388,7 +1388,7 @@ paths:
       summary: Invoke setHighBrightnessMode (useDisplay)
       description: |
   Engages High Brightness Mode (HBM) peak sunlight boost and maximum HDR headroom override.
-  
+
   **Output Contract**: Resolves true when applied.
       operationId: useDisplay_setHighBrightnessMode
       tags:
@@ -1411,7 +1411,7 @@ paths:
       summary: Invoke setPreferredDisplayMode (useDisplay)
       description: |
   Requests a specific display mode configuration by its numeric ID.
-  
+
   **Output Contract**: Resolves true when applied.
       operationId: useDisplay_setPreferredDisplayMode
       tags:
@@ -1434,7 +1434,7 @@ paths:
       summary: Invoke setDesiredHdrHeadroom (useDisplay)
       description: |
   Requests desired HDR headroom ratio on Android 14+ (1.0 to 3.0+).
-  
+
   **Output Contract**: Resolves true when applied.
       operationId: useDisplay_setDesiredHdrHeadroom
       tags:
@@ -1457,7 +1457,7 @@ paths:
       summary: Invoke setScreenBrightness (useDisplay)
       description: |
   Sets the brightness of this app window.
-  
+
   **Output Contract**: Resolves once applied. No-op on web; on failure brightness is left unchanged.
       operationId: useDisplay_setScreenBrightness
       tags:
@@ -1480,7 +1480,7 @@ paths:
       summary: Invoke toggleKeepAwake (useDisplay)
       description: |
   Acquires or releases a tagged screen wake lock, so the display does not dim during a long read or capture.
-  
+
   **Output Contract**: Resolves once the lock state has flipped; isKeepAwake reflects it. Release it when you no longer need it.
       operationId: useDisplay_toggleKeepAwake
       tags:
@@ -1497,7 +1497,7 @@ paths:
       summary: On-device vector embeddings and semantic cosine similarity scoring via Tensor EdgeTPU.
       description: |
   Converts text strings into dense 512-dimensional vector embeddings locally on the EdgeTPU for fast offline semantic search, deduplication, and RAG memory without server calls.
-  
+
   Executes on-device text embedding generation on the Google Tensor EdgeTPU / NPU through ML Kit GenAI. Produces normalized 512-dimensional floating point vectors from input text in milliseconds. Includes an in-memory cosine similarity calculation helper to compare semantic proximity between vectors entirely offline.
       operationId: get_useEmbeddings
       tags:
@@ -1542,7 +1542,7 @@ paths:
       summary: "Which GPU this is, and whether your frames are arriving on time."
       description: |
   Identifies the graphics chip and measures how smoothly the interface is drawing. If animations feel rough, this tells you whether frames are actually being missed and by how much.
-  
+
   The renderer, vendor and OpenGL version are read through a real offscreen EGL context; the Vulkan version comes from the android.hardware.vulkan.version system feature. Frame timing is measured on the UI thread with Choreographer in one-second windows: average and worst frame interval, frames presented per second, and a jank count for frames that took more than 1.5x the expected interval. Android does not expose GPU memory usage to apps, so that field is always null rather than estimated.
       operationId: get_useGPU
       tags:
@@ -1559,7 +1559,7 @@ paths:
       summary: Cloud Gemini chat with real multi-turn history.
       description: |
   Talks to the full Gemini model over the network. Much more capable than the on-device model, but it needs an API key and a connection. Replies carry real token counts and timings from the API.
-  
+
   Wraps ai.chats.create from @google/genai on gemini-3.8-flash with a system instruction, so history is maintained by the SDK rather than re-sent by hand. Token counts come from the response usageMetadata and latency is measured around the call. Replies stream through sendMessageStream, so partial fills in as chunks arrive and lastFirstChunkMs records time to first token. There is no simulated fallback: without a key, sendMessage appends a system-role message explaining how to configure one. The key is read from SecureStore, never from source.
       operationId: get_useGemini
       tags:
@@ -1576,7 +1576,7 @@ paths:
       summary: Invoke sendMessage (useGemini)
       description: |
   Sends a turn and appends the reply with its latency and token count.
-  
+
   **Output Contract**: Resolves when the reply arrives. Without an API key it appends a system-role message explaining that instead; API errors arrive the same way rather than as a rejection.
       operationId: useGemini_sendMessage
       tags:
@@ -1599,7 +1599,7 @@ paths:
       summary: Invoke setSelectedModel (useGemini)
       description: |
   Switches the cloud model and resets the chat session, because the model is fixed when the session is created.
-  
+
   **Output Contract**: Returns nothing; the next turn starts a new session on that model.
       operationId: useGemini_setSelectedModel
       tags:
@@ -1622,7 +1622,7 @@ paths:
       summary: Invoke setTopP (useGemini)
       description: |
   Generation parameters. They are fixed when the session is created, so changing one starts a fresh session.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useGemini_setTopP
       tags:
@@ -1645,7 +1645,7 @@ paths:
       summary: Invoke setTopK (useGemini)
       description: |
   Generation parameters. They are fixed when the session is created, so changing one starts a fresh session.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useGemini_setTopK
       tags:
@@ -1668,7 +1668,7 @@ paths:
       summary: Invoke setTemperature (useGemini)
       description: |
   Generation parameters. They are fixed when the session is created, so changing one starts a fresh session.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useGemini_setTemperature
       tags:
@@ -1691,7 +1691,7 @@ paths:
       summary: Invoke setMaxOutputTokens (useGemini)
       description: |
   Generation parameters. They are fixed when the session is created, so changing one starts a fresh session.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useGemini_setMaxOutputTokens
       tags:
@@ -1714,7 +1714,7 @@ paths:
       summary: Invoke setThinkingBudget (useGemini)
       description: |
   Thinking tokens requested from the model. Zero disables thinking, and only a value above zero is sent.
-  
+
   **Output Contract**: Returns nothing; applied to the next session.
       operationId: useGemini_setThinkingBudget
       tags:
@@ -1737,7 +1737,7 @@ paths:
       summary: Invoke setSystemInstruction (useGemini)
       description: |
   Sets the standing instruction the session is created with, and resets the chat session.
-  
+
   **Output Contract**: Returns nothing; the next turn starts a fresh session carrying that instruction.
       operationId: useGemini_setSystemInstruction
       tags:
@@ -1760,7 +1760,7 @@ paths:
       summary: Invoke setSafety (useGemini)
       description: |
   Sets one blocking threshold across all four harm categories (harassment, hate speech, sexually explicit, dangerous content) and resets the chat session.
-  
+
   **Output Contract**: Returns nothing; the next turn starts a fresh session carrying that threshold.
       operationId: useGemini_setSafety
       tags:
@@ -1783,7 +1783,7 @@ paths:
       summary: Invoke setSearchGroundingEnabled (useGemini)
       description: |
   Attaches or removes the googleSearch tool, letting the model search the web before answering. Resets the chat session.
-  
+
   **Output Contract**: Returns nothing. When a turn does search, lastGrounding carries the queries and source URIs.
       operationId: useGemini_setSearchGroundingEnabled
       tags:
@@ -1806,7 +1806,7 @@ paths:
       summary: Invoke countTokens (useGemini)
       description: |
   Asks the API how many tokens a prompt costs on the selected model, before you send it.
-  
+
   **Output Contract**: Resolves to the token count, or null without a key or when the call fails. Also written to lastPromptTokens.
       operationId: useGemini_countTokens
       tags:
@@ -1829,7 +1829,7 @@ paths:
       summary: Invoke clearMessages (useGemini)
       description: |
   Clears the history and resets the chat session, so the next turn starts with no context.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useGemini_clearMessages
       tags:
@@ -1846,7 +1846,7 @@ paths:
       summary: Invoke setApiKey (useGemini)
       description: |
   Swaps the key in memory and resets the chat session.
-  
+
   **Output Contract**: Returns nothing. hasApiKey updates immediately and availableModels is refreshed in the background.
       operationId: useGemini_setApiKey
       tags:
@@ -1869,7 +1869,7 @@ paths:
       summary: "Real-time bidirectional streaming audio, camera video frames, text, and hardware tool execution with Gemini 3.8 Multimodal Live API."
       description: |
   Streams live bidirectional voice, camera video frames, and text with Gemini in the cloud over WebSockets, executing real-time hardware diagnostics and actions with low-latency audio duplexing.
-  
+
   Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks and camera image/video frames from device sensors, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
       operationId: get_useGeminiLive
       tags:
@@ -2019,7 +2019,7 @@ paths:
       summary: "Gemini Nano running on the phone, with no network and no API key."
       description: |
   Chat with a model that runs entirely on the device. Nothing leaves the phone and it works offline, but the model is small and the context is short. Check status first: the weights are managed by the system and may need downloading once.
-  
+
   Wraps the ML Kit GenAI Prompt API on AICore through the pixel-nano module. The model is owned by the system, not bundled with the app, so checkStatus can report that a download is required; download reports progress as it runs. AICore keeps no conversation history, so each turn re-sends a capped transcript built by buildNanoTurn. Latency and time to first token are measured around the native call, and output token counts come from the on-device tokenizer, so the performance figures are real rather than estimated. There is no cloud fallback: if the model is unavailable, sendMessage appends an error entry.
       operationId: get_useGeminiNano
       tags:
@@ -2036,7 +2036,7 @@ paths:
       summary: Invoke setSystemInstruction (useGeminiNano)
       description: |
   Sets the standing instruction used by every later turn.
-  
+
   **Output Contract**: Returns nothing; the next sendMessage uses it.
       operationId: useGeminiNano_setSystemInstruction
       tags:
@@ -2059,7 +2059,7 @@ paths:
       summary: Invoke setTemperature (useGeminiNano)
       description: |
   Generation parameters applied to every later turn.
-  
+
   **Output Contract**: Returns nothing; the values are read on the next call.
       operationId: useGeminiNano_setTemperature
       tags:
@@ -2082,7 +2082,7 @@ paths:
       summary: Invoke setTopK (useGeminiNano)
       description: |
   Generation parameters applied to every later turn.
-  
+
   **Output Contract**: Returns nothing; the values are read on the next call.
       operationId: useGeminiNano_setTopK
       tags:
@@ -2105,7 +2105,7 @@ paths:
       summary: Invoke setCandidateCount (useGeminiNano)
       description: |
   Generation parameters applied to every later turn.
-  
+
   **Output Contract**: Returns nothing; the values are read on the next call.
       operationId: useGeminiNano_setCandidateCount
       tags:
@@ -2128,7 +2128,7 @@ paths:
       summary: Invoke setMaxOutputTokens (useGeminiNano)
       description: |
   Generation parameters applied to every later turn.
-  
+
   **Output Contract**: Returns nothing; the values are read on the next call.
       operationId: useGeminiNano_setMaxOutputTokens
       tags:
@@ -2151,7 +2151,7 @@ paths:
       summary: Invoke setThinkingMode (useGeminiNano)
       description: |
   Requests thinking mode. Check info.thinkingModeAvailable first; where it is false the request is dropped and thoughts stays empty.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useGeminiNano_setThinkingMode
       tags:
@@ -2174,7 +2174,7 @@ paths:
       summary: Invoke download (useGeminiNano)
       description: |
   Asks AICore to fetch the model weights.
-  
+
   **Output Contract**: Resolves with the status after the attempt, or "unavailable" when it failed. Progress arrives in downloadedBytes while it runs.
       operationId: useGeminiNano_download
       tags:
@@ -2191,7 +2191,7 @@ paths:
       summary: Invoke warmup (useGeminiNano)
       description: |
   Loads the model into AICore ahead of the first prompt so the first reply is not slow.
-  
+
   **Output Contract**: Resolves with the wall time in milliseconds, or null when the warm-up failed. The same value lands in warmupMs.
       operationId: useGeminiNano_warmup
       tags:
@@ -2208,7 +2208,7 @@ paths:
       summary: Invoke sendMessage (useGeminiNano)
       description: |
   Sends a chat turn with streaming, appending both the question and the reply to messages.
-  
+
   **Output Contract**: Resolves when the reply is complete. Tokens accumulate in partial while it streams; failures arrive as a system-role entry in messages, never as a rejection.
       operationId: useGeminiNano_sendMessage
       tags:
@@ -2231,7 +2231,7 @@ paths:
       summary: Invoke generate (useGeminiNano)
       description: |
   One-shot generation outside the conversation, with optional per-call parameters.
-  
+
   **Output Contract**: Resolves with { text, finishReason, thoughts, latencyMs, firstTokenMs }. Throws E_NANO_* on failure; there is no fallback.
       operationId: useGeminiNano_generate
       tags:
@@ -2254,7 +2254,7 @@ paths:
       summary: Invoke countTokens (useGeminiNano)
       description: |
   Measures a prompt with the on-device tokenizer before sending it.
-  
+
   **Output Contract**: Resolves with the token count, or null when the tokenizer is unavailable. Compare it against info.tokenLimit.
       operationId: useGeminiNano_countTokens
       tags:
@@ -2277,7 +2277,7 @@ paths:
       summary: Invoke clearMessages (useGeminiNano)
       description: |
   Empties the conversation and the thinking output.
-  
+
   **Output Contract**: Returns nothing. AICore keeps no history of its own, so this is the whole reset.
       operationId: useGeminiNano_clearMessages
       tags:
@@ -2294,7 +2294,7 @@ paths:
       summary: Invoke setModelConfig (useGeminiNano)
       description: |
   Chooses the model track AICore serves. The next call creates a new client.
-  
+
   **Output Contract**: Resolves once the config is applied and status and info have been re-read.
       operationId: useGeminiNano_setModelConfig
       tags:
@@ -2317,7 +2317,7 @@ paths:
       summary: Invoke refresh (useGeminiNano)
       description: |
   Re-reads status and model facts from AICore.
-  
+
   **Output Contract**: Resolves once status and info have been updated. On failure status becomes unavailable and error is set.
       operationId: useGeminiNano_refresh
       tags:
@@ -2334,7 +2334,7 @@ paths:
       summary: Invoke summarize (useGeminiNano)
       description: |
   On-device summarization through ML Kit GenAI.
-  
+
   **Output Contract**: `Promise<SummarizeResult>` — `{ summary, latencyMs, engine, source }`; **throws** on failure
       operationId: useGeminiNano_summarize
       tags:
@@ -2351,7 +2351,7 @@ paths:
       summary: Invoke proofread (useGeminiNano)
       description: |
   On-device grammar and wording correction.
-  
+
   **Output Contract**: `Promise<ProofreadResult>` — `{ correctedText, suggestions, latencyMs, engine, source }`
       operationId: useGeminiNano_proofread
       tags:
@@ -2368,7 +2368,7 @@ paths:
       summary: Invoke rewrite (useGeminiNano)
       description: |
   On-device tone and style transformation.
-  
+
   **Output Contract**: `Promise<RewriteResult>` — `{ rewrittenText, suggestions, latencyMs, engine, source }`
       operationId: useGeminiNano_rewrite
       tags:
@@ -2385,7 +2385,7 @@ paths:
       summary: "Four focused text tasks that run locally: summarise, proofread, rewrite, describe."
       description: |
   Purpose-built text helpers that run on the phone. Each does one job well and is faster and more reliable than prompting a general model for the same thing. No network, no key.
-  
+
   Wraps the ML Kit GenAI task modules on AICore through pixel-nano: genai-summarization, genai-proofreading and genai-rewriting, plus image description. Because each task ships a tuned model rather than a free-form prompt, the output is more consistent than asking a chat model, and it works on more devices. Every call reports its own measured latency and the engine that served it.
       operationId: get_useGenAITasks
       tags:
@@ -2402,7 +2402,7 @@ paths:
       summary: Invoke summarize (useGenAITasks)
       description: |
   Condenses an article or a conversation on-device. Nothing leaves the phone.
-  
+
   **Output Contract**: Resolves with { summary, latencyMs, engine, source }, or null on failure with the reason in error.
       operationId: useGenAITasks_summarize
       tags:
@@ -2425,7 +2425,7 @@ paths:
       summary: Invoke proofread (useGenAITasks)
       description: |
   Fixes grammar, punctuation and wording. Good for cleaning up dictated text.
-  
+
   **Output Contract**: Resolves with { correctedText, suggestions, latencyMs, engine, source } — suggestions lists the individual changes — or null on failure.
       operationId: useGenAITasks_proofread
       tags:
@@ -2448,7 +2448,7 @@ paths:
       summary: Invoke rewrite (useGenAITasks)
       description: |
   Rewrites text in a different tone or length while keeping the meaning.
-  
+
   **Output Contract**: Resolves with { rewrittenText, suggestions, latencyMs, engine, source }, or null on failure.
       operationId: useGenAITasks_rewrite
       tags:
@@ -2471,7 +2471,7 @@ paths:
       summary: Invoke describeImage (useGenAITasks)
       description: |
   Describes an image locally. Useful for alt text without a network round-trip.
-  
+
   **Output Contract**: Resolves with { description, finishReason, latencyMs, engine, source }, or null on failure.
       operationId: useGenAITasks_describeImage
       tags:
@@ -2494,7 +2494,7 @@ paths:
       summary: "Vibration, from simple taps to custom-shaped waveforms."
       description: |
   Makes the phone buzz. Standard patterns cover ordinary taps and confirmations. On this device you can also design your own vibration shape, rising and falling in intensity, which is how you make a distinctive feel rather than a generic buzz.
-  
+
   Standard patterns come from expo-haptics. Beyond that, the native module reports the actual vibrator hardware: whether amplitude can be varied, its resonant frequency, and which composition primitives it supports. Android 16 envelope effects are built with BasicEnvelopeBuilder from intensity and sharpness control points and must finish at zero intensity. This Pixel supports them, which is how the thinking ramp and alert pulses are produced.
       operationId: get_useHaptics
       tags:
@@ -2511,7 +2511,7 @@ paths:
       summary: Invoke selection (useHaptics)
       description: |
   Faint tick for moving between options: sliders, wheel pickers, tab changes.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web; failures are logged rather than thrown.
       operationId: useHaptics_selection
       tags:
@@ -2528,7 +2528,7 @@ paths:
       summary: Invoke light (useHaptics)
       description: |
   Impact taps of increasing weight, for presses, reveals and destructive confirmations.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web.
       operationId: useHaptics_light
       tags:
@@ -2545,7 +2545,7 @@ paths:
       summary: Invoke medium (useHaptics)
       description: |
   Impact taps of increasing weight, for presses, reveals and destructive confirmations.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web.
       operationId: useHaptics_medium
       tags:
@@ -2562,7 +2562,7 @@ paths:
       summary: Invoke heavy (useHaptics)
       description: |
   Impact taps of increasing weight, for presses, reveals and destructive confirmations.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web.
       operationId: useHaptics_heavy
       tags:
@@ -2579,7 +2579,7 @@ paths:
       summary: Invoke success (useHaptics)
       description: |
   Notification patterns that carry meaning: a double pulse, a buzz, a triple pulse. Use them consistently.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web.
       operationId: useHaptics_success
       tags:
@@ -2596,7 +2596,7 @@ paths:
       summary: Invoke warning (useHaptics)
       description: |
   Notification patterns that carry meaning: a double pulse, a buzz, a triple pulse. Use them consistently.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web.
       operationId: useHaptics_warning
       tags:
@@ -2613,7 +2613,7 @@ paths:
       summary: Invoke error (useHaptics)
       description: |
   Notification patterns that carry meaning: a double pulse, a buzz, a triple pulse. Use them consistently.
-  
+
   **Output Contract**: Resolves once dispatched. No-op on web.
       operationId: useHaptics_error
       tags:
@@ -2630,7 +2630,7 @@ paths:
       summary: Invoke playEnvelope (useHaptics)
       description: |
   Plays a custom waveform on Android 16 and later. Check envelopeSupported first.
-  
+
   **Output Contract**: Returns true when the effect was dispatched, false when envelopes are unsupported or the call failed. It never throws.
       operationId: useHaptics_playEnvelope
       tags:
@@ -2653,7 +2653,7 @@ paths:
       summary: Invoke playPrimitives (useHaptics)
       description: |
   Chains hardware primitives into a composition, Android 11 and later.
-  
+
   **Output Contract**: Returns true when the composition was dispatched, false when the native module is absent or the call failed.
       operationId: useHaptics_playPrimitives
       tags:
@@ -2676,7 +2676,7 @@ paths:
       summary: Invoke cancel (useHaptics)
       description: |
   Stops any vibration immediately, including an envelope or composition in progress.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useHaptics_cancel
       tags:
@@ -2693,7 +2693,7 @@ paths:
       summary: Invoke triggerHaptic (useHaptics)
       description: |
   Plays a standard platform pattern. No-op on web.
-  
+
   **Output Contract**: `Promise<void>` — resolves when dispatched; failures are logged, not thrown
       operationId: useHaptics_triggerHaptic
       tags:
@@ -2710,7 +2710,7 @@ paths:
       summary: "Platform health records, steps, and sensor vitals telemetry."
       description: |
   Inspects Android Health Connect framework availability, system step counter hardware, and sensor vitals. Integrates unified health telemetry on Android 14+ without simulation.
-  
+
   Backed by android.health.connect system framework on Android 14+, PackageManager healthdata provider detection, and hardware Sensor.TYPE_STEP_COUNTER / Sensor.TYPE_HEART_RATE HAL drivers. Nothing is simulated: reports real device health telemetry availability.
       operationId: get_useHealthConnect
       tags:
@@ -2741,7 +2741,7 @@ paths:
       summary: The eight-LED ring around the rear camera flash. Real LEDs or nothing.
       description: |
   Controls the coloured lights around the rear camera. Useful as a glanceable signal when the phone is face down: a colour for an incoming call, a pulse while an assistant is thinking. Either it drives the physical LEDs or it reports that it cannot; there is no on-screen substitute.
-  
+
   Android 17 exposes the array as eight lights of type Light.LIGHT_TYPE_APPLICATION, but every lights session needs CONTROL_DEVICE_LIGHTS, which is signature|privileged and cannot be held by a normal app. PixelKit therefore ships a small Java daemon that runs as the adb shell user and listens on 127.0.0.1:11080; start it with npm run hilight:daemon. With the daemon up, availability is hardware and the calls drive real LEDs. Without it, availability is simulated: the colour and pattern state is still tracked and mirrored on screen with haptics, and nothing pretends the lights are on.
       operationId: get_useHiLight
       tags:
@@ -2758,7 +2758,7 @@ paths:
       summary: Invoke refreshDaemonStatus (useHiLight)
       description: |
   Re-checks the daemon immediately instead of waiting for the next five-second poll.
-  
+
   **Output Contract**: Resolves true when the daemon answered, false otherwise. The same value lands in isDaemonConnected.
       operationId: useHiLight_refreshDaemonStatus
       tags:
@@ -2775,7 +2775,7 @@ paths:
       summary: Invoke setColor (useHiLight)
       description: |
   Sets a solid colour and turns the ring on, switching the mode from off to glow when needed.
-  
+
   **Output Contract**: Returns nothing. Nothing lights unless availability is hardware.
       operationId: useHiLight_setColor
       tags:
@@ -2798,7 +2798,7 @@ paths:
       summary: Invoke setMode (useHiLight)
       description: |
   Switches the animation pattern.
-  
+
   **Output Contract**: Returns nothing; mode and isActive update immediately.
       operationId: useHiLight_setMode
       tags:
@@ -2821,7 +2821,7 @@ paths:
       summary: Invoke setBrightness (useHiLight)
       description: |
   Scales the RGB values sent to the LEDs. The hardware has no separate brightness channel.
-  
+
   **Output Contract**: Returns nothing. Applied immediately when the ring is lit, stored otherwise.
       operationId: useHiLight_setBrightness
       tags:
@@ -2844,7 +2844,7 @@ paths:
       summary: Invoke triggerGeminiPulse (useHiLight)
       description: |
   Cyan gemini_thinking hold that clears itself. Pair it with a model call.
-  
+
   **Output Contract**: Returns nothing. A pending timer from an earlier call is cancelled first.
       operationId: useHiLight_triggerGeminiPulse
       tags:
@@ -2867,7 +2867,7 @@ paths:
       summary: Invoke triggerContactAlert (useHiLight)
       description: |
   Coloured incoming_call hold for a caller or event, then clears itself.
-  
+
   **Output Contract**: Returns nothing. Replaces any hold already running.
       operationId: useHiLight_triggerContactAlert
       tags:
@@ -2890,7 +2890,7 @@ paths:
       summary: Invoke turnOff (useHiLight)
       description: |
   Clears the ring and cancels any pending auto-off timer.
-  
+
   **Output Contract**: Returns nothing; mode becomes off and isActive false.
       operationId: useHiLight_turnOff
       tags:
@@ -2907,7 +2907,7 @@ paths:
       summary: Invoke toggle (useHiLight)
       description: |
   Switches between off and a default blue glow.
-  
+
   **Output Contract**: Returns nothing; isActive flips.
       operationId: useHiLight_toggle
       tags:
@@ -2924,7 +2924,7 @@ paths:
       summary: Hardware-isolated Elliptic Curve Diffie-Hellman session key derivation via Titan M2.
       description: |
   Generates hardware-bound EC keypairs in the Titan M2 security enclave and derives high-entropy shared secrets via ECDH without ever exposing the private key to software memory.
-  
+
   Utilizes AndroidKeyStore and Java Cryptography Architecture (JCA) backed by the Google Titan M2 StrongBox hardware security module. Implements Elliptic Curve Diffie-Hellman (ECDH) on the NIST P-256 (secp256r1) curve with PURPOSE_AGREE_KEY. Generates hardware-isolated keypairs and derives symmetrical AES shared secrets against external peer public keys.
       operationId: get_useKeyAgreement
       tags:
@@ -2969,7 +2969,7 @@ paths:
       summary: "Position, altitude, heading and speed from the satellite receiver."
       description: |
   Where the phone is, how accurate that is, which way it is pointing and how fast it is moving. Always check accuracy before trusting a fix, and check permission before assuming you will get one at all.
-  
+
   Streams from expo-location using the high-accuracy provider, which on a Pixel uses the dual-band receiver. The accuracy value is the radius in metres that the platform believes the position lies within; indoors it can be tens of metres and should gate any decision made from the coordinates. Heading and speed are only meaningful while actually moving.
       operationId: get_useLocation
       tags:
@@ -2986,7 +2986,7 @@ paths:
       summary: Invoke refreshLocation (useLocation)
       description: |
   Requests permission if needed and takes a fresh highest-accuracy fix.
-  
+
   **Output Contract**: Resolves true when a fix arrived, false when permission was denied or the fix failed, with the reason in error. Coordinates never reach the log.
       operationId: useLocation_refreshLocation
       tags:
@@ -3003,7 +3003,7 @@ paths:
       summary: "Saving captures to the gallery, and reading what is there."
       description: |
   Puts a photo or video into the user's own gallery, where it survives and other apps can see it. Without this a capture sits in the app's cache and disappears when the system needs space. Also lists recent items and can delete one.
-  
+
   Wraps expo-media-library. SDK 57 uses the class API (Asset.create, Album.create, Query) rather than the deprecated createAssetAsync helpers, which now throw at runtime. Asset fields are async accessors, so the hook flattens each into a plain SavedMedia object that a list can render directly. Permission is more subtle than a yes or no on modern Android: access is granted per media type, and the user can share only selected items, which is what hasLimitedAccess reports.
       operationId: get_useMediaLibrary
       tags:
@@ -3020,7 +3020,7 @@ paths:
       summary: Invoke requestPermission (useMediaLibrary)
       description: |
   Asks for media library access.
-  
+
   **Output Contract**: Resolves true when granted. hasLimitedAccess becomes true when the user shared only selected items, so a grant is not full access.
       operationId: useMediaLibrary_requestPermission
       tags:
@@ -3043,7 +3043,7 @@ paths:
       summary: Invoke save (useMediaLibrary)
       description: |
   Copies a capture out of the app cache into the user media store, where it survives.
-  
+
   **Output Contract**: Resolves with { id, uri, filename, width, height, durationSeconds, creationTime }, or null when permission was denied or the write failed.
       operationId: useMediaLibrary_save
       tags:
@@ -3066,7 +3066,7 @@ paths:
       summary: Invoke loadRecent (useMediaLibrary)
       description: |
   Reads the newest items in the library, newest first.
-  
+
   **Output Contract**: Resolves with the items, also written to recent. Empty array when permission was denied.
       operationId: useMediaLibrary_loadRecent
       tags:
@@ -3089,7 +3089,7 @@ paths:
       summary: Invoke remove (useMediaLibrary)
       description: |
   Deletes an item from the device. The system may show its own confirmation.
-  
+
   **Output Contract**: Resolves true when the item was deleted, and it is dropped from recent.
       operationId: useMediaLibrary_remove
       tags:
@@ -3112,7 +3112,7 @@ paths:
       summary: "System RAM, this app's heaps, and how close the system is to killing you."
       description: |
   Shows how much memory the phone has left and how much this app is holding. The important field is isLowMemory: when it turns true, Android is close to killing background apps and you should release caches.
-  
+
   System totals come from ActivityManager.getMemoryInfo, polled every two seconds: total RAM, available RAM, the low-memory threshold and the kernel's own low-memory flag. App figures come from Runtime for the Java heap and Debug.getNativeHeapAllocatedSize for the native heap, which is where Hermes, decoded images and JSI allocations live. purgeCaches requests a garbage collection and re-reads; it does not claim to free system RAM, because an app cannot do that.
       operationId: get_useMemory
       tags:
@@ -3129,7 +3129,7 @@ paths:
       summary: Invoke purgeCaches (useMemory)
       description: |
   Requests a garbage collection and re-reads the numbers. Advisory only; the runtime decides when to collect, and it can never free system RAM.
-  
+
   **Output Contract**: Returns nothing. The refreshed reading lands in the hook fields, and the amount reclaimed is logged as freedMB.
       operationId: useMemory_purgeCaches
       tags:
@@ -3146,7 +3146,7 @@ paths:
       summary: "Multi-mic acoustic array topology, polar directivity, and beamforming controls."
       description: |
   Inspects the physical microphone array on the device chassis (top, bottom, rear camera visor), returns polar pattern directivity, and allows steering the hardware acoustic beam towards the user or scene.
-  
+
   Directly queries the Android AudioManager for connected hardware microphones and their geometric coordinates, group mappings, and directivity patterns (omnidirectional, cardioid, hypercardioid). On supported Pixel devices, provides controls to steer acoustic beamforming (towards user, away from user, external) and adjust acoustic zoom field dimension.
       operationId: get_useMicrophoneArray
       tags:
@@ -3205,7 +3205,7 @@ paths:
       summary: Reading and writing real NFC tags through reader mode.
       description: |
   Reads tags you touch to the back of the phone and can write text to them. Start the reader, hold a tag against the upper third of the phone, and the tag arrives with its identifier, capacity and decoded contents. Writing works the same way: queue the text, then present the tag.
-  
+
   Enables NfcAdapter reader mode on the foreground Activity through the native module. Every tag entering the field raises an event carrying its identifier, supported technologies, NDEF capacity, writability and decoded records; text records have their language prefix stripped and URI records are resolved. Two platform constraints are surfaced rather than hidden: reader mode is bound to the Activity, so it stops when the app is backgrounded and must be started again on resume; and a tag is only readable while physically in the field, so a read either happens in that window or reports why it did not.
       operationId: get_useNFC
       tags:
@@ -3222,7 +3222,7 @@ paths:
       summary: Invoke startReader (useNFC)
       description: |
   Enables NFC reader mode on the foreground Activity.
-  
+
   **Output Contract**: Resolves true when reader mode started; false with the reason in error when the device has no radio, NFC is switched off, or the build has no reader. Tags then arrive in lastScannedTag.
       operationId: useNFC_startReader
       tags:
@@ -3239,7 +3239,7 @@ paths:
       summary: Invoke stopReader (useNFC)
       description: |
   Disables reader mode and releases the Activity binding.
-  
+
   **Output Contract**: Resolves once released; isReading becomes false and any pending write is dropped.
       operationId: useNFC_stopReader
       tags:
@@ -3256,7 +3256,7 @@ paths:
       summary: Invoke writeText (useNFC)
       description: |
   Queues a text record for the next tag presented. The reader must already be running.
-  
+
   **Output Contract**: Resolves true when the write was queued, not when it completed; the outcome arrives later in lastWriteOk. False with the reason in error when it could not be queued.
       operationId: useNFC_writeText
       tags:
@@ -3279,7 +3279,7 @@ paths:
       summary: Invoke clearTag (useNFC)
       description: |
   Clears the last read from state, for a "scan another" control.
-  
+
   **Output Contract**: Returns nothing; lastScannedTag and lastWriteOk become null.
       operationId: useNFC_clearTag
       tags:
@@ -3296,7 +3296,7 @@ paths:
       summary: "Translation, language detection, smart replies and entity extraction, all offline."
       description: |
   Language tools that work without a connection: translate between 58 languages, work out what language some text is in, suggest replies to a conversation, and pull out things like dates, addresses and tracking numbers.
-  
+
   Wraps the ML Kit language stack through pixel-nano: language-id, translate, smart-reply and entity-extraction. Translation models download per language pair on first use and then run entirely offline, which is why the first call for a new pair is slower. Smart reply takes a short conversation history and proposes replies. Entity extraction returns typed spans with their positions in the original string.
       operationId: get_useNaturalLanguageAI
       tags:
@@ -3313,7 +3313,7 @@ paths:
       summary: Invoke identifyLanguage (useNaturalLanguageAI)
       description: |
   Detects the language of a sample. Run it before translating when the source is unknown.
-  
+
   **Output Contract**: Resolves with { languageCode, possibleLanguages, latencyMs, source } — languageCode is null when nothing was confident enough — or null on failure.
       operationId: useNaturalLanguageAI_identifyLanguage
       tags:
@@ -3336,7 +3336,7 @@ paths:
       summary: Invoke translate (useNaturalLanguageAI)
       description: |
   Translates offline. The first call for a language pair downloads that model, so it is slower than the ones after it.
-  
+
   **Output Contract**: Resolves with { translatedText, sourceLanguage, targetLanguage, latencyMs, source }, or null on failure.
       operationId: useNaturalLanguageAI_translate
       tags:
@@ -3359,7 +3359,7 @@ paths:
       summary: Invoke suggestReplies (useNaturalLanguageAI)
       description: |
   Proposes short replies for the end of a conversation.
-  
+
   **Output Contract**: Resolves with { suggestions, status, latencyMs, source }. suggestions is empty when the model has nothing confident to offer; null on failure.
       operationId: useNaturalLanguageAI_suggestReplies
       tags:
@@ -3382,7 +3382,7 @@ paths:
       summary: Invoke extractEntities (useNaturalLanguageAI)
       description: |
   Finds dates, addresses, money, phone numbers, flight numbers and tracking codes.
-  
+
   **Output Contract**: Resolves with { entities, latencyMs, source }; each entity carries type, text and the start and end offsets into your input. Null on failure.
       operationId: useNaturalLanguageAI_extractEntities
       tags:
@@ -3405,7 +3405,7 @@ paths:
       summary: "Connection type, address and whether traffic actually goes anywhere."
       description: |
   Whether the phone is online, how it is connected, and whether that connection costs money. Check isConnected before any network call, and isMetered before a large download.
-  
+
   Reads from expo-network: interface type, IP address, reachability and airplane mode. Being connected to Wi-Fi is not the same as having internet, which is why isConnected reflects a usable route rather than merely an attached interface. isMetered marks connections where the user pays per byte, typically cellular or a hotspot.
       operationId: get_useNetwork
       tags:
@@ -3422,7 +3422,7 @@ paths:
       summary: Invoke refreshNetwork (useNetwork)
       description: |
   Re-runs the connectivity check immediately, for example when the app returns to the foreground.
-  
+
   **Output Contract**: Resolves once the read completes. Each sub-read fails independently, so one missing value does not blank the rest.
       operationId: useNetwork_refreshNetwork
       tags:
@@ -3439,7 +3439,7 @@ paths:
       summary: System-level kernel and app performance profiling via Perfetto v54.
       description: |
   Controls high-precision Linux kernel ftrace and Android atrace performance profiling directly from React Native. Captures Tensor G6 CPU frequency scaling, Choreographer frame rendering, and custom app trace sections into .perfetto-trace files viewable in ui.perfetto.dev.
-  
+
   Backed by android.os.Trace, the system Perfetto binary (v54), and Android kernel trace categories (sched, freq, idle, gfx, view, am, wm, camera, hal). Emits zero-overhead hardware trace markers and captures system trace buffers without requiring root privileges. Nothing is simulated: operates directly on physical Android tracing infrastructure.
       operationId: get_usePerfetto
       tags:
@@ -3540,7 +3540,7 @@ paths:
       summary: Hardware Key Attestation and Google Play Integrity verdicts via Titan M2.
       description: |
   Generates cryptographic hardware attestation tokens and queries Google Play Integrity and Titan M2 StrongBox KeyMint security. Verifies genuine device integrity, hardware-backed key protection, and bootloader status.
-  
+
   Backed by android.hardware.strongbox_keystore (Titan M2 KeyMint 400), android.hardware.hardware_keystore (500), and Android KeyStore KeyGenParameterSpec attestation. Provides cryptographic hardware verification proving the device is a genuine physical Pixel without root compromise or simulation.
       operationId: get_usePlayIntegrity
       tags:
@@ -3585,7 +3585,7 @@ paths:
       summary: Android 15+ Private Space profile isolation detection and vault policy.
       description: |
   Detects whether the running app instance is executing inside Android 15's isolated Private Space vault or the primary profile, and inspects vault auto-lock settings.
-  
+
   Utilizes android.os.UserManager.isPrivateProfile() introduced in Android 15 (API 35). Identifies whether the current application process has been launched within the isolated user profile partition (Private Space), detects whether Private Space has been set up on the device, and reports the active lock policy (immediate, screen_off, device_reboot).
       operationId: get_usePrivateSpace
       tags:
@@ -3616,7 +3616,7 @@ paths:
       summary: Every radio subsystem in one read.
       description: |
   A single snapshot of all the wireless hardware: NFC, Bluetooth, ultra-wideband, Wi-Fi precise ranging and satellite messaging. Use this for a status overview instead of calling four separate hooks.
-  
+
   One native call gathers state from NfcAdapter, BluetoothManager, UwbManager, WifiRttManager and PackageManager, refreshed every five seconds. Everything here is read from the platform, so the whole object carries source hardware. It overlaps with useNFC, useBLE and useUWB on purpose: those add per-radio actions, this one is purely for reading state.
       operationId: get_useRadios
       tags:
@@ -3633,7 +3633,7 @@ paths:
       summary: Invoke refresh (useRadios)
       description: |
   Forces an immediate re-read instead of waiting for the next five-second poll.
-  
+
   **Output Contract**: Returns nothing; the nfc, bluetooth, uwb, wifiRtt and satellite blocks update. Call it after sending the user to Settings.
       operationId: useRadios_refresh
       tags:
@@ -3650,7 +3650,7 @@ paths:
       summary: 3GPP Release-17 Non-Terrestrial Network (satellite SOS) status and alignment telemetry.
       description: |
   Tracks direct-to-satellite modem connectivity for emergency SOS, reporting provider connection states, signal strength bars, and horizon antenna pointing guidance.
-  
+
   Interfaces with Android 15+ (API 35+) satellite telephony services and 3GPP Rel-17 NTN modems. Monitors real-time satellite connection states (disconnected, searching, connected, pointing_assist), provider network names, signal quality bars (0 to 4), emergency SOS packet readiness, and surfaces azimuth and elevation vectors to assist pointing the phone at the horizon satellite constellation.
       operationId: get_useSatelliteNTN
       tags:
@@ -3681,7 +3681,7 @@ paths:
       summary: "Encrypted storage for secrets, backed by hardware."
       description: |
   Where API keys and tokens belong. Values are encrypted with a key the operating system holds in secure hardware, so they are not readable from app storage. Never put a secret anywhere else.
-  
+
   Wraps expo-secure-store, which encrypts values using a key held in the Android Keystore and, on devices that have it, StrongBox. Whether this device actually has StrongBox is verified separately by useCapabilities().hasStrongBox. Android 17 does have post-quantum key types, but SecureStore does not use them, so isPostQuantumProtected is false rather than implying protection that is not there.
       operationId: get_useSecurity
       tags:
@@ -3698,7 +3698,7 @@ paths:
       summary: Invoke saveSecureItem (useSecurity)
       description: |
   Encrypts and stores a value. This is the only sanctioned place for a secret.
-  
+
   **Output Contract**: Resolves true on success, false with the reason in error on failure.
       operationId: useSecurity_saveSecureItem
       tags:
@@ -3721,7 +3721,7 @@ paths:
       summary: Invoke getSecureItem (useSecurity)
       description: |
   Decrypts and returns a stored value.
-  
+
   **Output Contract**: Resolves with the value, or null when nothing is stored under that key or the read failed.
       operationId: useSecurity_getSecureItem
       tags:
@@ -3744,7 +3744,7 @@ paths:
       summary: Invoke deleteSecureItem (useSecurity)
       description: |
   Removes a stored value.
-  
+
   **Output Contract**: Resolves true when the delete completed, false with the reason in error otherwise.
       operationId: useSecurity_deleteSecureItem
       tags:
@@ -3767,7 +3767,7 @@ paths:
       summary: "Motion, orientation, air pressure and ambient light, streaming live."
       description: |
   A live feed from the phone's motion and environment sensors: how it is being tilted and moved, which way is north, the air pressure, and how bright the room is. Set the interval to trade smoothness against battery.
-  
+
   Streams from expo-sensors: accelerometer and gyroscope for the six-axis IMU, magnetometer for heading, barometer for pressure, and the ambient light sensor. Relative altitude is computed from pressure with the international hypsometric formula, so it is a derived value and drifts with weather. The sampling interval applies to all streams; shorter intervals cost battery and wake the sensor hub more often.
       operationId: get_useSensors
       tags:
@@ -3791,7 +3791,7 @@ paths:
       summary: "Android Spatializer status, binaural rendering, and dynamic head tracking telemetry."
       description: |
   Queries Android's Spatializer audio subsystem (API 32+). Detects whether spatial audio processing is active for the current output routing, whether binaural / transaural mode is enabled, and whether dynamic head tracking sensors (such as Pixel Buds Pro) are actively tracking.
-  
+
   Backed by android.media.Spatializer from the platform AudioManager. Queries audio DSP spatialization effects and checks whether the dynamic head tracker sensor is physically reporting. Nothing is simulated: reads directly from the audio HAL and reports source: 'hardware' on genuine devices.
       operationId: get_useSpatialAudio
       tags:
@@ -3822,8 +3822,8 @@ paths:
       summary: Speaking text aloud with the voices the phone has installed.
       description: |
   Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.
-  
-  Wraps expo-speech, which drives the platform speech service. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected rather than silently truncated, because a cut-off sentence is worse than an error. The hook stops the engine on unmount so speech does not continue after the screen is gone.
+
+  Wraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. An explicit service must really initialize as requested; Android fallback is rejected. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.
       operationId: get_useSpeech
       tags:
         - neural-ai
@@ -3839,7 +3839,7 @@ paths:
       summary: Invoke speak (useSpeech)
       description: |
   Speaks the text on the platform engine. Await it to sequence utterances instead of overlapping them.
-  
+
   **Output Contract**: Resolves when the engine finishes or is stopped. Rejects when the text is too long or the engine errors, with the message also in error.
       operationId: useSpeech_speak
       tags:
@@ -3862,7 +3862,7 @@ paths:
       summary: Invoke stop (useSpeech)
       description: |
   Stops speaking immediately and discards the queue.
-  
+
   **Output Contract**: Resolves once stopped; isSpeaking and isPaused become false. Any pending speak promise resolves rather than rejecting.
       operationId: useSpeech_stop
       tags:
@@ -3879,7 +3879,7 @@ paths:
       summary: Invoke pause (useSpeech)
       description: |
   Suspends and continues an utterance. Not supported by every engine.
-  
+
   **Output Contract**: Resolves once applied; where the engine does not support it, error explains that and isPaused is unchanged.
       operationId: useSpeech_pause
       tags:
@@ -3896,7 +3896,7 @@ paths:
       summary: Invoke resume (useSpeech)
       description: |
   Suspends and continues an utterance. Not supported by every engine.
-  
+
   **Output Contract**: Resolves once applied; where the engine does not support it, error explains that and isPaused is unchanged.
       operationId: useSpeech_resume
       tags:
@@ -3913,7 +3913,7 @@ paths:
       summary: Invoke checkSpeaking (useSpeech)
       description: |
   Asks the engine directly rather than trusting the local flag.
-  
+
   **Output Contract**: Resolves with the engine answer, which is also written to isSpeaking. False when the engine cannot be reached.
       operationId: useSpeech_checkSpeaking
       tags:
@@ -3930,7 +3930,7 @@ paths:
       summary: Invoke refreshVoices (useSpeech)
       description: |
   Re-reads installed voices, which changes when the user downloads one in system settings.
-  
+
   **Output Contract**: Resolves with the list, also written to voices. Empty array on failure, with the reason in error.
       operationId: useSpeech_refreshVoices
       tags:
@@ -3942,12 +3942,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useSpeech_refreshVoices_Response"
+  /hooks/useSpeech/actions/refreshSpeechEngines:
+    post:
+      summary: Invoke refreshSpeechEngines (useSpeech)
+      description: |
+  Re-reads Android TTS services after installation or removal.
+
+  **Output Contract**: Resolves with the installed services, also written to speechEngines. Empty on unsupported platforms or failure, with the reason in error.
+      operationId: useSpeech_refreshSpeechEngines
+      tags:
+        - neural-ai
+      responses:
+        200:
+          description: Result of invoking refreshSpeechEngines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/useSpeech_refreshSpeechEngines_Response"
   /hooks/useSpeech/actions/voicesForLanguage:
     post:
       summary: Invoke voicesForLanguage (useSpeech)
       description: |
   Filters the installed voices to one language, so you can offer a real choice.
-  
+
   **Output Contract**: Returns the matching voices; empty when none are installed for that language.
       operationId: useSpeech_voicesForLanguage
       tags:
@@ -3970,7 +3987,7 @@ paths:
       summary: Invoke setVoice (useSpeech)
       description: |
   Defaults applied to later calls to speak, unless that call overrides them.
-  
+
   **Output Contract**: Returns nothing; voice, rate and pitch update.
       operationId: useSpeech_setVoice
       tags:
@@ -3993,7 +4010,7 @@ paths:
       summary: Invoke setRate (useSpeech)
       description: |
   Defaults applied to later calls to speak, unless that call overrides them.
-  
+
   **Output Contract**: Returns nothing; voice, rate and pitch update.
       operationId: useSpeech_setRate
       tags:
@@ -4016,7 +4033,7 @@ paths:
       summary: Invoke setPitch (useSpeech)
       description: |
   Defaults applied to later calls to speak, unless that call overrides them.
-  
+
   **Output Contract**: Returns nothing; voice, rate and pitch update.
       operationId: useSpeech_setPitch
       tags:
@@ -4039,7 +4056,7 @@ paths:
       summary: "Turning speech into text, on the device or in the cloud."
       description: |
   Records the user talking and returns what they said. It can work offline using the phone's own recogniser, or send the clip to Gemini for higher accuracy. Offline is faster and private; cloud handles harder audio.
-  
+
   Capture runs through useAudio at 16 kHz mono on the voice_recognition source, which is the path that applies the platform noise suppression. In offline mode the native module drives Android System Intelligence streaming recognition and emits partial results as the user speaks. In cloud mode the finished clip is sent to Gemini audio understanding. Neither path fabricates a transcript: without a key, cloud mode keeps the recording and returns an error.
       operationId: get_useSpeechAI
       tags:
@@ -4056,7 +4073,7 @@ paths:
       summary: Invoke startListening (useSpeechAI)
       description: |
   Opens the microphone using the current recognitionMode: the on-device recognizer, or a recording for cloud transcription.
-  
+
   **Output Contract**: Resolves true when the microphone opened, false with the reason in error when permission was denied or the recognizer refused.
       operationId: useSpeechAI_startListening
       tags:
@@ -4073,7 +4090,7 @@ paths:
       summary: Invoke stopListeningAndTranscribe (useSpeechAI)
       description: |
   Closes the microphone and returns what was heard.
-  
+
   **Output Contract**: Resolves with { transcript, confidence, durationSeconds, latencyMs, language } — confidence is null for cloud transcripts — or null when nothing was captured or transcription failed. In cloud mode the audio file is kept in lastRecordingUri either way.
       operationId: useSpeechAI_stopListeningAndTranscribe
       tags:
@@ -4090,7 +4107,7 @@ paths:
       summary: Invoke setRecognitionMode (useSpeechAI)
       description: |
   Chooses the engine for the next run.
-  
+
   **Output Contract**: Returns nothing. model updates to name the engine that will be used.
       operationId: useSpeechAI_setRecognitionMode
       tags:
@@ -4113,7 +4130,7 @@ paths:
       summary: Whether the on-device AI stack is installed and usable.
       description: |
   Answers one question: can this phone run AI locally? It checks that the system services which host on-device models are present, and reports their versions. It does not run inference itself.
-  
+
   The Tensor TPU is only reachable through AICore (Gemini Nano, via ML Kit) or LiteRT, so this hook reports what is verifiably installed rather than guessing at hardware. AICore and Private Compute Services versions come from PackageManager, which needs a <queries> entry to see them at all. Inference timings deliberately stay null here; real measured latency lives in useGeminiNano. benchmarkTPU runs a genuine matrix multiplication on the JS thread and is labelled CPU fallback, because that is what it is.
       operationId: get_useTPU
       tags:
@@ -4130,7 +4147,7 @@ paths:
       summary: Invoke benchmarkTPU (useTPU)
       description: |
   Runs a 256x256 float matrix multiply in JavaScript and reports it explicitly as a CPU fallback. No part of it touches the TPU.
-  
+
   **Output Contract**: Resolves with { activeDelegate: "CPU Fallback", isHardwareAccelerated: false, lastInferenceLatencyMs, throughputTokensPerSec: null, memoryFootprintMB: null }. Label it as a CPU number wherever you show it.
       operationId: useTPU_benchmarkTPU
       tags:
@@ -4147,7 +4164,7 @@ paths:
       summary: Non-contact infrared temperature measurement on Google Pixel Pro hardware.
       description: |
   Reads surface and ambient temperatures from the dedicated far-infrared (FIR) sensor on Pixel 8 Pro, 9 Pro, 10 Pro, and 11 Pro devices. Allows adjusting material emissivity and measurement mode.
-  
+
   Interfaces with the Melexis MLX90632 non-contact FIR temperature sensor integrated into Google Pixel Pro camera visors. Surfaces calibrated surface temperatures in both Celsius and Fahrenheit along with ambient die temperature. Supports configurable emissivity correction factors (0.10 to 1.00) and measurement modes (object, body, ambient). Reports unavailable on non-Pro models.
       operationId: get_useThermometer
       tags:
@@ -4213,7 +4230,7 @@ paths:
       summary: "The rear flashlight, including variable brightness and an SOS strobe."
       description: |
   Turns the rear light on and off. On this phone the brightness is adjustable in steps rather than just on or off. The state follows the system, so if the user toggles the torch from Quick Settings this hook notices.
-  
+
   Backed by CameraManager.setTorchMode, with turnOnTorchWithStrengthLevel on Android 13 and above for variable brightness. A registered torch callback means external changes are reflected rather than the hook holding a stale belief. Nothing is simulated: when the native module is absent, isAvailable is false and every action rejects instead of pretending.
       operationId: get_useTorch
       tags:
@@ -4230,7 +4247,7 @@ paths:
       summary: Invoke setTorch (useTorch)
       description: |
   Switches the rear LED, optionally at a specific brightness.
-  
+
   **Output Contract**: Resolves true when the call was accepted, false when the hardware is unavailable or the call threw, with the reason in error.
       operationId: useTorch_setTorch
       tags:
@@ -4253,7 +4270,7 @@ paths:
       summary: Invoke toggleTorch (useTorch)
       description: |
   Flips the current state, stopping any strobe first.
-  
+
   **Output Contract**: Resolves with the state the torch is in afterwards.
       operationId: useTorch_toggleTorch
       tags:
@@ -4270,7 +4287,7 @@ paths:
       summary: Invoke startStrobe (useTorch)
       description: |
   Toggles the hardware torch on a timer.
-  
+
   **Output Contract**: Returns nothing; isStrobing becomes true. Replaces any strobe already running.
       operationId: useTorch_startStrobe
       tags:
@@ -4293,7 +4310,7 @@ paths:
       summary: Invoke stopStrobe (useTorch)
       description: |
   Cancels the strobe timer and switches the LED off.
-  
+
   **Output Contract**: Returns nothing; isStrobing becomes false.
       operationId: useTorch_stopStrobe
       tags:
@@ -4310,7 +4327,7 @@ paths:
       summary: "Ultra-wideband radio state, hardware ranging sessions, and spatial diagnostics."
       description: |
   Reports whether this phone has the short-range precision radio used for precision spatial tracking and car keys, and manages hardware ranging sessions via UwbManager and RangingManager.
-  
+
   Chip presence, enabled state, chip id and ranging service readiness are queried from Android UwbManager and PackageManager through the native module, carrying source hardware. Hardware ranging sessions are initiated via startRanging(), exposing session diagnostics (session ID, protocol status, HAL direct vs declared feature) without mock placeholders.
       operationId: get_useUWB
       tags:
@@ -4327,7 +4344,7 @@ paths:
       summary: Invoke startRanging (useUWB)
       description: |
   Initiates a hardware UWB ranging session through UwbManager and RangingManager.
-  
+
   **Output Contract**: Resolves true when the session opened; false with the reason in sessionError when the service is missing or the hardware refused. Diagnostics land in sessionInfo either way.
       operationId: useUWB_startRanging
       tags:
@@ -4350,7 +4367,7 @@ paths:
       summary: Invoke stopRanging (useUWB)
       description: |
   Ends the active UWB ranging session. Safe to call when nothing is running.
-  
+
   **Output Contract**: Returns nothing; isRanging becomes false.
       operationId: useUWB_stopRanging
       tags:
@@ -4367,7 +4384,7 @@ paths:
       summary: "Playing video back, with position, seeking and thumbnails."
       description: |
   Plays a video file or stream. The natural partner to the camera: record a clip, hand the file to load(), and play it. It tracks position and duration so you can draw a scrubber, and can pull out frames as images for a poster or filmstrip.
-  
+
   Wraps expo-video, the SDK 57 replacement for the removed expo-av. The hook owns the player and a screen renders VideoView with it. Position, duration, buffered position and status are polled four times a second, which is enough for a scrubber without waking the JS thread every frame. Everything reported comes from the player rather than being tracked locally, so a seek made elsewhere still shows up.
       operationId: get_useVideo
       tags:
@@ -4391,7 +4408,7 @@ paths:
       summary: Invoke load (useVideo)
       description: |
   Swaps the player source, for example the clip useCamera just recorded.
-  
+
   **Output Contract**: Resolves true when the source was replaced, false with the reason in error otherwise.
       operationId: useVideo_load
       tags:
@@ -4414,7 +4431,7 @@ paths:
       summary: Invoke play (useVideo)
       description: |
   Transport controls for the player this hook owns.
-  
+
   **Output Contract**: Returns nothing; isPlaying updates on the next poll or immediately, and error is set when the player refused.
       operationId: useVideo_play
       tags:
@@ -4431,7 +4448,7 @@ paths:
       summary: Invoke pause (useVideo)
       description: |
   Transport controls for the player this hook owns.
-  
+
   **Output Contract**: Returns nothing; isPlaying updates on the next poll or immediately, and error is set when the player refused.
       operationId: useVideo_pause
       tags:
@@ -4448,7 +4465,7 @@ paths:
       summary: Invoke togglePlay (useVideo)
       description: |
   Transport controls for the player this hook owns.
-  
+
   **Output Contract**: Returns nothing; isPlaying updates on the next poll or immediately, and error is set when the player refused.
       operationId: useVideo_togglePlay
       tags:
@@ -4465,7 +4482,7 @@ paths:
       summary: Invoke seekTo (useVideo)
       description: |
   Jumps to an absolute position.
-  
+
   **Output Contract**: Returns nothing; positionSeconds updates immediately.
       operationId: useVideo_seekTo
       tags:
@@ -4488,7 +4505,7 @@ paths:
       summary: Invoke seekBy (useVideo)
       description: |
   Moves relative to the current position.
-  
+
   **Output Contract**: Returns nothing; on failure error is set.
       operationId: useVideo_seekBy
       tags:
@@ -4511,7 +4528,7 @@ paths:
       summary: Invoke replay (useVideo)
       description: |
   Restarts from the beginning and plays.
-  
+
   **Output Contract**: Returns nothing; positionSeconds returns to 0.
       operationId: useVideo_replay
       tags:
@@ -4528,7 +4545,7 @@ paths:
       summary: Invoke setMuted (useVideo)
       description: |
   Toggles mute and looping.
-  
+
   **Output Contract**: Returns nothing; isMuted and isLooping reflect it. Muting does not change volume.
       operationId: useVideo_setMuted
       tags:
@@ -4551,7 +4568,7 @@ paths:
       summary: Invoke setLoop (useVideo)
       description: |
   Toggles mute and looping.
-  
+
   **Output Contract**: Returns nothing; isMuted and isLooping reflect it. Muting does not change volume.
       operationId: useVideo_setLoop
       tags:
@@ -4574,7 +4591,7 @@ paths:
       summary: Invoke setPlaybackRate (useVideo)
       description: |
   Sets playback speed with pitch preserved.
-  
+
   **Output Contract**: Returns nothing; playbackRate reflects the clamped value.
       operationId: useVideo_setPlaybackRate
       tags:
@@ -4597,7 +4614,7 @@ paths:
       summary: Invoke setVolume (useVideo)
       description: |
   Sets player volume, independently of mute.
-  
+
   **Output Contract**: Returns nothing; volume updates.
       operationId: useVideo_setVolume
       tags:
@@ -4620,7 +4637,7 @@ paths:
       summary: Invoke setKeepScreenOn (useVideo)
       description: |
   Stops the screen dimming mid-clip.
-  
+
   **Output Contract**: Returns nothing.
       operationId: useVideo_setKeepScreenOn
       tags:
@@ -4643,7 +4660,7 @@ paths:
       summary: Invoke generateThumbnails (useVideo)
       description: |
   Extracts frames as images, for a filmstrip or a poster.
-  
+
   **Output Contract**: Resolves with the extracted frames, or an empty array on failure with the reason in error.
       operationId: useVideo_generateThumbnails
       tags:
@@ -4666,7 +4683,7 @@ paths:
       summary: "Nine on-device vision capabilities, plus cloud scene understanding."
       description: |
   Everything image-related in one hook. Locally it can read text, scan barcodes, find faces and poses, label objects and cut out the subject. For open-ended questions about a picture it can also send the image to Gemini.
-  
+
   The on-device half wraps the ML Kit vision models through pixel-nano and runs without a network: barcode scanning, text recognition v2, face detection with landmarks and head angles, 468-point face mesh, image labelling, object detection with tracking, 33-point pose detection, selfie and subject segmentation, and digital ink recognition. The cloud half sends a captured or picked image to Gemini and asks for a description plus structured labels. Each on-device call reports its own latency.
       operationId: get_useVisionAI
       tags:
@@ -4683,7 +4700,7 @@ paths:
       summary: Invoke captureAndAnalyze (useVisionAI)
       description: |
   Takes or picks a photo and sends it to Gemini for a description and labels.
-  
+
   **Output Contract**: Resolves with { description, labels, latencyMs, timestamp }, or null when the user cancelled, no API key is configured, or the call failed.
       operationId: useVisionAI_captureAndAnalyze
       tags:
@@ -4706,7 +4723,7 @@ paths:
       summary: Invoke pickImage (useVisionAI)
       description: |
   Opens the camera or the library and loads an image without analysing it.
-  
+
   **Output Contract**: Resolves with the file URI and base64 copy, also stored in selectedImageUri and selectedImageBase64. Null when cancelled or permission was refused.
       operationId: useVisionAI_pickImage
       tags:
@@ -4729,7 +4746,7 @@ paths:
       summary: Invoke recognizeText (useVisionAI)
       description: |
   Reads text from an image, on the device.
-  
+
   **Output Contract**: Resolves with { text, blocks, latencyMs, source }; blocks keep the line and bounding-box structure. Null on failure.
       operationId: useVisionAI_recognizeText
       tags:
@@ -4752,7 +4769,7 @@ paths:
       summary: Invoke scanBarcodes (useVisionAI)
       description: |
   Finds and decodes 1D and 2D codes, including QR.
-  
+
   **Output Contract**: Resolves with { barcodes, latencyMs, source }; each barcode carries rawValue, displayValue, format, valueType and a bounding box. Null on failure.
       operationId: useVisionAI_scanBarcodes
       tags:
@@ -4775,7 +4792,7 @@ paths:
       summary: Invoke detectFaces (useVisionAI)
       description: |
   Locates faces and their attributes.
-  
+
   **Output Contract**: Resolves with { faces, latencyMs, source }; each face carries a tracking id, head Euler angles, a bounding box, and smile and eye-open probabilities that are null when classification is off. Null on failure.
       operationId: useVisionAI_detectFaces
       tags:
@@ -4798,7 +4815,7 @@ paths:
       summary: Invoke detectObjects (useVisionAI)
       description: |
   Detects and tracks objects with labels.
-  
+
   **Output Contract**: Resolves with { objects, latencyMs, source }; each object carries a tracking id, a bounding box and labels with confidences. Null on failure.
       operationId: useVisionAI_detectObjects
       tags:
@@ -4821,7 +4838,7 @@ paths:
       summary: Invoke detectPose (useVisionAI)
       description: |
   Estimates body pose landmarks.
-  
+
   **Output Contract**: Resolves with { landmarks, latencyMs, source } — 33 landmarks, each with a type, x, y and an in-frame likelihood. Null on failure.
       operationId: useVisionAI_detectPose
       tags:
@@ -4844,7 +4861,7 @@ paths:
       summary: Invoke segmentSubject (useVisionAI)
       description: |
   Separates the main subject from the background.
-  
+
   **Output Contract**: Resolves with { subjectsCount, foregroundConfidence, latencyMs, source }. Null on failure.
       operationId: useVisionAI_segmentSubject
       tags:
@@ -4867,7 +4884,7 @@ paths:
       summary: Invoke detectFaceMesh (useVisionAI)
       description: |
   468-point 3D mesh; needs a close-range face.
-  
+
   **Output Contract**: Promise<FaceMeshResult | null>
       operationId: useVisionAI_detectFaceMesh
       tags:
@@ -4884,7 +4901,7 @@ paths:
       summary: Invoke labelImage (useVisionAI)
       description: |
   Classifies entities and scenes with confidences.
-  
+
   **Output Contract**: Promise<ImageLabelResult | null>
       operationId: useVisionAI_labelImage
       tags:
@@ -4901,7 +4918,7 @@ paths:
       summary: Invoke segmentSelfie (useVisionAI)
       description: |
   Foreground portrait mask.
-  
+
   **Output Contract**: Promise<SelfieSegmentationResult | null>
       operationId: useVisionAI_segmentSelfie
       tags:
@@ -4918,7 +4935,7 @@ paths:
       summary: Invoke recognizeDigitalInk (useVisionAI)
       description: |
   Recognises handwriting from stroke data, best candidate first.
-  
+
   **Output Contract**: Promise<DigitalInkResult | null>
       operationId: useVisionAI_recognizeDigitalInk
       tags:
@@ -4935,7 +4952,7 @@ paths:
       summary: Wi-Fi 7 (802.11be) Multi-Link Operation and 320 MHz channel telemetry.
       description: |
   Inspects affiliated Wi-Fi 7 radio links operating simultaneously across 2.4 GHz, 5 GHz, and 6 GHz spectrum, reporting bonded link speeds and channel bandwidths.
-  
+
   Reads Multi-Link Operation (MLO) telemetry introduced in Android 14+ (API 34+) for 802.11be Wi-Fi 7 routers and modems. Surfaces the array of active affiliated links, their respective channel widths (including ultra-wide 320 MHz channels on 6 GHz), per-link transmit and receive speeds, and calculates combined aggregate throughput. Reports inactive on Wi-Fi 6 or earlier.
       operationId: get_useWifi7MLO
       tags:
@@ -4966,7 +4983,7 @@ paths:
       summary: Fine Timing Measurement (FTM / 802.11az) indoor centimeter-level positioning.
       description: |
   Measures round-trip time (RTT) distance between the phone and nearby Wi-Fi access points to determine indoor location within 1 to 2 meters without GPS.
-  
+
   Utilizes android.net.wifi.rtt.WifiRttManager for 802.11mc / 802.11az Fine Timing Measurement ranging. Discovers RTT-capable access points and measures exact flight time in picoseconds, returning calculated distances in millimeters with standard deviation accuracy metrics. Operates indoors where satellite GNSS signals are obstructed.
       operationId: get_useWifiRTT
       tags:
@@ -5210,7 +5227,7 @@ components:
       type: object
       description: |
   How much thermal room is left before the phone slows itself down.
-  
+
   thermalHeadroom comes from PowerManager.getThermalHeadroom and is sampled every ten seconds, which is the cadence Google specifies; polling faster returns NaN. A live thermal-status listener reports the coarse state from NONE through SHUTDOWN. On Android 16 and above, SystemHealthManager can also report CPU and GPU headroom, which stays null when the device does not provide it. Frame figures pair the display mode refresh rate as a target with the Choreographer-measured rate as the actual.
       properties:
         thermalHeadroom:
@@ -5300,7 +5317,7 @@ components:
       type: object
       description: |
   Active frame workload negotiation with Android Dynamic Performance Framework and Tensor EAS.
-  
+
   Interfaces directly with android.os.PerformanceHintManager (Android 12+ API 31+). Manages an active thread hint session allowing apps to report exact frame computation times in nanoseconds. This informs the kernel scheduler in real-time whether the workload is meeting its deadline (e.g. 16.67ms for 60Hz or 8.33ms for 120Hz), scaling frequencies up only when needed.
       properties:
         isSupported:
@@ -5392,7 +5409,7 @@ components:
       type: object
       description: |
   Precision barometric altimetry, vertical climb/descent velocity, and weather trends.
-  
+
   Derived from the physical air pressure sensor via expo-sensors. Computes altitude above calibrated sea level using the standard barometric formula: h = 44330 * (1 - (P / P0)^0.1903). Automatically computes vertical velocity (rate of climb/descent in m/s) with exponential smoothing, categorizes atmospheric pressure trends (rising, steady, falling, rapid_fall), and supports local QNH calibration.
       properties:
         altitudeM:
@@ -5491,7 +5508,7 @@ components:
       type: object
       description: |
   Exposes on-device actions and hardware capabilities to system AI and Gemini Assistant.
-  
+
   Backed by android.app.appfunctions.IAppFunctionManager (system service 133 on Pixel 11 Pro). Exposes built-in hardware actions ('check_phone_thermals', 'purge_memory_cache', 'get_device_silicon_info') and enables developers to register custom AppFunction schemas and handlers dynamically. Reports source: 'hardware' when backed by the real system service.
       properties:
         isSupported:
@@ -5602,7 +5619,7 @@ components:
       type: object
       description: |
   Microphone recording with levels and input choice, plus playback.
-  
+
   Built on expo-audio. The speech profile records 16 kHz mono through the voice_recognition source, which is the path that applies the platform noise suppression and is what speech APIs expect; the studio profile records 48 kHz stereo through unprocessed, the raw microphone with no platform processing. Levels are read every 100 ms from the recorder status in dBFS, where -160 is digital silence and 0 is clipping; level maps that onto 0 to 1 with a floor at -60 dBFS so meters behave sensibly. Microphone enumeration only works once the recorder has been prepared, which is why inputs populate after recording starts. Playback routing between speaker and earpiece is an audio-mode setting, so it applies to the whole app.
       properties:
         isRecording:
@@ -6031,7 +6048,7 @@ components:
       type: object
       description: |
   Bluetooth adapter state, Channel Sounding, bonded devices, and active BLE peripheral discovery.
-  
+
   Adapter state, Channel Sounding support and the bonded device list are read from Android BluetoothAdapter through the native module with source hardware. Live peripheral discovery scans for nearby BLE beacons using Android BluetoothLeScanner, returning verified MAC addresses, RSSI (dBm), and log-distance path loss distance estimations.
       properties:
         isSupported:
@@ -6136,7 +6153,7 @@ components:
       type: object
       description: |
   Google Pixel Battery Share (Reverse Wireless Qi Charging) telemetry and actuator.
-  
+
   Directly interfaces with the Google Pixel reverse wireless charging subsystem (/sys/class/power_supply/wireless/reverse_chg_mode). Reports whether wireless power transfer is active, whether a compatible Qi receiver is docked, real-time power transmission in watts, and allows programmatically enabling or disabling power transfer with safety cutoff thresholds.
       properties:
         isSupported:
@@ -6239,7 +6256,7 @@ components:
       type: object
       description: |
   Fingerprint and face authentication.
-  
+
   Uses the platform BiometricPrompt through expo-local-authentication, which on a Pixel is backed by the hardware security module. The two checks matter separately: a device can have the sensor but no enrolled credential, in which case authentication cannot succeed and you should fall back to a passcode path.
       properties:
         hasHardware:
@@ -6328,7 +6345,7 @@ components:
       type: object
       description: |
   What the CPU is and how hard it is working right now.
-  
+
   Core identity comes from /proc/cpuinfo and per-core frequencies from the cpufreq sysfs tree, both read through the PixelNative module. Two different load signals are reported and they mean different things: cpuLoadPercent is how close the cores are running to their maximum clock, read from hardware; appCpuPercent is this app's own share of CPU time, computed from process time over wall time. Android does not let apps read system-wide /proc/stat, so a true "system load" figure does not exist here and is not invented.
       properties:
         coreTopology:
@@ -6406,7 +6423,7 @@ components:
       type: object
       description: |
   Lens, zoom, flash and torch, plus taking photos and recording video.
-  
+
   The hook owns a ref to a CameraView and drives it, so a screen only renders the view and attaches cameraRef and handleCameraReady. takePicture resolves with a file, its dimensions and optionally base64 for the AI hooks; startRecording resolves when the recording ends, either because you called stopRecording or because a duration or size limit was reached. Two things the API does not make obvious: zoom is a 0 to 1 fraction of the lens range rather than an optical multiplier, so a "5x" figure does not map onto it; and Camera Looks, Super Res Zoom and the low-light video mode belong to the Pixel Camera app and cannot be driven from here, so selectedLook is a label for your own interface.
       properties:
         cameraRef:
@@ -6880,7 +6897,7 @@ components:
       type: object
       description: |
   Google computational photography vendor extensions (Night Sight, Ultra HDR, Portrait Bokeh).
-  
+
   Backed by Android CameraExtensionCharacteristics (API 31+). Queries vendor-specific image processing modes for back and front cameras. Nothing is simulated: reads directly from the camera HAL and reports source: 'hardware' on genuine devices.
       properties:
         available:
@@ -6941,7 +6958,7 @@ components:
       type: object
       description: |
   What this particular phone actually has.
-  
+
   Resolution starts from a model table keyed on the device name, then upgrades to real PackageManager feature checks when the native module is present, at which point verification changes from model-table to device. Fields that can only be answered by the device are null until that upgrade happens. Evaluates verified platform features including android.hardware.npu, BLE Channel Sounding, and StrongBox KeyStore.
       properties:
         modelName:
@@ -7013,7 +7030,7 @@ components:
       type: object
       description: |
   Carrier, radio generation and network codes from the modem.
-  
+
   Wraps expo-cellular. generation reflects the current data connection, so it changes as the phone moves and reads unknown when there is no cellular data attached, including on Wi-Fi. Carrier name and the mobile country and network codes need the phone-state permission on Android; without it they stay null rather than being guessed. The country and network codes together identify a carrier globally, which is more reliable than matching on the display name.
       properties:
         generation:
@@ -7120,7 +7137,7 @@ components:
       type: object
       description: |
   Bluetooth Core 6.0 high-accuracy centimeter-precision Phase-Based Ranging (PBR).
-  
+
   Backed by android.hardware.bluetooth_le.channel_sounding and the Android 16/17 Ranging HAL service (IBluetoothChannelSounding). Measures distance with sub-decimeter accuracy, complementing UWB for non-line-of-sight spatial positioning. Nothing is simulated: queries actual device hardware capabilities.
       properties:
         isSupported:
@@ -7243,7 +7260,7 @@ components:
       type: object
       description: |
   Deep battery health, cycle count, manufacturing dates, and charging wattage tiers.
-  
+
   Reads Android 14+ battery health metrics and Google Pixel power supply sysfs telemetry. Provides lifetime charge cycles (BatteryManager.EXTRA_CYCLE_COUNT), state of health percentage (/sys/class/power_supply/battery/soh), factory manufacture date, first-use date, real-time charging wattage, and classifies charging speed into tiers (slow, standard, rapid, ultra_rapid > 30W).
       properties:
         stateOfHealthPercent:
@@ -7319,7 +7336,7 @@ components:
       type: object
       description: |
   Autonomous cloud hardware reasoning loop with multi-turn tool calling and extended thinking.
-  
+
   Orchestrates multi-turn agentic hardware problem solving using Google Gen AI SDK (`@google/genai`). Evaluates prompts, plans hardware tool invocations, executes local sensors and actuators, and reflects on results across consecutive turns until the goal is achieved. Surfaces live reasoning thought chains, intermediate tool execution steps, and final diagnostics.
       properties:
         isRunning:
@@ -7405,7 +7422,7 @@ components:
       type: object
       description: |
   Device identity, battery level, thermistor temperature, voltage, current, and wattage.
-  
+
   Identity comes from expo-device, live power state from expo-battery listeners, and deep physical battery telemetry from the native fuel gauge PMIC via PixelNative.getBatteryTelemetry(). batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give the cell terminal voltage and live current draw (negative discharging, positive charging); batteryPowerWatts computes real-time wattage (V × I). On Android 14+, batteryCycleCount reads lifetime charge cycles from the PMIC EEPROM. Nothing is simulated: unavailable readings are null.
       properties:
         modelName:
@@ -7555,7 +7572,7 @@ components:
       type: object
       description: |
   Refresh rate, HDR capability, brightness, high brightness mode, and the screen wake lock.
-  
+
   Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode toggles peak sunlight luminance, and setPreferredDisplayMode selects panel modes directly.
       properties:
         refreshRateHz:
@@ -7785,7 +7802,7 @@ components:
       type: object
       description: |
   On-device vector embeddings and semantic cosine similarity scoring via Tensor EdgeTPU.
-  
+
   Executes on-device text embedding generation on the Google Tensor EdgeTPU / NPU through ML Kit GenAI. Produces normalized 512-dimensional floating point vectors from input text in milliseconds. Includes an in-memory cosine similarity calculation helper to compare semantic proximity between vectors entirely offline.
       properties:
         isAvailable:
@@ -7857,7 +7874,7 @@ components:
       type: object
       description: |
   Which GPU this is, and whether your frames are arriving on time.
-  
+
   The renderer, vendor and OpenGL version are read through a real offscreen EGL context; the Vulkan version comes from the android.hardware.vulkan.version system feature. Frame timing is measured on the UI thread with Choreographer in one-second windows: average and worst frame interval, frames presented per second, and a jank count for frames that took more than 1.5x the expected interval. Android does not expose GPU memory usage to apps, so that field is always null rather than estimated.
       properties:
         gpuRenderer:
@@ -7918,7 +7935,7 @@ components:
       type: object
       description: |
   Cloud Gemini chat with real multi-turn history.
-  
+
   Wraps ai.chats.create from @google/genai on gemini-3.8-flash with a system instruction, so history is maintained by the SDK rather than re-sent by hand. Token counts come from the response usageMetadata and latency is measured around the call. Replies stream through sendMessageStream, so partial fills in as chunks arrive and lastFirstChunkMs records time to first token. There is no simulated fallback: without a key, sendMessage appends a system-role message explaining how to configure one. The key is read from SecureStore, never from source.
       properties:
         messages:
@@ -8357,7 +8374,7 @@ components:
       type: object
       description: |
   Real-time bidirectional streaming audio, camera video frames, text, and hardware tool execution with Gemini 3.8 Multimodal Live API.
-  
+
   Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks and camera image/video frames from device sensors, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
       properties:
         isConnected:
@@ -8611,7 +8628,7 @@ components:
       type: object
       description: |
   Gemini Nano running on the phone, with no network and no API key.
-  
+
   Wraps the ML Kit GenAI Prompt API on AICore through the pixel-nano module. The model is owned by the system, not bundled with the app, so checkStatus can report that a download is required; download reports progress as it runs. AICore keeps no conversation history, so each turn re-sends a capped transcript built by buildNanoTurn. Latency and time to first token are measured around the native call, and output token counts come from the on-device tokenizer, so the performance figures are real rather than estimated. There is no cloud fallback: if the model is unavailable, sendMessage appends an error entry.
       properties:
         status:
@@ -9175,7 +9192,7 @@ components:
       type: object
       description: |
   Four focused text tasks that run locally: summarise, proofread, rewrite, describe.
-  
+
   Wraps the ML Kit GenAI task modules on AICore through pixel-nano: genai-summarization, genai-proofreading and genai-rewriting, plus image description. Because each task ships a tuned model rather than a free-form prompt, the output is more consistent than asking a chat model, and it works on more devices. Every call reports its own measured latency and the engine that served it.
       properties:
         isRunning:
@@ -9340,7 +9357,7 @@ components:
       type: object
       description: |
   Vibration, from simple taps to custom-shaped waveforms.
-  
+
   Standard patterns come from expo-haptics. Beyond that, the native module reports the actual vibrator hardware: whether amplitude can be varied, its resonant frequency, and which composition primitives it supports. Android 16 envelope effects are built with BasicEnvelopeBuilder from intensity and sharpness control points and must finish at zero intensity. This Pixel supports them, which is how the thinking ramp and alert pulses are produced.
       properties:
         hasAmplitudeControl:
@@ -9644,7 +9661,7 @@ components:
       type: object
       description: |
   Platform health records, steps, and sensor vitals telemetry.
-  
+
   Backed by android.health.connect system framework on Android 14+, PackageManager healthdata provider detection, and hardware Sensor.TYPE_STEP_COUNTER / Sensor.TYPE_HEART_RATE HAL drivers. Nothing is simulated: reports real device health telemetry availability.
       properties:
         isAvailable:
@@ -9717,7 +9734,7 @@ components:
       type: object
       description: |
   The eight-LED ring around the rear camera flash. Real LEDs or nothing.
-  
+
   Android 17 exposes the array as eight lights of type Light.LIGHT_TYPE_APPLICATION, but every lights session needs CONTROL_DEVICE_LIGHTS, which is signature|privileged and cannot be held by a normal app. PixelKit therefore ships a small Java daemon that runs as the adb shell user and listens on 127.0.0.1:11080; start it with npm run hilight:daemon. With the daemon up, availability is hardware and the calls drive real LEDs. Without it, availability is simulated: the colour and pattern state is still tracked and mirrored on screen with haptics, and nothing pretends the lights are on.
       properties:
         availability:
@@ -9976,7 +9993,7 @@ components:
       type: object
       description: |
   Hardware-isolated Elliptic Curve Diffie-Hellman session key derivation via Titan M2.
-  
+
   Utilizes AndroidKeyStore and Java Cryptography Architecture (JCA) backed by the Google Titan M2 StrongBox hardware security module. Implements Elliptic Curve Diffie-Hellman (ECDH) on the NIST P-256 (secp256r1) curve with PURPOSE_AGREE_KEY. Generates hardware-isolated keypairs and derives symmetrical AES shared secrets against external peer public keys.
       properties:
         isStrongBoxSupported:
@@ -10042,7 +10059,7 @@ components:
       type: object
       description: |
   Position, altitude, heading and speed from the satellite receiver.
-  
+
   Streams from expo-location using the high-accuracy provider, which on a Pixel uses the dual-band receiver. The accuracy value is the radius in metres that the platform believes the position lies within; indoors it can be tens of metres and should gate any decision made from the coordinates. Heading and speed are only meaningful while actually moving.
       properties:
         latitude:
@@ -10122,7 +10139,7 @@ components:
       type: object
       description: |
   Saving captures to the gallery, and reading what is there.
-  
+
   Wraps expo-media-library. SDK 57 uses the class API (Asset.create, Album.create, Query) rather than the deprecated createAssetAsync helpers, which now throw at runtime. Asset fields are async accessors, so the hook flattens each into a plain SavedMedia object that a list can render directly. Permission is more subtle than a yes or no on modern Android: access is granted per media type, and the user can share only selected items, which is what hasLimitedAccess reports.
       properties:
         permissionGranted:
@@ -10276,7 +10293,7 @@ components:
       type: object
       description: |
   System RAM, this app's heaps, and how close the system is to killing you.
-  
+
   System totals come from ActivityManager.getMemoryInfo, polled every two seconds: total RAM, available RAM, the low-memory threshold and the kernel's own low-memory flag. App figures come from Runtime for the Java heap and Debug.getNativeHeapAllocatedSize for the native heap, which is where Hermes, decoded images and JSI allocations live. purgeCaches requests a garbage collection and re-reads; it does not claim to free system RAM, because an app cannot do that.
       properties:
         totalRAMMB:
@@ -10339,7 +10356,7 @@ components:
       type: object
       description: |
   Multi-mic acoustic array topology, polar directivity, and beamforming controls.
-  
+
   Directly queries the Android AudioManager for connected hardware microphones and their geometric coordinates, group mappings, and directivity patterns (omnidirectional, cardioid, hypercardioid). On supported Pixel devices, provides controls to steer acoustic beamforming (towards user, away from user, external) and adjust acoustic zoom field dimension.
       properties:
         microphones:
@@ -10444,7 +10461,7 @@ components:
       type: object
       description: |
   Reading and writing real NFC tags through reader mode.
-  
+
   Enables NfcAdapter reader mode on the foreground Activity through the native module. Every tag entering the field raises an event carrying its identifier, supported technologies, NDEF capacity, writability and decoded records; text records have their language prefix stripped and URI records are resolved. Two platform constraints are surfaced rather than hidden: reader mode is bound to the Activity, so it stops when the app is backgrounded and must be started again on resume; and a tag is only readable while physically in the field, so a read either happens in that window or reports why it did not.
       properties:
         isSupported:
@@ -10599,7 +10616,7 @@ components:
       type: object
       description: |
   Translation, language detection, smart replies and entity extraction, all offline.
-  
+
   Wraps the ML Kit language stack through pixel-nano: language-id, translate, smart-reply and entity-extraction. Translation models download per language pair on first use and then run entirely offline, which is why the first call for a new pair is slower. Smart reply takes a short conversation history and proposes replies. Entity extraction returns typed spans with their positions in the original string.
       properties:
         isProcessing:
@@ -10762,7 +10779,7 @@ components:
       type: object
       description: |
   Connection type, address and whether traffic actually goes anywhere.
-  
+
   Reads from expo-network: interface type, IP address, reachability and airplane mode. Being connected to Wi-Fi is not the same as having internet, which is why isConnected reflects a usable route rather than merely an attached interface. isMetered marks connections where the user pays per byte, typically cellular or a hotspot.
       properties:
         networkType:
@@ -10825,7 +10842,7 @@ components:
       type: object
       description: |
   System-level kernel and app performance profiling via Perfetto v54.
-  
+
   Backed by android.os.Trace, the system Perfetto binary (v54), and Android kernel trace categories (sched, freq, idle, gfx, view, am, wm, camera, hal). Emits zero-overhead hardware trace markers and captures system trace buffers without requiring root privileges. Nothing is simulated: operates directly on physical Android tracing infrastructure.
       properties:
         isSupported:
@@ -11015,7 +11032,7 @@ components:
       type: object
       description: |
   Hardware Key Attestation and Google Play Integrity verdicts via Titan M2.
-  
+
   Backed by android.hardware.strongbox_keystore (Titan M2 KeyMint 400), android.hardware.hardware_keystore (500), and Android KeyStore KeyGenParameterSpec attestation. Provides cryptographic hardware verification proving the device is a genuine physical Pixel without root compromise or simulation.
       properties:
         isSupported:
@@ -11128,7 +11145,7 @@ components:
       type: object
       description: |
   Android 15+ Private Space profile isolation detection and vault policy.
-  
+
   Utilizes android.os.UserManager.isPrivateProfile() introduced in Android 15 (API 35). Identifies whether the current application process has been launched within the isolated user profile partition (Private Space), detects whether Private Space has been set up on the device, and reports the active lock policy (immediate, screen_off, device_reboot).
       properties:
         isInsidePrivateSpace:
@@ -11182,7 +11199,7 @@ components:
       type: object
       description: |
   Every radio subsystem in one read.
-  
+
   One native call gathers state from NfcAdapter, BluetoothManager, UwbManager, WifiRttManager and PackageManager, refreshed every five seconds. Everything here is read from the platform, so the whole object carries source hardware. It overlaps with useNFC, useBLE and useUWB on purpose: those add per-radio actions, this one is purely for reading state.
       properties:
         nfc:
@@ -11239,7 +11256,7 @@ components:
       type: object
       description: |
   3GPP Release-17 Non-Terrestrial Network (satellite SOS) status and alignment telemetry.
-  
+
   Interfaces with Android 15+ (API 35+) satellite telephony services and 3GPP Rel-17 NTN modems. Monitors real-time satellite connection states (disconnected, searching, connected, pointing_assist), provider network names, signal quality bars (0 to 4), emergency SOS packet readiness, and surfaces azimuth and elevation vectors to assist pointing the phone at the horizon satellite constellation.
       properties:
         isSupported:
@@ -11308,7 +11325,7 @@ components:
       type: object
       description: |
   Encrypted storage for secrets, backed by hardware.
-  
+
   Wraps expo-secure-store, which encrypts values using a key held in the Android Keystore and, on devices that have it, StrongBox. Whether this device actually has StrongBox is verified separately by useCapabilities().hasStrongBox. Android 17 does have post-quantum key types, but SecureStore does not use them, so isPostQuantumProtected is false rather than implying protection that is not there.
       properties:
         isHardwareBacked:
@@ -11427,7 +11444,7 @@ components:
       type: object
       description: |
   Motion, orientation, air pressure and ambient light, streaming live.
-  
+
   Streams from expo-sensors: accelerometer and gyroscope for the six-axis IMU, magnetometer for heading, barometer for pressure, and the ambient light sensor. Relative altitude is computed from pressure with the international hypsometric formula, so it is a derived value and drifts with weather. The sampling interval applies to all streams; shorter intervals cost battery and wake the sensor hub more often.
       properties:
         accelerometer:
@@ -11475,7 +11492,7 @@ components:
       type: object
       description: |
   Android Spatializer status, binaural rendering, and dynamic head tracking telemetry.
-  
+
   Backed by android.media.Spatializer from the platform AudioManager. Queries audio DSP spatialization effects and checks whether the dynamic head tracker sensor is physically reporting. Nothing is simulated: reads directly from the audio HAL and reports source: 'hardware' on genuine devices.
       properties:
         isSupported:
@@ -11545,8 +11562,8 @@ components:
       type: object
       description: |
   Speaking text aloud with the voices the phone has installed.
-  
-  Wraps expo-speech, which drives the platform speech service. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected rather than silently truncated, because a cut-off sentence is worse than an error. The hook stops the engine on unmount so speech does not continue after the screen is gone.
+
+  Wraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. An explicit service must really initialize as requested; Android fallback is rejected. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.
       properties:
         isSpeaking:
           type: boolean
@@ -11559,6 +11576,12 @@ components:
           items:
             $ref: "#/components/schemas/Voice"
           description: "Installed voices, each with an identifier, name, language and quality."
+        speechEngines:
+          type: array
+          items:
+            type: object
+            description: "{ packageName: string; label: string }"
+          description: "Android TTS services installed on the device; empty when unavailable. Separate from the system engine's voice list."
         voice:
           anyOf:
             - type: string
@@ -11614,6 +11637,9 @@ components:
         options.volume:
           type: number
           description: 0 to 1 for this utterance.
+        options.enginePackage:
+          type: string
+          description: Installed Android TTS service package to use for this utterance without changing the system default. Rejects if unavailable or Android selects a different engine.
       required:
         - text
     useSpeech_speak_Response:
@@ -11750,6 +11776,29 @@ components:
       required:
         - success
         - source
+    useSpeech_refreshSpeechEngines_Request:
+      type: object
+      description: Request payload for refreshSpeechEngines on useSpeech.
+      properties:{}
+    useSpeech_refreshSpeechEngines_Response:
+      type: object
+      description: Response payload for refreshSpeechEngines on useSpeech.
+      properties:
+        success:
+          type: boolean
+          description: Whether the hardware accepted the command.
+        output:
+          description: "Resolves with the installed services, also written to speechEngines. Empty on unsupported platforms or failure, with the reason in error."
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: Error message if failed.
+        source:
+          $ref: "#/components/schemas/TelemetrySource"
+      required:
+        - success
+        - source
     useSpeech_voicesForLanguage_Request:
       type: object
       description: Request payload for voicesForLanguage on useSpeech.
@@ -11872,7 +11921,7 @@ components:
       type: object
       description: |
   Turning speech into text, on the device or in the cloud.
-  
+
   Capture runs through useAudio at 16 kHz mono on the voice_recognition source, which is the path that applies the platform noise suppression. In offline mode the native module drives Android System Intelligence streaming recognition and emits partial results as the user speaks. In cloud mode the finished clip is sent to Gemini audio understanding. Neither path fabricates a transcript: without a key, cloud mode keeps the recording and returns an error.
       properties:
         isListening:
@@ -12000,7 +12049,7 @@ components:
       type: object
       description: |
   Whether the on-device AI stack is installed and usable.
-  
+
   The Tensor TPU is only reachable through AICore (Gemini Nano, via ML Kit) or LiteRT, so this hook reports what is verifiably installed rather than guessing at hardware. AICore and Private Compute Services versions come from PackageManager, which needs a <queries> entry to see them at all. Inference timings deliberately stay null here; real measured latency lives in useGeminiNano. benchmarkTPU runs a genuine matrix multiplication on the JS thread and is labelled CPU fallback, because that is what it is.
       properties:
         aicoreInstalled:
@@ -12091,7 +12140,7 @@ components:
       type: object
       description: |
   Non-contact infrared temperature measurement on Google Pixel Pro hardware.
-  
+
   Interfaces with the Melexis MLX90632 non-contact FIR temperature sensor integrated into Google Pixel Pro camera visors. Surfaces calibrated surface temperatures in both Celsius and Fahrenheit along with ambient die temperature. Supports configurable emissivity correction factors (0.10 to 1.00) and measurement modes (object, body, ambient). Reports unavailable on non-Pro models.
       properties:
         isSupported:
@@ -12205,7 +12254,7 @@ components:
       type: object
       description: |
   The rear flashlight, including variable brightness and an SOS strobe.
-  
+
   Backed by CameraManager.setTorchMode, with turnOnTorchWithStrengthLevel on Android 13 and above for variable brightness. A registered torch callback means external changes are reflected rather than the hook holding a stale belief. Nothing is simulated: when the native module is absent, isAvailable is false and every action rejects instead of pretending.
       properties:
         isAvailable:
@@ -12343,7 +12392,7 @@ components:
       type: object
       description: |
   Ultra-wideband radio state, hardware ranging sessions, and spatial diagnostics.
-  
+
   Chip presence, enabled state, chip id and ranging service readiness are queried from Android UwbManager and PackageManager through the native module, carrying source hardware. Hardware ranging sessions are initiated via startRanging(), exposing session diagnostics (session ID, protocol status, HAL direct vs declared feature) without mock placeholders.
       properties:
         isSupported:
@@ -12445,7 +12494,7 @@ components:
       type: object
       description: |
   Playing video back, with position, seeking and thumbnails.
-  
+
   Wraps expo-video, the SDK 57 replacement for the removed expo-av. The hook owns the player and a screen renders VideoView with it. Position, duration, buffered position and status are polled four times a second, which is enough for a scrubber without waking the JS thread every frame. Everything reported comes from the player rather than being tracked locally, so a seek made elsewhere still shows up.
       properties:
         player:
@@ -12854,7 +12903,7 @@ components:
       type: object
       description: |
   Nine on-device vision capabilities, plus cloud scene understanding.
-  
+
   The on-device half wraps the ML Kit vision models through pixel-nano and runs without a network: barcode scanning, text recognition v2, face detection with landmarks and head angles, 468-point face mesh, image labelling, object detection with tracking, 33-point pose detection, selfie and subject segmentation, and digital ink recognition. The cloud half sends a captured or picked image to Gemini and asks for a description plus structured labels. Each on-device call reports its own latency.
       properties:
         selectedImageUri:
@@ -13261,7 +13310,7 @@ components:
       type: object
       description: |
   Wi-Fi 7 (802.11be) Multi-Link Operation and 320 MHz channel telemetry.
-  
+
   Reads Multi-Link Operation (MLO) telemetry introduced in Android 14+ (API 34+) for 802.11be Wi-Fi 7 routers and modems. Surfaces the array of active affiliated links, their respective channel widths (including ultra-wide 320 MHz channels on 6 GHz), per-link transmit and receive speeds, and calculates combined aggregate throughput. Reports inactive on Wi-Fi 6 or earlier.
       properties:
         isSupported:
@@ -13317,7 +13366,7 @@ components:
       type: object
       description: |
   Fine Timing Measurement (FTM / 802.11az) indoor centimeter-level positioning.
-  
+
   Utilizes android.net.wifi.rtt.WifiRttManager for 802.11mc / 802.11az Fine Timing Measurement ranging. Discovers RTT-capable access points and measures exact flight time in picoseconds, returning calculated distances in millimeters with standard deviation accuracy metrics. Operates indoors where satellite GNSS signals are obstructed.
       properties:
         isSupported:

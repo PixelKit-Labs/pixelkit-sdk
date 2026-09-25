@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PixelKit SDK API",
-    "version": "1.6.36",
+    "version": "1.6.37",
     "description": "OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).\n\n### The Zero-Simulation Principle\nEvery telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.\n- Fabricated readings are completely unrepresentable in this specification.\n- Unreadable sensor readings are `null` and report `unavailable`.\n- Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.\n\nCovers all 53 typed hardware and AI hooks, low-overhead native telemetry, and actuators.",
     "contact": {
       "name": "PixelKit Labs",
@@ -5291,7 +5291,7 @@
     "/hooks/useSpeech": {
       "get": {
         "summary": "Speaking text aloud with the voices the phone has installed.",
-        "description": "Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.\n\nWraps expo-speech, which drives the platform speech service. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected rather than silently truncated, because a cut-off sentence is worse than an error. The hook stops the engine on unmount so speech does not continue after the screen is gone.",
+        "description": "Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. An explicit service must really initialize as requested; Android fallback is rejected. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
         "operationId": "get_useSpeech",
         "tags": [
           "neural-ai"
@@ -5445,6 +5445,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/useSpeech_refreshVoices_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useSpeech/actions/refreshSpeechEngines": {
+      "post": {
+        "summary": "Invoke refreshSpeechEngines (useSpeech)",
+        "description": "Re-reads Android TTS services after installation or removal.\n\n**Output Contract**: Resolves with the installed services, also written to speechEngines. Empty on unsupported platforms or failure, with the reason in error.",
+        "operationId": "useSpeech_refreshSpeechEngines",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking refreshSpeechEngines.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useSpeech_refreshSpeechEngines_Response"
                 }
               }
             }
@@ -17119,7 +17141,7 @@
       },
       "useSpeechTelemetry": {
         "type": "object",
-        "description": "Speaking text aloud with the voices the phone has installed.\n\nWraps expo-speech, which drives the platform speech service. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected rather than silently truncated, because a cut-off sentence is worse than an error. The hook stops the engine on unmount so speech does not continue after the screen is gone.",
+        "description": "Speaking text aloud with the voices the phone has installed.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. An explicit service must really initialize as requested; Android fallback is rejected. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
         "properties": {
           "isSpeaking": {
             "type": "boolean",
@@ -17135,6 +17157,14 @@
               "$ref": "#/components/schemas/Voice"
             },
             "description": "Installed voices, each with an identifier, name, language and quality."
+          },
+          "speechEngines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "{ packageName: string; label: string }"
+            },
+            "description": "Android TTS services installed on the device; empty when unavailable. Separate from the system engine's voice list."
           },
           "voice": {
             "anyOf": [
@@ -17222,6 +17252,10 @@
           "options.volume": {
             "type": "number",
             "description": "0 to 1 for this utterance."
+          },
+          "options.enginePackage": {
+            "type": "string",
+            "description": "Installed Android TTS service package to use for this utterance without changing the system default. Rejects if unavailable or Android selects a different engine."
           }
         },
         "required": [
@@ -17418,6 +17452,42 @@
           },
           "output": {
             "description": "Resolves with the list, also written to voices. Empty array on failure, with the reason in error."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useSpeech_refreshSpeechEngines_Request": {
+        "type": "object",
+        "description": "Request payload for refreshSpeechEngines on useSpeech.",
+        "properties": {}
+      },
+      "useSpeech_refreshSpeechEngines_Response": {
+        "type": "object",
+        "description": "Response payload for refreshSpeechEngines on useSpeech.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Resolves with the installed services, also written to speechEngines. Empty on unsupported platforms or failure, with the reason in error."
           },
           "error": {
             "anyOf": [

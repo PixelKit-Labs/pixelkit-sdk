@@ -66,7 +66,7 @@ function main() {
     process.exit(1);
   }
 
-  const expectedYaml = normalizeEol(toYaml(currentSpec));
+  const expectedYaml = normalizeEol(toYaml(currentSpec).replace(/[ \t]+(?=\r?$)/gm, ''));
   const actualYaml = normalizeEol(fs.readFileSync(SPEC_YAML, 'utf8'));
 
   if (actualYaml !== expectedYaml) {

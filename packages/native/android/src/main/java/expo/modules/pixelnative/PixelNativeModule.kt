@@ -78,6 +78,7 @@ class PixelNativeModule : Module() {
   private var speechRecognizer: android.speech.SpeechRecognizer? = null
   private var speechStartPromise: expo.modules.kotlin.Promise? = null
   private var speechStartTimeout: Runnable? = null
+  private val explicitSpeechEngine by lazy { ExplicitSpeechEngine(context, mainHandler) }
   private var bleScanCallback: ScanCallback? = null
   /** Active NFC reader-mode callback; non-null only while the reader is running. */
   private var nfcReaderCallback: NfcAdapter.ReaderCallback? = null
@@ -574,6 +575,13 @@ class PixelNativeModule : Module() {
       true
     }
 
+    Function("listSpeechEngines") { explicitSpeechEngine.installedEngines() }
+    AsyncFunction("speakWithSpeechEngine") { packageName: String, text: String, rate: Float, pitch: Float, volume: Float, promise: expo.modules.kotlin.Promise ->
+      explicitSpeechEngine.speak(packageName, text, rate, pitch, volume, promise)
+    }
+    Function("stopSpeechEngine") { explicitSpeechEngine.stop(); true }
+    Function("isSpeechEngineSpeaking") { explicitSpeechEngine.isSpeaking() }
+
     // ───────────────────────── Bluetooth LE Active Scanning ─────────────────────────
     AsyncFunction("startBleScan") { timeoutMs: Long? ->
       val bm = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
@@ -966,6 +974,7 @@ class PixelNativeModule : Module() {
           releaseSpeechRecognition("ERR_SPEECH_CANCELLED", "Speech module destroyed")
         } catch (_: Throwable) {}
       }
+      explicitSpeechEngine.shutdown()
     }
   }
 

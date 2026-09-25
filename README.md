@@ -99,6 +99,8 @@ Every hook is typed, observed, and tested across real hardware:
 ### AI & Autonomous Agents (Cloud & Live Duplex)
 `useGemini` &middot; `useCloudHardwareAgent` &middot; `useGeminiLive` &middot; `useSpeechAI` &middot; `useSpeech` &middot; `useAppFunctions`
 
+`useSpeech` can select an installed Android TTS engine for one utterance with `enginePackage`, without changing the system default. It rejects an unavailable engine instead of silently using a different one.
+
 ### On-Device AI (`@pixelkit-labs/sdk/mlkit`)
 `useGeminiNano` &middot; `useGenAITasks` &middot; `useVisionAI` &middot; `useNaturalLanguageAI` &middot; `useEmbeddings`
 
