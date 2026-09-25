@@ -99,7 +99,7 @@ flowchart TD
 | S01.1 | Models | [spec](specs/settings.md) | [09, frame 3](boards/board-09.png) |
 | S02 | API Keys & Security Credentials | [spec](specs/settings.md) | [09, frame 4](boards/board-09.png) |
 | S03 | Model Context Protocol (MCP) Feeds (Alias Route) | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
-| S04 | Voice Activity Detection (VAD) & Wake Word | [spec](specs/settings.md) | [09, frame 5](boards/board-09.png) |
+| S04 | Voice Output, Activity Detection (VAD) & Wake Word | [spec](specs/settings.md) | [09, frame 5](boards/board-09.png) |
 | S04.1 | Unavailable Wake Enrollment State | [spec](specs/settings.md) | [09, frame 6](boards/board-09.png) |
 | S05 | Audio Subsystem, Earcons & 3-Mic Beam | [spec](specs/settings.md) | [10, frame 1](boards/board-10.png) |
 | S06 | Cost Control, Token Ledger & Currency | [spec](specs/settings.md) | [10, frame 2](boards/board-10.png) |

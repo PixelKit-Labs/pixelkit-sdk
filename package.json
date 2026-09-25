@@ -1,6 +1,6 @@
 {
   "name": "pixelkit-sdk",
-  "version": "1.6.38",
+  "version": "1.6.39",
   "private": true,
   "description": "Monorepo for the PixelKit SDK: the hooks, and the two Kotlin Expo Modules they read hardware through.",
   "license": "MIT",
@@ -67,8 +67,8 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-web": "^0.21.2",
-    "@pixelkit-labs/sdk": "1.6.38",
-    "@pixelkit-labs/native": "1.6.38",
-    "@pixelkit-labs/mlkit": "1.6.38"
+    "@pixelkit-labs/sdk": "1.6.39",
+    "@pixelkit-labs/native": "1.6.39",
+    "@pixelkit-labs/mlkit": "1.6.39"
   }
 }

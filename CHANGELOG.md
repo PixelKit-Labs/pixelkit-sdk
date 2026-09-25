@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.39] - 2026-09-25
+
+### Fixed
+- Release explicit Android speech requests when an engine does not initialize or finish playback, and let a new utterance interrupt the previous one. This prevents a stalled third-party TTS callback from leaving subsequent voice tests and reply replay stuck with `ERR_TTS_BUSY`.
+
+### Documentation
+- Update the living Delta Mobile S04/S04.1 voice and wake specifications, sitemap, review notes and implementation evidence for the 1.0.67/code123 build. Record the observed Kokoro service binding and completed playback callback separately from still-unconfirmed audible identity; retain the three-take acoustic wake flow as device-unverified. Board 09 frames remain historical visual references pending review.
+
 ## [1.6.38] - 2026-09-25
 
 ### Fixed

@@ -66,8 +66,8 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 | **S01.1** | Models | ModelsSection.tsx | Preferences with runtime limitations disclosed | Voice/cloud/image preferences |
 | **S02** | API Keys & Security Credentials | `KeysSection.tsx`, `JevKeyControls.tsx`, `jevService.ts` | Gemini generic-JSON legacy path; Jev credential controls in Settings; device acceptance pending | Provider credentials and explicit probes |
 | **S03** | Model Context Protocol (MCP) Feeds (Alias) | `SettingsScreen.tsx:84`, `McpFeedsPanel.tsx` | Implemented (Local hosting active; external feeds defer to MOM) | Alias route linking to canonical `connections.md` |
-| **S04** | Voice Activity Detection (VAD) & Wake | `SettingsScreen.tsx:85`, `WakeEnroll.tsx` | **Prototype Formula / Flawed** (Sample-count formula, random take metrics) | VAD threshold, silence timeout, wake enrollment UI |
-| **S04.1**| Unavailable Wake Enrollment State | `WakeEnroll.tsx` | Proposed (Defines explicit failure/missing mic state) | Fallback UI when mic permissions or hardware missing |
+| **S04** | Voice output, VAD & wake | `VoiceSection.tsx`, `WakeEnroll.tsx`, `features/wake/` | Implemented in source; Pixel enrollment and wake-to-recognizer handoff observed, repeat-trigger reliability failed | Installed TTS service selection, silence/follow-up timing, local acoustic enrollment and active-recognizer text matching |
+| **S04.1**| Unavailable Wake Enrollment State | `WakeEnroll.tsx` | Implemented in source; failure branches not device-verified | Explains missing mic/model availability and offers a recheck |
 | **S05** | Audio Subsystem, Earcons & 3-Mic Beam | `SettingsScreen.tsx:86`, `earcons.ts` | Partially Implemented (PCM WAV data URIs, mic beam call-path-exists) | Earcon sound toggles, volumes, mic beam steering |
 | **S06** | Cost Control, Token Ledger & Currency | `SettingsScreen.tsx:87`, `usageStore.ts` | Partially Implemented (**Currency selector toast-only; USD fixed**) | Spending caps, token ledger, USD-fixed budget display |
 | **S07** | Safety Gate, SSRF Shield & Gating | `SettingsScreen.tsx:88`, `confirmation.ts` | Implemented (Confirmation gate & RFC 1918 filter active) | Tool sensitivity gating, destructive tool whitelist, SSRF shield |
@@ -135,9 +135,9 @@ Native selection and persistence acceptance remain pending. These implementation
 
 ---
 
-### S04: Voice Activity Detection (VAD) & Wake Word
+### S04: Voice Output, Activity Detection (VAD) & Wake Word
 
-#### Proposed Layout Specimen (Sample)
+#### Historical Layout Specimen (Sample)
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ S04: VOICE ACTIVITY DETECTION & WAKE WORD               │
@@ -157,11 +157,12 @@ Native selection and persistence acceptance remain pending. These implementation
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Purpose:** Configure hands-free silence commit timeouts and follow-up listening windows.
-- **Source Path:** `SettingsScreen.tsx:85`; `src/components/WakeEnroll.tsx`.
-- **Implementation Status:** **Prototype Formula / Flawed**.
-  - **WakeEnroll Audit:** In `WakeEnroll.tsx:51`, acoustic cross-sample agreement is calculated via a simple formula `samples.length >= 2 ? Math.min(0.96, 0.82 + samples.length * 0.035) : 0` over random numbers for duration (`1.1 + Math.random() * 0.4`), peak (`-14 - Math.random() * 8`), and random envelope bars. There is NO C++ FFT engine and NO acoustic modeling.
-  - **Redesign Requirement:** Explicitly disclaim that custom wake phrase training requires native audio DSP integration.
+- **Purpose:** Select a local speech output, configure VAD timing, and enroll an optional foreground acoustic wake phrase.
+- **Current source:** `src/features/settings/sections/VoiceSection.tsx`, `src/components/WakeEnroll.tsx`, `src/features/wake/services/openWakeWord.ts`, `src/features/wake/services/wakeEnrollmentStore.ts`, and `modules/delta-openwakeword/` in Delta Mobile.
+- **Voice output:** The default phone voice remains available. The Kokoro choice is enabled only when Android reports the separate `com.k2fsa.sherpa.onnx.tts.engine` service installed. Selection persists in `SettingsStore.speechEngine`; Test selected voice awaits playback and asks the user to confirm the sound. Delta's reply and replay speech use the selected service through PixelKit 1.6.38. Android can still silently fall back if its active engine cannot be inspected, so a completed callback alone does not prove the audible engine.
+- **Acoustic enrollment:** When microphone permission and the local OpenWakeWord feature models are available, the user records one 4.5-second quiet-room sample followed by three 4.5-second phrase takes. The native module captures 16 kHz mono PCM and derives ONNX embeddings. `WakeEnrollmentStore` persists the calibrated template in private app storage, not the raw audio. Acoustic sensitivity applies to a new enrollment; the separate recognized-text threshold applies only to text from an already active speech recognizer. Monitoring is restricted to an open, foreground, idle Delta; it releases the microphone before speech recognition starts. Background wake is unavailable.
+- **Verification:** Delta 1.0.67/code123 with PixelKit 1.6.38 on the Pixel showed Kokoro installed/selected, Test selected voice completed with `Playback finished`, and Android bound the Sherpa-ONNX TTS service. Audible voice identity awaits user confirmation. The same build completed one quiet-room take plus three phrase takes and reported a saved acoustic enrollment (background score 0.027418, match score 0.117039, calibrated threshold 0.090153). Saying “Hey Delta” on Console stopped OpenWakeWord monitoring and started Android speech recognition. Monitoring then rearmed and retriggered repeatedly at roughly 10-second intervals; the live wake flow **fails reliability acceptance**. Those calibration scores are observed values for this enrollment, not an accuracy benchmark. False-positive rate, stable one-shot turn completion and power cost remain unverified. ARTEMIS quota/rate limits prevented its UI run; this checkpoint used direct ADB UI/log inspection.
+- **Historical frame:** Board 09 frame 5 and the sample above predate the real audio implementation. Its prototype formula/random metrics and slider are not current UI or a test oracle. Keep the PNG as provenance until a revised visual board is reviewed; the implementation status here governs current behavior.
 
 #### S04.1: Unavailable Wake Enrollment State
 ```
@@ -174,7 +175,7 @@ Native selection and persistence acceptance remain pending. These implementation
 │ [ GRANT PERMISSION ]      [ DISMISS ]                   │
 └─────────────────────────────────────────────────────────┘
 ```
-- Rendered when `useMicrophoneArray` reports `source: 'unavailable'` or record permissions are rejected.
+- Current `WakeEnroll` renders an unavailable notice when its native availability result is not `hardware`, with the reported permission/model error and a Check microphone and models action. If permission is missing, the action requests recording permission and checks availability again. The older mock's Grant permission/Dismiss pair and `useMicrophoneArray` condition are design history, not the current implementation. Missing local ONNX models also prevent enrollment; transcript matching remains available only during active recognition. The failure branch has not been checked on device.
 
 ---
 
@@ -404,3 +405,7 @@ Voice, Audio and Connections details use readable14px minimum descriptions in th
 ### Narrow-width spacing checkpoint - 1.0.63
 
 Settings detail headers use the shared leading-title layout; the Guide control stays on the trailing edge. Voice timeout choices form two columns with 48dp minimum targets at narrow widths. Models uses a single page title above its option groups. No model/provider preference semantics changed.
+
+### Local voice and wake checkpoint - 1.0.67
+
+Voice output selection and Test selected voice now precede the VAD timing and wake controls on S04. On the Pixel, the Kokoro route completed one test utterance and bound the installed Sherpa-ONNX service; audible identity remains for the user to confirm. The native OpenWakeWord module completed room-plus-three-take enrollment and reached Android speech recognition on a spoken “Hey Delta,” but monitoring rearmed and retriggered around 10 seconds later, repeatedly. Stable one-shot wake and reply behavior has not passed. S04.1 reflects native microphone/model availability and offers a recheck; its failure branch remains unverified. Board 09 frames 5–6 remain historical proposal art because no visual redesign was accepted in this increment; see [implementation evidence](../IMPLEMENTATION.md#local-voice-output-and-acoustic-wake-checkpoint--2026-09-25).

@@ -1143,10 +1143,10 @@
     },
     {
       "id": "S04",
-      "title": "Voice Activity Detection (VAD) & Wake Word",
+      "title": "Voice Output, Activity Detection (VAD) & Wake Word",
       "area": "settings",
       "spec": "specs/settings.md",
-      "heading": "S04: Voice Activity Detection (VAD) & Wake Word",
+      "heading": "S04: Voice Output, Activity Detection (VAD) & Wake Word",
       "frames": [
         {
           "board": "09",
@@ -1158,8 +1158,8 @@
         "10"
       ],
       "coverage": "illustrated concept frame; see corrections",
-      "implementation": "see source-specific implementation status and limitations in spec",
-      "deviceVerification": "not verified for proposed redesign"
+      "implementation": "Delta 1.0.67 voice output and acoustic enrollment implemented; see spec and evidence",
+      "deviceVerification": "Pixel enrollment and wake-to-recognizer handoff observed; repeat-trigger reliability failed"
     },
     {
       "id": "S04.1",
@@ -1178,8 +1178,8 @@
         "10"
       ],
       "coverage": "illustrated concept frame; see corrections",
-      "implementation": "see source-specific implementation status and limitations in spec",
-      "deviceVerification": "not verified for proposed redesign"
+      "implementation": "native microphone/model availability and recheck implemented",
+      "deviceVerification": "unavailable-state failure branch not device-verified"
     },
     {
       "id": "S05",
