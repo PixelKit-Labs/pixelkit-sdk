@@ -23,7 +23,7 @@ diffs and evidence before integration. Internal researchers remain read-only.
 | Settings | Assistant, Keys, MCP, Voice, Audio, Cost, Safety, Relay, About |
 | Guide | Running It, Reference, Components |
 
-Also inventory shared primitives, MCP feeds, optional JEV settings, wake enrollment,
+Also inventory shared primitives, MCP feeds, local Laya settings, wake enrollment,
 WhatsApp relay, generative cards, and the trace waterfall. Legacy Dashboard,
 AI Lab, Sensors, Docs, SettingsModal and the design-system catalog are not mounted
 by the current shell. Preserve them until their intended disposition is decided.

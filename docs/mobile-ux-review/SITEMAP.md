@@ -1,6 +1,6 @@
 # Sitemap and page coverage
 
-81 specified destinations/states; 10 saved boards with 60 illustrative frames. Pages without their own frame use the linked family pattern and detailed written spec; they do not have a dedicated high-fidelity mockup yet. Image labels are local; this index uses stable spec IDs.
+80 specified destinations/states; 10 saved boards with 60 illustrative frames. Pages without their own frame use the linked family pattern and detailed written spec; they do not have a dedicated high-fidelity mockup yet. Image labels are local; this index uses stable spec IDs.
 
 ~~~mermaid
 flowchart TD
@@ -95,8 +95,8 @@ flowchart TD
 | ID | Page/state | Spec | Board coverage |
 | --- | --- | --- | --- |
 | S00 | Settings index and search | [spec](specs/settings.md) | [09, frame 1](boards/board-09.png) |
-| S01 | Assistant identity | [spec](specs/settings.md) | [09, frame 2](boards/board-09.png) |
-| S01.1 | Models | [spec](specs/settings.md) | [09, frame 3](boards/board-09.png) |
+| S01 | Assistant identity & Built-in System Prompt | [spec](specs/settings.md) | [09, frame 2](boards/board-09.png) |
+| S01.1 | Models & Local decisions (Laya) | [spec](specs/settings.md) | [09, frame 3](boards/board-09.png) |
 | S02 | API Keys & Security Credentials | [spec](specs/settings.md) | [09, frame 4](boards/board-09.png) |
 | S03 | Model Context Protocol (MCP) Feeds (Alias Route) | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
 | S04 | Voice Output, Activity Detection (VAD) & Wake Word | [spec](specs/settings.md) | [09, frame 5](boards/board-09.png) |
@@ -105,9 +105,8 @@ flowchart TD
 | S06 | Cost Control, Token Ledger & Currency | [spec](specs/settings.md) | [10, frame 2](boards/board-10.png) |
 | S07 | Safety Gate, SSRF Shield & Gating | [spec](specs/settings.md) | [10, frame 3](boards/board-10.png) |
 | S08 | External Relay & WhatsApp Bridge | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
-| S09 | TypeSafe AI / Jev Service | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
-| S10 | About, Hardware Diagnostics & Reset | [spec](specs/settings.md) | [10, frame 4](boards/board-10.png); [10, frame 5](boards/board-10.png) |
-| S10.1 | Doctor Failure & Settings Reset Failure States | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
+| S09 | Local decisions / Laya (Consolidated into S01.1) | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
+| S10 | About & Operational Guide | [spec](specs/settings.md) | [10, frame 4](boards/board-10.png); [10, frame 5](boards/board-10.png) |
 | S10.2 | Floating Unsaved Configuration Bar | [spec](specs/settings.md) | [10, frame 6](boards/board-10.png) |
 | S11 | Confirmation Barrier Dialog Overlay | [spec](specs/settings.md) | Written spec + family 09/10 pattern |
 | S10.3 | Developer overlay | [spec](specs/settings.md) | Written spec + family 09/10 pattern |

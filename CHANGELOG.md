@@ -4,6 +4,34 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.42] - 2026-09-26
+
+### Fixed
+- Keep trace context scoped to synchronous execution and attach each success/failure event to its own operation ID. Overlapping promises no longer borrow or restore another operation's ID. Events in async continuations have no implicit trace owner; callers can carry request IDs in event data.
+- Measure traced operation durations with `performance.now()` while retaining wall-clock timestamps for records.
+
+### Verification
+- TypeScript, 80 existing tests, OpenAPI checks, package builds, local documentation contract, docs site build and npm packaging dry run passed. New concurrency regression tests and phone verification remain deferred under the user's ARTEMIS prerequisite; this is not a device performance claim. Delta remains on published SDK 1.6.39 until a release is authorized.
+- Living guide records Delta 1.0.74's model-state and expired-queue corrections and Delta 1.0.75's restored preview and retired-key cleanup in Models. These app changes do not modify SDK contracts.
+- Correct stale active JEV navigation/runtime claims in the living mobile review and record Delta 1.0.76's removal of its unusable benchmark. Historical design artifacts remain labeled as such.
+
+## [1.6.41] - 2026-09-26
+
+### Documentation
+- Replace the living guide's active JEV description with Delta Mobile's local Laya decision layer, settings/model preview, retired-credential behavior, and proposed MCP/tool-routing boundary. Record ARTEMIS prerequisites and deferred BDD acceptance separately from implemented source.
+- Record the user's four delivery workstreams: Laya/UI, STT/TTS/Kokoro, timing/telemetry, and chat behavior/BDD. Define evidence boundaries, the scenario backlog and dependency order without claiming unrun checks or invented speed targets.
+- Audit existing timing boundaries and failing-test contracts: overlapping trace ownership, Laya queue/load timing, pre-response totals, STT listening duration, and missing explicit-engine playback-start evidence. Record source findings separately from device measurements.
+- Record the live screenshot/hierarchy mismatch and repeated ARTEMIS provider rate limits; distinguish confirmed phone availability from blocked automation.
+- SDK hooks and hardware APIs are unchanged. Preserve the existing unreleased 1.6.40 speech changes. The guide site builder referenced by the agent instructions is absent; no successful site rebuild is claimed.
+
+## [1.6.40] - 2026-09-25
+
+### Fixed
+- Accept Android's `onBeginningOfSpeech` or a nonempty partial transcript as evidence that on-device recognition started when its service omits `onReadyForSpeech`. Resolve startup only once and retain the 10-second timeout for sessions with no usable callback. Log which callback started the session or whether startup timed out.
+
+### Documentation
+- Record the observed Pixel speech-start timeout, the SDK callback fallback, and the remaining device verification in the living Delta system guide.
+
 ## [1.6.39] - 2026-09-25
 
 ### Fixed

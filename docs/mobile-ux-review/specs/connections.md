@@ -67,9 +67,9 @@ Design proposal, not a claim of deployed functionality. Boards 05–06 illustrat
 
 ## N10 — Superseded Connections cloud concept
 - **Purpose/status:** historical board 06 frame 4. It shows the optional TypeSafe/Jev control in Connections; the user's revised navigation places the functional destination at Settings S09 and the credential at Settings S02. Preserve this frame for provenance, not as an implementation route.
-- **Entry/exit:** N01 does not offer a Jev row. Settings S00 → S09 is the canonical optional-provider path; S00 → S02 owns key Save/Test/Remove.
-- **Runtime boundary:** current Jev use is limited to opted-in ambiguous flashlight intent. It does not classify every chat or execute tools. Missing key, timeout, rejection and network loss keep local clarification available. See [S09](settings.md#s09-typesafe-ai--jev-service) and the mobile `docs/TYPESAFE_INTEGRATION.md` for the active source path.
-- **Acceptance:** the old frame stays labeled superseded in the review package. Current source removes the duplicate Jev control from Connections; Android navigation and provider verification remain pending.
+- **Entry/exit:** N01 has no cloud decision-provider row. Settings → Models is the current local Laya destination; Keys retains only active credentials.
+- **Runtime boundary:** local Laya assists only ambiguous flashlight clarification when enabled. It does not classify every chat or execute tools. Missing models, timeout and inference errors preserve local clarification. See [S09](settings.md) and the mobile `docs/laya-integration.md` for the active source path.
+- **Acceptance:** board 06 frame 4 remains historical art. Android navigation, model inference and provider behavior remain pending ARTEMIS verification.
 
 ## N11 — Relay configuration
 - **Purpose/status:** existing UI includes a toast-only save path. Functional persistence/delivery is unavailable; new working integration is a future proposal.

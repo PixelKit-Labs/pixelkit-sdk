@@ -18,3 +18,7 @@ The current [mobile UI foundation chapter](mobile-ui-foundation.md) and
 [visual review gallery](../mobile-ux-review/index.html) record the new overhaul.
 They distinguish current implementation work from proposals and blocked phone
 verification. The original chapter-site builder remains absent.
+
+The [active workstreams and acceptance checklist](workstreams.md) tracks Laya,
+voice, timing/telemetry, and chat behavior together, with separate implementation,
+automated-check, and phone-verification status.

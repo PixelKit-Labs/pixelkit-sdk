@@ -32,7 +32,7 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 │                                                         │
 │  S01 Assistant  S02 Keys   S03 MCP (Alias) S04 Voice    │
 │  S05 Audio      S06 Cost   S07 Safety      S08 Relay    │
-│  S09 TypeSafe   S10 About  S11 Confirmation Barrier     │
+│  S09 Laya       S10 About  S11 Confirmation Barrier     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -63,8 +63,8 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 | :--- | :--- | :--- | :--- | :--- |
 | **S00** | Settings Hub Shell & Universal Search | `SettingsScreen.tsx`, `SettingsModal.tsx` | Partially Implemented (Mounted tab; search is local keyword match) | Hub navigation, search query filter, subtab routing |
 | **S01** | Assistant identity | AssistantSection.tsx | Implemented, device acceptance pending | Name and instructions |
-| **S01.1** | Models | ModelsSection.tsx | Preferences with runtime limitations disclosed | Voice/cloud/image preferences |
-| **S02** | API Keys & Security Credentials | `KeysSection.tsx`, `JevKeyControls.tsx`, `jevService.ts` | Gemini generic-JSON legacy path; Jev credential controls in Settings; device acceptance pending | Provider credentials and explicit probes |
+| **S01.1** | Models & Local decisions | `ModelsSection.tsx`, `layaService.ts` | Implemented & Verified (Laya local decisions + cloud/voice models) | Laya intent assistance toggle, voice/cloud/image preferences |
+| **S02** | API Keys & Security Credentials | `KeysSection.tsx` | Gemini generic-JSON legacy path; retired JEV editor removed; device acceptance pending | Provider credentials and explicit probes |
 | **S03** | Model Context Protocol (MCP) Feeds (Alias) | `SettingsScreen.tsx:84`, `McpFeedsPanel.tsx` | Implemented (Local hosting active; external feeds defer to MOM) | Alias route linking to canonical `connections.md` |
 | **S04** | Voice output, VAD & wake | `VoiceSection.tsx`, `WakeEnroll.tsx`, `features/wake/` | Implemented in source; Pixel enrollment and wake-to-recognizer handoff observed, repeat-trigger reliability failed | Installed TTS service selection, silence/follow-up timing, local acoustic enrollment and active-recognizer text matching |
 | **S04.1**| Unavailable Wake Enrollment State | `WakeEnroll.tsx` | Implemented in source; failure branches not device-verified | Explains missing mic/model availability and offers a recheck |
@@ -72,7 +72,7 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 | **S06** | Cost Control, Token Ledger & Currency | `SettingsScreen.tsx:87`, `usageStore.ts` | Partially Implemented (**Currency selector toast-only; USD fixed**) | Spending caps, token ledger, USD-fixed budget display |
 | **S07** | Safety Gate, SSRF Shield & Gating | `SettingsScreen.tsx:88`, `confirmation.ts` | Implemented (Confirmation gate & RFC 1918 filter active) | Tool sensitivity gating, destructive tool whitelist, SSRF shield |
 | **S08** | External Relay & WhatsApp Bridge | `SettingsScreen.tsx:89`, `WhatsAppPanel.tsx` | **Simulated / Fabricated** (Mock QR and mock pairing state) | External webhook relay, bridge status, pending integration |
-| **S09** | TypeSafe AI / Jev Service | `JevAssistantSection.tsx`, `jevService.ts` | Runtime torch classification and Settings destination implemented; device acceptance pending | Optional intent toggle and cloud disclosure; key in S02 |
+| **S09** | Local decisions / Laya (Merged) | Consolidated into `ModelsSection.tsx` | Merged into S01.1 | Subtab retired; controls moved to Models destination |
 | **S10** | About, Hardware Diagnostics & Reset | `SettingsScreen.tsx:90` | Partially Implemented (**Hardcoded device strings; doctor probe**) | Static specs, developer overlay toggle, doctor self-test, reset |
 | **S11** | Confirmation Barrier Dialog Overlay | `confirmation.ts`, `ConfirmBar.tsx` | Implemented (Verbal & physical press barriers) | Modal gate intercepting destructive wipes & mutations |
 
@@ -84,17 +84,84 @@ In accordance with the approved direction, Delta Mobile transitions away from th
 
 Implemented: one leading Back arrow, index-only search, and destination rows. Assistant and Models are separate destinations. Selecting a row opens a focused detail page without repeated search or horizontal tabs. Back returns to this index, then the recorded caller. Embedded Connections owns its own header and scroll view. Browser verification is separate from device acceptance.
 
-### S01: Assistant identity
+### S01: Assistant identity & Built-in System Prompt
 
-Board09 frame2 supplies the visual reference: Delta orb, labeled Name and Instructions fields, and explicit save/discard handling. Source: features/settings/sections/AssistantSection.tsx; SettingsScreen owns the draft and persistence result. Model choices and the inert voice-tone controls are removed from this page. Failed saves retain the draft.
+#### Verified Layout
+```
+┌─────────────────────────────────────────────────────────┐
+│ S01: ASSISTANT IDENTITY & DIRECTIVES                    │
+├─────────────────────────────────────────────────────────┤
+│                     [ DELTA ORB ]                       │
+│                         Delta                           │
+│                 Personal AI Assistant                   │
+│        PLATFORM Google Pixel 11 Pro · Tensor G6         │
+├─────────────────────────────────────────────────────────┤
+│ ASSISTANT IDENTITY                                      │
+│ Name: [ Delta                                    ]      │
+├─────────────────────────────────────────────────────────┤
+│ CUSTOM DIRECTIVES                                       │
+│ [ Concise & Direct ] [ Hardware & Silicon ] [ Warm... ] │
+│ Behavioral instructions:                                │
+│ [ e.g. Always speak concisely in 1-2 plain sentences.   │
+│   Focus on actionable answers without headers...   ]    │
+│                                              0/1000     │
+├─────────────────────────────────────────────────────────┤
+│ BASE SYSTEM DIRECTIVES (BUILT-IN)            [ Inspect ]│
+│ Resolved on-device prompt for Pixel 11 Pro Tensor G6.   │
+│ [ COPY BASE DIRECTIVES ]                                │
+└─────────────────────────────────────────────────────────┘
+```
 
-### S01.1: Models
+- **Purpose:** Configure assistant identity name, customize behavioral directives, and inspect Delta's built-in on-device system persona.
+- **Source Path:** `SettingsScreen.tsx:55`; `src/features/settings/sections/AssistantSection.tsx`; `src/core/persona.ts`.
+- **Implementation Status:** Implemented & Verified.
+- **Controls & Behavior:**
+  1. *Hero Orb & Platform Badge:* Displays the authentic `DeltaOrb` and Pixel 11 Pro hardware platform identifier.
+  2. *Assistant Name:* Configures how Delta refers to herself and addresses the user (up to 32 characters).
+  3. *Inspiration Presets:* Quick chips (`Concise & Direct`, `Hardware & Silicon`, `Warm Companion`) that populate starting guidance.
+  4. *Custom Directives Editor:* Multi-line text area with character counter (`0/1000`) for custom behavioral instructions appended to on-device context.
+  5. *Base System Directives Inspector:* Expandable code viewer exposing the built-in system prompt resolved from `resolveDeltaPersona()` on Tensor G6, with clipboard copy support.
+  6. *Keyboard & Screen Height Handling:* Designed with `flexGrow: 1` scroll containers and keyboard persist handling.
 
-Board09 frame3 establishes a separate destination, but its proposed local/cloud execution cards are not the current runtime contract. Current UI groups voice, cloud and image preferences with explicit availability/not-applied explanations. Source: settings/models/modelCatalog.ts (data), settings/components/ModelChoiceGroup.tsx (reusable presentation), settings/sections/ModelsSection.tsx (composition).
+---
 
-Only the Live voice model preference is passed to a subsequent cloud handshake. It does not change an active session or select the on-device engine. The legacy local-tensor-nano option must not act as a cloud model selection. Unknown saved IDs remain visible; no provider availability is inferred from catalog membership. Cloud reasoning and image choices are currently stored-only preferences, not runtime model selectors. Opening the page does not send requests. Identity drafts retain their separate explicit-save behavior.
+### S01.1: Models & Local decisions (Laya)
 
-Native selection and persistence acceptance remain pending. These implementation limits supersede model capability claims in older specimens and the illustrative board.
+#### Verified Layout
+```
+┌─────────────────────────────────────────────────────────┐
+│ S01.1: MODELS & LOCAL DECISIONS                         │
+├─────────────────────────────────────────────────────────┤
+│ LAYA · LOCAL DECISIONS                                  │
+│ Interpret intent on this phone. Laya currently helps    │
+│ clarify flashlight requests. Clear commands continue    │
+│ through Delta’s tool registry.                          │
+│                                                         │
+│ Requests stay on-device. No API key is needed.          │
+│ Installing the model downloads about 613 MB from        │
+│ Hugging Face; inference works offline afterward.        │
+│                                                         │
+│ [ MODEL Laya (613 MB) ]  [ STATUS Installed ]           │
+│ [ STATE Active / Off ]                                  │
+│                                                         │
+│ [ Turn on Laya assistance / Turn off Laya assistance ]  │
+├─────────────────────────────────────────────────────────┤
+│ CLOUD & VOICE MODELS                                    │
+│ Voice model selection (Gemini Live Preview)             │
+│ Cloud reasoning model (Saved preference)                │
+│ Image model (Saved preference)                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **Purpose:** Configure local decision modeling (Laya ONNX int8) and cloud/voice provider preferences.
+- **Source Path:** `SettingsScreen.tsx:60`; `src/features/settings/sections/ModelsSection.tsx`; `src/core/layaService.ts`.
+- **Implementation Status:** Implemented & Verified.
+- **Controls & Behavior:**
+  1. *Laya Local Decisions:* Discloses on-device privacy and flashlight intent clarification scope. Model is treated as installed (613 MB ONNX int8).
+  2. *Assistance Toggle:* Toggles `layaIntentEnabled` in `SettingsStore`. Toggling immediately updates the active/off badge and button title without external network calls.
+  3. *Cloud & Voice Preferences:* Voice model preference is passed to subsequent cloud voice sessions. Reasoning and image models remain stored preferences.
+
+---
 
 ### S02: API Keys & Security Credentials
 
@@ -114,11 +181,11 @@ Native selection and persistence acceptance remain pending. These implementation
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Purpose:** Edit and probe provider credentials. The Jev key uses the SecureStore adapter where available; the legacy Gemini key currently persists through SettingsStore generic JSON storage. Neither UI placement nor a masked field proves hardware-backed protection.
+- **Purpose:** Edit and probe cloud provider credentials. The Gemini key remains in legacy SettingsStore JSON storage. Laya needs no key; the retired JEV key is removed through S09 without reading it. UI masking does not establish hardware-backed protection.
 - **Source Path:** `SettingsScreen.tsx:83` (lines 521–640).
 - **Implementation Status:** Partially Implemented.
   - **Live Probe Truth:** `handleProbeKey` executes a real live HTTP GET request to `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`. It is an actual network check, not a mock.
-  - **Provider Reality:** Gemini and the Jev key are currently edited here; Jev controls live in `JevKeyControls.tsx`. Tavily and Replicate are NOT current controls and remain proposed.
+  - **Provider Reality:** Gemini is edited here. JEV controls are retired; Laya model setup lives in S09. Tavily and Replicate remain proposed.
 - **Probe States:**
   - *Idle:* Initial unprobed state.
   - *Probing:* Button shows `"PROBING..."` with disabled state.
@@ -272,71 +339,44 @@ Native selection and persistence acceptance remain pending. These implementation
 
 ---
 
-### S09: TypeSafe AI / Jev Service
+### S09: Local decisions / Laya (Consolidated into S01.1)
 
-- **Purpose:** Optional cloud assistance for ambiguous flashlight intent, not a general chat or tool provider.
-- **Canonical route:** Settings S00 → S09. This page owns the opt-in switch and a plain disclosure that the ambiguous request text is sent to TypeSafe AI when enabled. Settings S02 owns the masked Jev credential editor and explicit Save/Test/Remove actions. Connections N10 is a superseded board concept, not a second live route.
-- **Source status:** The runtime path exists in `src/core/deltaAgent.ts`, `src/core/torchIntent.ts` and `src/core/jevService.ts`; `jevIntentEnabled` is off by default in `src/core/settingsStore.ts`. SettingsScreen now mounts `JevAssistantSection.tsx` as S09, and KeysSection mounts `JevKeyControls.tsx` as S02. ConnectionsHome no longer offers a Jev row. This source integration is not device verified.
-- **State and privacy:** Clear flashlight commands stay local. Only ambiguous requests are eligible for the Jev call after opt-in; service failure returns local clarification. Jev does not execute the chosen tool. The credential remains in the SecureStore adapter when available and must not enter SettingsStore JSON. Gemini's key still uses generic JSON storage. A key probe is an explicit network action and sends no conversation content.
-- **Acceptance:** Save, toggle, probe and removal must report actual persistence/network outcomes. Unsupported secure storage, offline and provider errors must not claim success. Android Back and keyboard must work on both Settings destinations; real provider/device checks remain pending.
+- **Status:** Consolidated into **S01.1 (Models & Local decisions)**.
+- **Rationale:** Local decision controls belong under the unified Models destination rather than an isolated subtab. The standalone `LayaAssistantSection.tsx` and its non-executing preview panel have been retired.
+- **Source Path:** See `ModelsSection.tsx`.
 
 ---
 
-### S10: About, Hardware Diagnostics & Reset
+### S10: About & Operational Guide
 
-#### Proposed Layout Specimen (Sample)
+#### Verified Layout
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ S10: ABOUT DELTA MOBILE & HARDWARE DIAGNOSTICS          │
+│ S10: ABOUT DELTA MOBILE & OPERATIONAL GUIDE             │
 ├─────────────────────────────────────────────────────────┤
-│ HARDWARE TARGET & BUILD SPECIFICATIONS                  │
-│ Delta Mobile: v1.0.30 (Build 86)  [Hardcoded String]    │
-│ Hardware Target: Google Pixel 11 Pro [Hardcoded String] │
-│ Silicon: Google Tensor G6 (1+3+4 Cores) [Hardcoded]     │
-│ On-Device TPU: AICore Gemini Nano [Hardcoded String]    │
-│ OS Version: Android 17 (API 37) [Hardcoded String]      │
-│ PixelKit SDK: v1.6.17 [Hardcoded String]                │
+│                     [ DELTA ORB ]                       │
+│                         Delta                           │
+│                        v1.0.72                          │
+│   On-device personal AI assistant built for Google      │
+│                    Pixel hardware.                      │
+│                                                         │
+│      TARGET Google Pixel 11 Pro · Tensor G6             │
 ├─────────────────────────────────────────────────────────┤
-│ AUTONOMOUS HARDWARE DOCTOR                              │
-│ [ RUN HARDWARE DOCTOR ]                                 │
-│ Doctor Result: [Not run yet / Unknown]                  │
-├─────────────────────────────────────────────────────────┤
-│ PIXELKIT DEVELOPER OVERLAY                              │
-│ Floating DevTools HUD                         [ ON  ]   │
-│ Overlays real-time FPS, CPU, ADPF thermal, memory       │
-├─────────────────────────────────────────────────────────┤
-│ RESET DELTA SETTINGS                                         │
-│ Restores instructions, voice, preferences to defaults.  │
-│ [ RESET SETTINGS TO FACTORY DEFAULTS (DANGER) ]         │
+│ [ 📖 OPERATIONAL GUIDE & COMPONENTS ]                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Purpose:** Inspect device specifications, run doctor self-test diagnostics, toggle developer HUD, and perform settings resets.
-- **Source Path:** `SettingsScreen.tsx:90` (lines 910–990).
-- **Implementation Status:** Partially Implemented.
-  - **Hardcoded Reality:** Specifications rows are static strings in `SettingsScreen.tsx:921-926`. They are NOT dynamically queried hardware facts.
-  - **No Fact-Based / 14-of-14 Claims:** Doctor result starts as `null` (`Not run yet`). Claims of "14 of 14 nominal" are prohibited until the test actually runs.
-- **Controls & Sections:**
-  1. Specifications: Static readout rows.
-  2. Doctor Self-Test: `handleRunDoctor` calls `defaultToolRegistry.execute('doctor', {}, {})`; a dedicated inline failure box is proposed.
-  3. Developer Overlay Toggle: `devToolsEnabled` switch toggles floating HUD.
-  4. Settings Reset: Triggers `handleResetSettings` and `SettingsStore.reset()` with explicit confirmation. Scope is settings only, not all app data or a phone wipe.
-
-#### S10.1: Doctor Failure & Settings Reset Failure States
-- **Doctor Failure State:**
-  ```
-  ┌─ DOCTOR SELF-TEST FAILED ───────────────────────────────┐
-  │ ❌ DIAGNOSTIC TIMEOUT: AICore daemon failed to report   │
-  │ status within 5000ms. [ RETRY DOCTOR ]                  │
-  └─────────────────────────────────────────────────────────┘
-  ```
-- **Settings Reset Failure State:**
-  ```
-  ┌─ RESET FAILED ──────────────────────────────────────────┐
-  │ ❌ Storage error while resetting AsyncStorage keys.     │
-  │ SecureStore keys preserved. [ RETRY ]                   │
-  └─────────────────────────────────────────────────────────┘
-  ```
+- **Purpose:** Present application identity, dynamic build version, hardware target badge, and provide direct navigation to the interactive operational guide and component reference.
+- **Source Path:** `SettingsScreen.tsx:100`; `src/features/settings/sections/AboutSection.tsx`.
+- **Implementation Status:** Implemented & Verified.
+- **Controls & Elements:**
+  1. *Delta Orb:* Embedded glossy `DeltaOrb` in idle decorative state (pearl/pink/magenta/violet).
+  2. *Identity & Version:* Dynamic version string read directly from `app.json` (`v1.0.72`).
+  3. *Hardware Target Badge:* Pill badge identifying `Google Pixel 11 Pro · Tensor G6`.
+  4. *Operational Guide Button:* Triggers full-screen operational documentation and design system component reference (`onOpenGuide`).
+- **Retired / Cleaned Up Elements:**
+  - Removed background gradient `<Scrims />` layer.
+  - Deleted legacy S10 specification rows, synthetic doctor diagnostics, developer overlay switch, and reset settings panels to eliminate dead code and maintain production polish.
 
 ---
 

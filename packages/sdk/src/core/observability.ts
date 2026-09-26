@@ -9,8 +9,8 @@
  * 2. **Events.** `logEvent` records a lifecycle moment. Echoed to the console with a stable prefix,
  *    so `adb logcat -s ReactNativeJS | grep PixelKit` is a usable trace of a session.
  * 3. **Traces.** `traced` wraps an operation, times it, gives it a correlation id, records the
- *    duration as a metric and logs success or failure. Nested calls inherit the parent id, so a
- *    single user action can be followed end to end.
+ *    duration as a metric and logs success or failure with that operation's id. Inline events
+ *    inherit the synchronously executing operation; async continuations have no implicit owner.
  * 4. **Errors.** `normalizeError` gives every failure the same shape (message, code, name) whether
  *    it came from a native `CodedException`, a rejected promise or a thrown string. `logError`
  *    records it and increments a per-module counter, so a hook that is quietly failing is visible.
@@ -84,7 +84,7 @@ const expectedCounts = new Map<string, number>();
 const listeners = new Set<() => void>();
 let notifyScheduled = false;
 let traceSeq = 0;
-/** Set while a traced operation runs, so nested events inherit its id. */
+/** Synchronous scope only: never retain global context across an await. */
 let activeTraceId: string | undefined;
 
 function notify() {
@@ -107,10 +107,21 @@ export function logEvent(
   data?: Record<string, unknown>,
   level: TelemetryEvent['level'] = 'info',
 ): void {
-  const e: TelemetryEvent = { ts: Date.now(), module, event, data, level, traceId: activeTraceId };
+  emitEvent(module, event, data, level, activeTraceId);
+}
+
+/** Explicit ownership for completion events, independent of concurrent operations. */
+function emitEvent(
+  module: string,
+  event: string,
+  data: Record<string, unknown> | undefined,
+  level: TelemetryEvent['level'],
+  traceId: string | undefined,
+): void {
+  const e: TelemetryEvent = { ts: Date.now(), module, event, data, level, traceId };
   events.push(e);
   if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
-  const trace = activeTraceId ? ` <${activeTraceId}>` : '';
+  const trace = traceId ? ` <${traceId}>` : '';
   const line = `${LOG_PREFIX} ${module}${trace}: ${event}${data ? ' ' + safeJson(data) : ''}`;
   if (level === 'error') console.error(line);
   else if (level === 'warn') console.warn(line);
@@ -165,6 +176,9 @@ export function logError(
  * On success: records `<op>Ms` as a metric and logs at info, or at warn when it took longer than
  * {@link SLOW_OP_MS}. On failure: logs the error and rethrows, so control flow is unchanged and the
  * caller still decides what to do.
+ * Inline logEvent/logError calls inherit this operation only until fn returns its promise.
+ * Events after an await require application-level request identifiers in their data;
+ * JavaScript global state cannot infer their async owner safely.
  *
  * @example
  * const photo = await traced(MODULE, 'takePicture', () => camera.takePictureAsync(), { quality });
@@ -177,30 +191,33 @@ export async function traced<T>(
   source: TelemetrySource = 'hardware',
 ): Promise<T> {
   const id = `t${(++traceSeq).toString(36)}`;
-  const parent = activeTraceId;
   const startedAt = Date.now();
-  activeTraceId = id;
+  const start = performance.now();
   try {
-    const result = await fn();
-    const durationMs = Date.now() - startedAt;
+    let pending: Promise<T> | T;
+    const parent = activeTraceId;
+    activeTraceId = id;
+    try { pending = fn(); }
+    finally { activeTraceId = parent; }
+    const result = await pending;
+    const durationMs = performance.now() - start;
     pushTrace({ id, module, op, startedAt, durationMs, ok: true, data });
     recordMetric(module, `${op}Ms`, durationMs, source);
-    logEvent(module, op, { ...data, ms: durationMs }, durationMs > SLOW_OP_MS ? 'warn' : 'info');
+    emitEvent(module, op, { ...data, ms: durationMs }, durationMs > SLOW_OP_MS ? 'warn' : 'info', id);
     return result;
   } catch (e) {
-    const durationMs = Date.now() - startedAt;
+    const durationMs = performance.now() - start;
     const error = normalizeError(e);
     pushTrace({ id, module, op, startedAt, durationMs, ok: false, error, data });
     errorCounts.set(module, (errorCounts.get(module) ?? 0) + 1);
-    logEvent(
+    emitEvent(
       module,
       `${op} failed`,
       { ...data, ms: durationMs, message: error.message, ...(error.code ? { code: error.code } : {}) },
       'error',
+      id,
     );
     throw e;
-  } finally {
-    activeTraceId = parent;
   }
 }
 

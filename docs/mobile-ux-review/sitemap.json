@@ -1068,10 +1068,10 @@
     },
     {
       "id": "S01",
-      "title": "Assistant identity",
+      "title": "Assistant identity & Built-in System Prompt",
       "area": "settings",
       "spec": "specs/settings.md",
-      "heading": "S01: Assistant identity",
+      "heading": "S01: Assistant identity & Built-in System Prompt",
       "frames": [
         {
           "board": "09",
@@ -1088,10 +1088,10 @@
     },
     {
       "id": "S01.1",
-      "title": "Models",
+      "title": "Models & Local decisions (Laya)",
       "area": "settings",
       "spec": "specs/settings.md",
-      "heading": "S01.1: Models",
+      "heading": "S01.1: Models & Local decisions (Laya)",
       "frames": [
         {
           "board": "09",
@@ -1258,10 +1258,10 @@
     },
     {
       "id": "S09",
-      "title": "TypeSafe AI / Jev Service",
+      "title": "Local decisions / Laya (Consolidated into S01.1)",
       "area": "settings",
       "spec": "specs/settings.md",
-      "heading": "S09: TypeSafe AI / Jev Service",
+      "heading": "S09: Local decisions / Laya (Consolidated into S01.1)",
       "frames": [],
       "boardFamily": [
         "09",
@@ -1273,10 +1273,10 @@
     },
     {
       "id": "S10",
-      "title": "About, Hardware Diagnostics & Reset",
+      "title": "About & Operational Guide",
       "area": "settings",
       "spec": "specs/settings.md",
-      "heading": "S10: About, Hardware Diagnostics & Reset",
+      "heading": "S10: About & Operational Guide",
       "frames": [
         {
           "board": "10",
@@ -1292,21 +1292,6 @@
         "10"
       ],
       "coverage": "illustrated concept frame; see corrections",
-      "implementation": "see source-specific implementation status and limitations in spec",
-      "deviceVerification": "not verified for proposed redesign"
-    },
-    {
-      "id": "S10.1",
-      "title": "Doctor Failure & Settings Reset Failure States",
-      "area": "settings",
-      "spec": "specs/settings.md",
-      "heading": "S10.1: Doctor Failure & Settings Reset Failure States",
-      "frames": [],
-      "boardFamily": [
-        "09",
-        "10"
-      ],
-      "coverage": "written specification; board family supplies shared visual pattern",
       "implementation": "see source-specific implementation status and limitations in spec",
       "deviceVerification": "not verified for proposed redesign"
     },

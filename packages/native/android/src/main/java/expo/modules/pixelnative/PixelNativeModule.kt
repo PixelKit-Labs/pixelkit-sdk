@@ -492,15 +492,22 @@ class PixelNativeModule : Module() {
             }
           }
 
+          fun markSpeechStarted(callback: String) {
+            if (speechRecognizer !== recognizer || speechStartPromise == null) return
+            speechStartTimeout?.let { mainHandler.removeCallbacks(it) }
+            speechStartTimeout = null
+            android.util.Log.i("PixelKit", "Speech recognition started via $callback (requestId=$requestId)")
+            speechStartPromise?.resolve(true)
+            speechStartPromise = null
+          }
+
           recognizer.setRecognitionListener(object : android.speech.RecognitionListener {
             override fun onReadyForSpeech(params: android.os.Bundle?) {
-              if (speechRecognizer !== recognizer) return
-              speechStartTimeout?.let { mainHandler.removeCallbacks(it) }
-              speechStartTimeout = null
-              speechStartPromise?.resolve(true)
-              speechStartPromise = null
+              markSpeechStarted("onReadyForSpeech")
             }
-            override fun onBeginningOfSpeech() {}
+            override fun onBeginningOfSpeech() {
+              markSpeechStarted("onBeginningOfSpeech")
+            }
             override fun onRmsChanged(rmsdB: Float) {
               if (speechRecognizer !== recognizer) return
               sendEvent("onSpeechRms", mapOf("requestId" to requestId, "rmsdB" to rmsdB))
@@ -538,6 +545,7 @@ class PixelNativeModule : Module() {
               if (speechRecognizer !== recognizer) return
               val matches = partialResults?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
               val text = matches?.firstOrNull() ?: ""
+              if (text.isNotBlank()) markSpeechStarted("onPartialResults")
               sendEvent("onSpeechPartial", mapOf("requestId" to requestId, "text" to text))
             }
             override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
@@ -546,6 +554,7 @@ class PixelNativeModule : Module() {
           speechStartTimeout = Runnable {
             if (speechRecognizer === recognizer && speechStartPromise != null) {
               val message = "Speech recognizer did not become ready within 10 seconds"
+              android.util.Log.w("PixelKit", "$message (requestId=$requestId)")
               releaseSpeechRecognition("ERR_SPEECH_START_TIMEOUT", message)
               sendEvent("onSpeechError", mapOf("requestId" to requestId, "error" to message))
             }
