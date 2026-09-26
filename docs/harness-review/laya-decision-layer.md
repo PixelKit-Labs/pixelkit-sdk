@@ -4,7 +4,7 @@ Delta Mobile 1.0.72 replaces the JEV cloud intent path with a local Laya adapter
 
 ## Implemented source
 
-Delta 1.0.75/code131 source restores the intent preview and retired-key cleanup in Settings → Models. Preview requires a ready local model, displays the candidate, selected probability and measured decision duration, and never runs a tool. Opening Models invokes SecureStore deletion of the old JEV key without reading it; cleanup failure is visible and retryable. This is source evidence only; device behavior remains unverified.
+Delta 1.0.78/code134 source retains the intent preview and removes the retired credential cleanup and Models warning. Preview requires a ready local model, displays the candidate, selected probability and measured decision duration, and never runs a tool. Settings loading keeps only current schema fields, so an old preference does not enable Laya. This is source evidence only; device behavior remains unverified.
 
 Verification update: the 1.0.75 arm64 debug APK built and installed on the authorized wireless Pixel. ARTEMIS saw the connected phone in another foreground app, so this increment did not navigate Delta or verify a model preview. TypeScript and Android export passed; the existing Node suite remains 155 passed / seven prior failures. The local guide site builder is still absent.
 
@@ -12,7 +12,7 @@ The 1.0.74/code130 source correction established real file/runtime status, stora
 
 The pure decision interface validates typed choice distributions and returns candidates. A separate service owns app-private checkpoint files, a serialized ONNX session, loading/unloading, errors, and bounded caller waiting. The harness still owns tool validation, capability checks, confirmation policy, and execution. The adapter has no executor reference.
 
-Clear flashlight commands remain deterministic. An ambiguous request can use Laya after opt-in, but its candidate only shapes clarification. Settings → Models replaces the JEV settings page and key editor with model installation/loading, assistance opt-in, and an intent preview that does not execute tools. Old JEV consent does not enable Laya. The retired credential is deleted without reading it when the new settings page opens; errors remain visible with a retry action.
+Clear flashlight commands remain deterministic. An ambiguous request can use Laya after opt-in, but its candidate only shapes clarification. Settings → Models replaces the JEV settings page and key editor with model installation/loading, assistance opt-in, and an intent preview that does not execute tools. Old JEV consent does not enable Laya. No current code reads or deletes the old SecureStore key; existing app data may retain it until cleared.
 
 Installation explicitly downloads about 613 MB from a pinned Hugging Face checkpoint over HTTPS. Runtime prediction has no network path or cloud fallback. Artifact size checks detect incomplete transfers but are not cryptographic integrity checks. The Laya SDK 0.1.8 is a checked-in packed artifact because the npm registry returned 404 during integration. ONNX Runtime Android is pinned to 1.24.3 for both the RN adapter and Delta's existing wake module.
 

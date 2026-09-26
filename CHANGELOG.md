@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.43] - 2026-09-26
+
+### Documentation
+- Update the living Delta guide for Mobile 1.0.78: Laya-only active code, current-schema settings loading, and removal of old credential cleanup and Models warning. Existing Android app data may retain the unused old credential until cleared.
+- Correct a historical mobile review reference to a removed integration page. SDK hook and native contracts are unchanged.
+
+### Verification
+- TypeScript, 80 existing tests, build, documentation contract, package dry run, and sibling docs site build passed. Mobile ARTEMIS acceptance remains pending; the guide site builder is absent.
+
 ## [1.6.42] - 2026-09-26
 
 ### Fixed

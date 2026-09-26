@@ -4,13 +4,13 @@ User scope recorded September 26, 2026. This is the active acceptance checklist,
 
 ## 1. Local Laya and the JEV replacement
 
-Delta Mobile 1.0.75/code131 source restores the non-executing intent preview and retired-key cleanup in Settings → Models. The preview requires a ready model and shows its real candidate, selected probability, and measured decision duration. Opening Models deletes the old JEV key without reading it, with a visible retry if secure storage fails. TypeScript and Android export passed; model inference and the screen flow are not yet device-verified. The app's existing seven Node test failures remain a separate baseline issue.
+Delta Mobile 1.0.78/code134 source retains the non-executing intent preview in Settings → Models and removes the old credential cleanup and warning UI. The preview requires a ready model and shows its real candidate, selected probability, and measured decision duration. Current-schema filtering prevents an old opt-in from enabling Laya. Model inference and the screen flow are not yet device-verified. The app's existing seven Node test failures remain a separate baseline issue.
 
 Delta Mobile 1.0.76/code132 removes the unusable retired cloud benchmark. TypeScript and Android export passed; Node tests remain 155 passed and seven failed. This source version has not been installed, and no new ARTEMIS path or Laya inference is verified.
 
 Implemented in Delta Mobile 1.0.72/code128: a reusable typed decision interface, local native adapter, model setup/preview settings, and retirement of the active JEV service and key editor. One successful app startup was observed through ARTEMIS after correcting the native/bundle mismatch. Model installation, local inference, and the new settings flow remain unverified on the phone. See [the Laya chapter](laya-decision-layer.md).
 
-Acceptance requires verified missing-model, installation, loading, ready, error, disable and restart states; a real preview with measured inference time; no prompt upload during inference; and preserved explicit-command handling when Laya is unavailable. Check old-setting migration and retired-key cleanup. Review wording, progress, recovery and keyboard layout with the user.
+Acceptance requires verified missing-model, installation, loading, ready, error, disable and restart states; a real preview with measured inference time; no prompt upload during inference; and preserved explicit-command handling when Laya is unavailable. Check current-schema filtering of old settings. Review wording, progress, recovery and keyboard layout with the user.
 
 The layer is intended to support future intent and MCP/tool candidate routing. The initial connected use remains flashlight clarification. Do not label general tool routing or model-proposed tool arguments as implemented. Execution stays behind the existing registry, capability checks and confirmation policy.
 

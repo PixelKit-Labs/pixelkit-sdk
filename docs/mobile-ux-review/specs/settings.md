@@ -181,7 +181,7 @@ Implemented: one leading Back arrow, index-only search, and destination rows. As
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Purpose:** Edit and probe cloud provider credentials. The Gemini key remains in legacy SettingsStore JSON storage. Laya needs no key; the retired JEV key is removed through S09 without reading it. UI masking does not establish hardware-backed protection.
+- **Purpose:** Edit and probe active cloud provider credentials. The Gemini key remains in legacy SettingsStore JSON storage. Laya needs no key; no current UI or source path accesses the old decision-provider key. Existing app data may retain it until cleared. UI masking does not establish hardware-backed protection.
 - **Source Path:** `SettingsScreen.tsx:83` (lines 521–640).
 - **Implementation Status:** Partially Implemented.
   - **Live Probe Truth:** `handleProbeKey` executes a real live HTTP GET request to `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`. It is an actual network check, not a mock.

@@ -72,7 +72,7 @@ Source1.0.64/code120 adds optional persisted chat kind and agent IDs but does no
 
 ## Local Laya presentation boundary
 
-Delta Mobile 1.0.72 replaces JEV with local Laya in Settings → Local decisions. Model setup, opt-in assistance, and a non-executing intent preview replace the cloud setting and key editor. The current adapter only shapes ambiguous flashlight clarification; the registry still owns execution. Broader MCP/tool routing is proposed. Old JEV opt-in never enables Laya, and the retired SecureStore key is removed when the settings page opens, with visible cleanup errors. Gemini's generic JSON credential storage is unchanged. See the [decision-layer chapter](laya-decision-layer.md) for source boundaries, model provenance, ARTEMIS blockers and pending BDD acceptance. SDK hooks and hardware contracts are unaffected.
+Delta Mobile 1.0.72 replaces JEV with local Laya in Settings → Models. Model setup, opt-in assistance, and a non-executing intent preview replace the cloud setting and key editor. The current adapter only shapes ambiguous flashlight clarification; the registry still owns execution. Broader MCP/tool routing is proposed. Current settings schema filtering prevents old opt-in from enabling Laya. The retired credential cleanup code is removed; old app data may retain its unused key until cleared. Gemini's generic JSON credential storage is unchanged. See the [decision-layer chapter](laya-decision-layer.md) for source boundaries, model provenance, ARTEMIS blockers and pending BDD acceptance. SDK hooks and hardware contracts are unaffected.
 
 ## Speech final-result handoff — 2026-09-25
 
