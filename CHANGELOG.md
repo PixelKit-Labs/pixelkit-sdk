@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.45] - 2026-09-26
+
+### Documentation
+- Record Delta Mobile 1.0.79's shared orb state, mini-orb surfaces, UI-thread motion, reduced-motion behavior, and pending native/device acceptance in the living guide. SDK APIs and native modules are unchanged.
+
+### Verification
+- SDK typecheck, 80 existing tests, build, documentation contract, package dry run, and sibling docs site build passed. The requested local guide builder is still absent (`docs/harness-review/build-site.mjs`, `MODULE_NOT_FOUND`). The guide's diagrams, glossary, and unrelated feature status need no change for this presentation increment.
+
 ## [1.6.44] - 2026-09-26
 
 ### Removed
