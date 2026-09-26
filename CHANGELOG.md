@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.44] - 2026-09-26
+
+### Removed
+- Delete the checked-in TypeSafe/JEV agent skill and its reference examples. The active Delta integration and living guide now point to Laya; no application or SDK runtime imports this skill.
+
+### Verification
+- SDK typecheck, 80 existing tests, build, documentation contract, packaging dry run, and sibling docs build passed. The guide's implementation chapters, diagrams, glossary, and feature status need no change for removal of an unused agent skill.
+
 ## [1.6.43] - 2026-09-26
 
 ### Documentation
