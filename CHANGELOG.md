@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.48] - 2026-09-27
+
+### Documentation
+- Record the connected Pixel's Delta chat hierarchy and failed ARTEMIS edit/regenerate attempt, including trace ID, zero executed steps, device probe, and MCP/runner interpreter warning. Keep mobile BDD and performance claims unverified.
+
+### Verification
+- SDK verify, package dry run and sibling docs build passed; local guide-site builder remains absent. No SDK or app runtime behavior changed. Other guide chapters, diagrams, glossary and public hook contracts remain unchanged.
+
 ## [1.6.47] - 2026-09-27
 
 ### Documentation

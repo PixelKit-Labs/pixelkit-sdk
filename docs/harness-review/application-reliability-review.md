@@ -1,6 +1,6 @@
 # Delta application reliability review
 
-Source review on 2026-09-27 of Delta Mobile `83b2319` (1.0.79/code135) plus an uncommitted UI pass. The UI pass changes Settings, Agent, Connections, and the conversation shell, so its final behavior is not yet a stable commit. The installed wireless Pixel (`10.0.0.25:37197`) reports Delta 1.0.79/code135; another app was foreground when this review reached device exploration. These are source findings, not ARTEMIS acceptance or app speed measurements. See [the agent harness audit](agent-harness-audit.md) for the model/tool architecture and tool inventory.
+Source review on 2026-09-27 of Delta Mobile `83b2319` (1.0.79/code135) plus an uncommitted UI pass. The UI pass changes Settings, Agent, Connections, and the conversation shell, so its final behavior is not yet a stable commit. The installed wireless Pixel (`10.0.0.25:37197`) reports Delta 1.0.79/code135. These are source findings, not ARTEMIS acceptance or app speed measurements. See [the agent harness audit](agent-harness-audit.md) for the model/tool architecture and tool inventory.
 
 ## Findings to resolve before expanding the agent
 
@@ -25,7 +25,7 @@ The P0/P1 labels express review priority, not proof of exploit or a completed de
 | Delta TypeScript | Passed on the uncommitted UI tree | Static types compile; no phone interaction proven. |
 | Android JS export | Passed; 3,421 modules, 7.6 MB bundle | Bundle creation works. The 36.4-second export is build time, not app latency. |
 | Node suite | 155 passed, 7 failed of 162 | Existing red baseline: settings persistence/reset, seeded telemetry/trace expectations, wake phrase storage, and WhatsApp pairing. Exact failure contracts need investigation; memory-only Node storage must not be called durable, and fake boot records must not be added to satisfy tests. |
-| ARTEMIS/device | No new Delta flow completed in this increment | Authorized wireless Pixel is connected, but another app occupied the foreground. Installed Delta 1.0.79 does not contain the uncommitted UI pass. No BDD code or performance result is claimed. |
+| ARTEMIS/device | Delta chat hierarchy observed; edit/regenerate task failed before its first action | Authorized wireless Pixel is connected and unlocked. ARTEMIS Flash trace `3390337e-3097-4ca6-9311-9b43369d7ea9` terminated with `Task runner process terminated unexpectedly`; trace inspection reports no action steps. Diagnostics passed 4/4 required checks and a device probe (40 UI elements), but warned that MCP and runner use different Python environments. Prior provider rate-limit failures also remain in its logs. Installed Delta 1.0.79 does not contain the uncommitted UI pass. No BDD code or performance result is claimed. |
 
 ## Exploration and BDD gate
 
@@ -33,4 +33,4 @@ The next device pass should first establish app/native/JS identity, then use ART
 
 ## Implementation and decision log
 
-2026-09-27: review only. No app or SDK runtime behavior changed. The recommended first fix is to stop presenting fabricated diagnostics and a non-listening MCP host as successful, then repair persistence semantics before broadening intent routing. User feedback on agent form/function and cloud escalation remains pending; this recommendation is not an accepted design decision. The guide's Laya, voice, telemetry and orb chapters remain accurate for their recorded source versions. No diagram, glossary term, public hook contract, or unrelated hardware chapter changes are needed for this source review. The local guide-site builder `docs/harness-review/build-site.mjs` remains absent, so this Markdown chapter is the review artifact.
+2026-09-27: review only. No app or SDK runtime behavior changed. The recommended first fix is to stop presenting fabricated diagnostics and a non-listening MCP host as successful, then repair persistence semantics before broadening intent routing. User feedback on agent form/function and cloud escalation remains pending; this recommendation is not an accepted design decision. The guide's Laya, voice, telemetry and orb chapters remain accurate for their recorded source versions. No diagram, glossary term, public hook contract, or unrelated hardware chapter changes are needed for this source review. The local guide-site builder `docs/harness-review/build-site.mjs` remains absent, so this Markdown chapter is the review artifact. ARTEMIS could inspect Delta but could not execute the planned edit/regenerate flow; its trace and diagnosis are recorded above.
