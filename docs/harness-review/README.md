@@ -22,3 +22,7 @@ verification. The original chapter-site builder remains absent.
 The [active workstreams and acceptance checklist](workstreams.md) tracks Laya,
 voice, timing/telemetry, and chat behavior together, with separate implementation,
 automated-check, and phone-verification status.
+
+The [agent harness source audit](agent-harness-audit.md) inventories the current
+tool, Nano, Laya, Kokoro, Live, cloud-agent and MCP paths, identifies unverified
+or misleading behavior, and records a proposed unified agent loop for review.
