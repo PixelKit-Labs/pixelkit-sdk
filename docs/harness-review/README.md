@@ -26,3 +26,7 @@ automated-check, and phone-verification status.
 The [agent harness source audit](agent-harness-audit.md) inventories the current
 tool, Nano, Laya, Kokoro, Live, cloud-agent and MCP paths, identifies unverified
 or misleading behavior, and records a proposed unified agent loop for review.
+
+The [application reliability review](application-reliability-review.md) tracks
+source-confirmed failures in persistence, MCP lifecycle, and AI Lab result
+truthfulness, with the current automated-check and ARTEMIS evidence boundary.

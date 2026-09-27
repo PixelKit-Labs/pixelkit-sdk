@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.47] - 2026-09-27
+
+### Documentation
+- Review Delta Mobile conversation durability, drafts, legacy JSON saves, AI Lab diagnostics/media controls, MCP host and remote-tool lifecycle against source. Record prioritized corrections and the ARTEMIS/BDD acceptance path without claiming phone verification or runtime changes.
+
+### Verification
+- SDK `npm run verify` passed (80 tests, build, OpenAPI and docs contract); package dry run and sibling docs site build passed. Delta TypeScript and Android JS export passed on the current uncommitted UI tree; the Node suite remains 155 passed and seven failed. The installed wireless Pixel has Delta 1.0.79/code135, while another app was in the foreground. No new device flow, BDD test, or speed measurement was completed. The local guide builder is absent (`MODULE_NOT_FOUND`). Guide chapters, diagrams, glossary, and public hook contracts outside this review remain unchanged.
+
 ## [1.6.46] - 2026-09-26
 
 ### Documentation
