@@ -27,6 +27,10 @@ The [agent harness source audit](agent-harness-audit.md) inventories the current
 tool, Nano, Laya, Kokoro, Live, cloud-agent and MCP paths, identifies unverified
 or misleading behavior, and records a proposed unified agent loop for review.
 
+The [assistant modes chapter](assistant-modes.md) links interactive diagrams of
+the current chat paths and the target shared capability layer for Gemini Nano,
+Gemini Live and Gemini API. It distinguishes source evidence from design intent.
+
 The [application reliability review](application-reliability-review.md) tracks
 source-confirmed failures in persistence, MCP lifecycle, and AI Lab result
 truthfulness, with the current automated-check and ARTEMIS evidence boundary.

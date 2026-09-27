@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Proposed shared Delta assistant",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1320, 780],
+    "views": [
+      { "id": "modes", "label": "Three provider modes", "focus": ["nano", "live", "api", "coordinator"], "note": "Nano, Live and API enter the same turn coordinator." },
+      { "id": "shared", "label": "Shared capabilities", "focus": ["laya", "policy", "catalog", "skills", "wiki", "tools"], "note": "Laya, tools, skills and Wiki are shared through policy and typed interfaces." },
+      { "id": "outcome", "label": "Observed outcome", "focus": ["coordinator", "policy", "catalog", "tools", "store"], "note": "The turn stores real effects and failures before presenting a final answer." }
+    ]
+  },
+  "components": [
+    { "id": "nano", "type": "backend", "label": "Gemini Nano", "sublabel": "local text mode", "pos": [50, 105], "size": [170, 70] },
+    { "id": "live", "type": "cloud", "label": "Gemini Live", "sublabel": "duplex mode", "pos": [50, 305], "size": [170, 70] },
+    { "id": "api", "type": "cloud", "label": "Gemini API", "sublabel": "selected cloud model", "pos": [50, 505], "size": [170, 70] },
+    { "id": "coordinator", "type": "backend", "label": "Turn coordinator", "sublabel": "one bounded loop", "pos": [310, 305], "size": [180, 70] },
+    { "id": "laya", "type": "backend", "label": "Laya", "sublabel": "local intent candidate", "pos": [310, 105], "size": [180, 70], "tag": "optional" },
+    { "id": "policy", "type": "security", "label": "Policy gate", "sublabel": "validate + confirm", "pos": [580, 305], "size": [170, 70] },
+    { "id": "catalog", "type": "backend", "label": "Shared catalog", "sublabel": "schema + capability", "pos": [840, 305], "size": [170, 70] },
+    { "id": "tools", "type": "backend", "label": "Tool adapters", "sublabel": "device / SDK / MCP", "pos": [1100, 305], "size": [170, 70] },
+    { "id": "skills", "type": "database", "label": "Skills", "sublabel": "procedures by name", "pos": [840, 505], "size": [170, 70] },
+    { "id": "wiki", "type": "database", "label": "Wiki", "sublabel": "evidence-backed pages", "pos": [1100, 505], "size": [170, 70] },
+    { "id": "store", "type": "database", "label": "Session + traces", "sublabel": "durable outcomes", "pos": [310, 505], "size": [180, 70] }
+  ],
+  "connections": [
+    { "from": "nano", "to": "coordinator", "label": "local text" },
+    { "from": "live", "to": "coordinator" },
+    { "from": "api", "to": "coordinator", "label": "cloud response" },
+    { "from": "laya", "to": "coordinator", "label": "candidate only", "labelAt": [400, 189] },
+    { "from": "coordinator", "to": "policy", "label": "proposed action" },
+    { "from": "policy", "to": "catalog", "label": "permitted call" },
+    { "from": "catalog", "to": "tools", "label": "validated args" },
+    { "from": "catalog", "to": "skills", "label": "load procedure", "labelAt": [925, 389] },
+    { "from": "catalog", "to": "wiki", "label": "retrieve evidence" },
+    { "from": "store", "to": "coordinator", "label": "turn state", "labelAt": [400, 450] }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "One assistant contract", "items": ["Each mode shares Laya, tool policy, skills, and Wiki", "Laya suggests; the harness validates and executes", "Cloud mode is explicit, never an automatic local fallback"] },
+    { "dot": "amber", "title": "Not implemented yet", "items": ["Live and API do not use this shared loop today", "Wiki is currently UI-only with seeded in-memory pages", "Skills are keyword-routed without a continuation loop"] }
+  ]
+}

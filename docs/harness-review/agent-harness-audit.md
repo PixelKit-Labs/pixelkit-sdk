@@ -2,6 +2,8 @@
 
 Source audit on 2026-09-26. Delta Mobile HEAD was `83b2319` (1.0.79/code135), with unrelated local edits present. PixelKit SDK HEAD was `8595882` (1.6.45). This chapter describes source behavior, not a phone benchmark or acceptance of Laya, Kokoro, Live, or MCP. The proposed design below needs user review.
 
+2026-09-27 update: the user directed one shared Laya, Tool Harness, Skills and Wiki capability layer across Gemini Nano, Gemini Live and Gemini API modes. See the [assistant modes chapter and diagrams](assistant-modes.md) for that target and the current/target distinction. The detailed implementation order and unresolved provider behavior in this source audit remain proposals.
+
 ## Current execution paths
 
 | Entry | Implemented path | Boundary and evidence gap |

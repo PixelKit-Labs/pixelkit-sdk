@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.49] - 2026-09-27
+
+### Documentation
+- Add interactive current-state and target-state Delta assistant diagrams, with a chapter defining shared Laya, Tool Harness, Skills and Wiki access across Nano, Live and Gemini API modes. Distinguish implemented paths from the user-directed architecture and record source/device evidence limits.
+
+### Verification
+- Archify showcase validation passed 9/9 checks with zero warnings for both diagrams; visual containment passed four desktop viewports. SDK `npm run verify` passed (80 tests, typecheck, OpenAPI, build and docs contract); package dry run and sibling docs build passed. The local guide-site builder is absent. No SDK or app runtime behavior, mobile BDD coverage, or phone performance claim changes. Other guide chapters, feature status, hardware glossary and public hook contracts remain unchanged.
+
 ## [1.6.48] - 2026-09-27
 
 ### Documentation

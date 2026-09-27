@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Delta chat today",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": { "url": "https://github.com/PixelKit-Labs/delta-mobile", "revision": "83b2319f6c7dd022c116c6ffb100cfd316e0f2f8" },
+    "viewBox": [1250, 760],
+    "views": [
+      { "id": "normal-turn", "label": "Normal chat turn", "focus": ["chat", "router", "registry", "nano", "workspace"], "note": "Keyword routing executes before Nano writes the reply." },
+      { "id": "optional-paths", "label": "Laya, MCP, and Live", "focus": ["laya", "mcp", "router", "registry", "live", "chat"], "note": "Laya only clarifies flashlight intent; Live uses a separate SDK path." }
+    ]
+  },
+  "components": [
+    { "id": "chat", "type": "frontend", "label": "Chat UI", "sublabel": "ConsoleScreen", "pos": [55, 320], "size": [165, 68], "sources": [{ "path": "src/screens/ConsoleScreen.tsx", "line": 816 }] },
+    { "id": "router", "type": "backend", "label": "DeltaAgent", "sublabel": "keyword routing", "pos": [290, 320], "size": [165, 68], "sources": [{ "path": "src/core/deltaAgent.ts", "line": 70 }] },
+    { "id": "registry", "type": "security", "label": "ToolRegistry", "sublabel": "gate + execute", "pos": [525, 320], "size": [165, 68], "sources": [{ "path": "src/core/tools/registry.ts", "line": 25 }] },
+    { "id": "nano", "type": "backend", "label": "Gemini Nano", "sublabel": "text reply via AICore", "pos": [760, 320], "size": [165, 68], "sources": [{ "path": "src/screens/ConsoleScreen.tsx", "line": 932 }] },
+    { "id": "workspace", "type": "database", "label": "SessionStore", "sublabel": "turns + drafts", "pos": [995, 320], "size": [165, 68], "sources": [{ "path": "src/state/conversations/sessionStore.ts", "line": 183 }] },
+    { "id": "laya", "type": "backend", "label": "Laya", "sublabel": "flashlight clarification", "pos": [290, 105], "size": [165, 68], "tag": "optional local", "sources": [{ "path": "src/core/deltaAgent.ts", "line": 219 }] },
+    { "id": "mcp", "type": "external", "label": "Remote MCP", "sublabel": "discovered wrappers", "pos": [525, 105], "size": [165, 68], "tag": "opt-in", "sources": [{ "path": "src/core/mcp/mcpStore.ts", "line": 146 }] },
+    { "id": "live", "type": "cloud", "label": "Gemini Live", "sublabel": "separate SDK path", "pos": [55, 535], "size": [165, 68], "sources": [{ "path": "src/screens/ConsoleScreen.tsx", "line": 208 }] }
+  ],
+  "connections": [
+    { "from": "chat", "to": "router", "label": "user prompt" },
+    { "from": "router", "to": "registry", "label": "matched calls" },
+    { "from": "registry", "to": "nano", "label": "result text", "variant": "dashed" },
+    { "from": "nano", "to": "workspace", "label": "reply" },
+    { "from": "laya", "to": "router", "label": "candidate only", "variant": "dashed", "labelAt": [373, 187] },
+    { "from": "mcp", "to": "registry", "label": "register tools", "variant": "dashed", "labelAt": [608, 187] },
+    { "from": "chat", "to": "live", "label": "direct Live route", "variant": "dashed", "labelAt": [138, 402] }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Current limits", "items": ["Nano cannot call this tool registry", "Laya is used only for ambiguous flashlight requests", "Live bypasses DeltaAgent and normal chat persistence"] },
+    { "dot": "slate", "title": "Evidence", "items": ["Delta Mobile 1.0.79 source at 83b2319", "ARTEMIS saw chat UI; automation ended before first action"] }
+  ]
+}
