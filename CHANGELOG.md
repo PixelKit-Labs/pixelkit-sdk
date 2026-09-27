@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.55] - 2026-09-27
+
+### Documentation
+- Add a source-backed system integration audit for Delta's Harness, tool loop, Skills/Wiki, Memory, roster/cloud agents, Laya, OpenWakeWord, Kokoro, and MCP paths. Trace their current connections, separate prompt context from execution, and prioritize the remaining coordinator, policy, persistence, wake-reliability, retrieval, and remote-tool gaps.
+- Record Delta Mobile 1.0.83's image-turn routing, battery-gauge truthfulness, direct-response durability, duplicate-dispatcher removal, truthful cloud-agent availability, and specialist prompt-context labels without claiming locked-device verification.
+
+### Verification
+- SDK `npm run verify` passed 80 tests, typecheck, OpenAPI, build and docs contract; package dry runs passed for all synchronized 1.6.55 packages. Delta TypeScript, 34 focused tool/vision tests and the final 181-test suite passed. Browser smoke verified a real attached-image failure path with no browser or failed-request errors.
+- Delta's 651,687,677-byte 1.0.83/code139 debug APK (`SHA-256 C2B0910C64E4CEE79988A4ABC7600AE0A5B9243732B896C05886823F0467AFB5`) built and installed on wireless Pixel `10.0.0.25:37197`; package manager confirmed the identity. ARTEMIS observed secure keyguard, so hardware/image, Laya, wake/STT and Kokoro behavior remains unverified. The documented harness-review site builder remains absent. No SDK hook, native-module behavior, public hook contract or architecture diagram changed.
+
 ## [1.6.54] - 2026-09-27
 
 ### Documentation
