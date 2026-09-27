@@ -78,7 +78,9 @@ class PixelNativeModule : Module() {
   private var speechRecognizer: android.speech.SpeechRecognizer? = null
   private var speechStartPromise: expo.modules.kotlin.Promise? = null
   private var speechStartTimeout: Runnable? = null
-  private val explicitSpeechEngine by lazy { ExplicitSpeechEngine(context, mainHandler) }
+  private val explicitSpeechEngine by lazy {
+    ExplicitSpeechEngine(context, mainHandler) { event -> sendEvent("onSpeechEngineEvent", event) }
+  }
   private var bleScanCallback: ScanCallback? = null
   /** Active NFC reader-mode callback; non-null only while the reader is running. */
   private var nfcReaderCallback: NfcAdapter.ReaderCallback? = null
@@ -101,6 +103,7 @@ class PixelNativeModule : Module() {
       "onSpeechResult",
       "onSpeechRms",
       "onSpeechError",
+      "onSpeechEngineEvent",
       "onBleDeviceFound",
       "onNfcTag",
       "onNfcError"
@@ -585,9 +588,38 @@ class PixelNativeModule : Module() {
     }
 
     Function("listSpeechEngines") { explicitSpeechEngine.installedEngines() }
-    AsyncFunction("speakWithSpeechEngine") { packageName: String, text: String, rate: Float, pitch: Float, volume: Float, promise: expo.modules.kotlin.Promise ->
-      explicitSpeechEngine.speak(packageName, text, rate, pitch, volume, promise)
+    AsyncFunction("resolveSpeechEngine") { packageName: String, language: String?, voice: String?, promise: expo.modules.kotlin.Promise ->
+      explicitSpeechEngine.resolve(packageName, language, voice, promise)
     }
+    AsyncFunction("speakWithSpeechEngine") { packageName: String, text: String, rate: Float, pitch: Float, volume: Float, promise: expo.modules.kotlin.Promise ->
+      explicitSpeechEngine.speak(
+        packageName, text, rate, pitch, volume, null, null, null, emptyMap(), false, promise,
+      )
+    }
+    AsyncFunction("speakWithSpeechEngineDetails") { request: Map<String, Any?>, promise: expo.modules.kotlin.Promise ->
+      val traceContext = (request["traceContext"] as? Map<*, *>)
+        ?.entries
+        ?.mapNotNull { entry ->
+          val key = entry.key as? String ?: return@mapNotNull null
+          key to (entry.value as? String)
+        }
+        ?.toMap()
+        ?: emptyMap()
+      explicitSpeechEngine.speak(
+        request["packageName"] as? String ?: "",
+        request["text"] as? String ?: "",
+        (request["rate"] as? Number)?.toFloat() ?: 1f,
+        (request["pitch"] as? Number)?.toFloat() ?: 1f,
+        (request["volume"] as? Number)?.toFloat() ?: 1f,
+        request["language"] as? String,
+        request["voice"] as? String,
+        request["utteranceId"] as? String,
+        traceContext,
+        true,
+        promise,
+      )
+    }
+    Function("getSpeechEngineStatus") { explicitSpeechEngine.status() }
     Function("stopSpeechEngine") { explicitSpeechEngine.stop(); true }
     Function("isSpeechEngineSpeaking") { explicitSpeechEngine.isSpeaking() }
 

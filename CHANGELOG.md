@@ -4,6 +4,21 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.57] - 2026-09-27
+
+### Changed
+- Make explicit Android TTS engine identity fail closed. PixelKit now inventories and rechecks the requested package/version, rejects missing, changed, mismatched or unobservable active engines before synthesis, and keeps system-default TTS and Gemini Live audio as distinct output identities.
+- Add correlated speech-engine preflight, detailed synthesis status and callback events with requested/resolved package, selected voice/locale, utterance ID, trace context and start/terminal timestamps. Phrase content is excluded from native status and trace metadata.
+- Preserve the legacy explicit-engine bridge while adding `resolveSpeechEngine`, `speakWithSpeechEngineDetails`, `getSpeechEngineStatus`, `useSpeech.resolveSpeechEngineIdentity()` and `useSpeech.verifySpeechEngine()` for exact, inspectable engine selection.
+
+### Documentation
+- Correct the speech contract and harness guide: external TTS apps own installation and model downloads, their internal execution provider remains unknown, and binding/playback callbacks do not prove audible Kokoro identity.
+
+### Verification
+- SDK verification passed TypeScript, all 98 tests, the 270-path/555-schema OpenAPI contract, all three package builds and the remote 53-hook documentation contract. Dry-run packaging passed for `@pixelkit-labs/native`, `@pixelkit-labs/mlkit` and `@pixelkit-labs/sdk` at 1.6.57; the documentation site built 106 pages.
+- Android/JVM speech-engine tests and unlocked-device synthesis remain pending the consuming-app build. No package binding, audible output or external execution provider is claimed. The documented `docs/harness-review/build-site.mjs` remains absent (`MODULE_NOT_FOUND`), so the local guide site could not be regenerated.
+
+
 ## [1.6.56] - 2026-09-27
 
 ### Changed

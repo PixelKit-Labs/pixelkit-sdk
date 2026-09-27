@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PixelKit SDK API",
-    "version": "1.6.56",
+    "version": "1.6.57",
     "description": "OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).\n\n### The Zero-Simulation Principle\nEvery telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.\n- Fabricated readings are completely unrepresentable in this specification.\n- Unreadable sensor readings are `null` and report `unavailable`.\n- Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.\n\nCovers all 53 typed hardware and AI hooks, low-overhead native telemetry, and actuators.",
     "contact": {
       "name": "PixelKit Labs",
@@ -5291,7 +5291,7 @@
     "/hooks/useSpeech": {
       "get": {
         "summary": "Speaking text aloud with the voices the phone has installed.",
-        "description": "Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. The requested service must be installed and initialize; Android can silently fall back after a binding failure, and public APIs cannot always identify the active engine. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
+        "description": "Reads text out loud. This is the output half of voice: useSpeechAI listens, this one talks back. Which voices exist depends on what the user has downloaded in system settings, so check the list rather than assuming a language is available.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. Explicit-engine calls fail closed unless Android exposes an exact active-package match: PixelKit inventories and rechecks the installed package/version, resolves voice/locale identity, and rejects missing, changed, mismatched or unobservable engines before synthesis. Platform TTS, explicit Android TTS and Gemini Live audio use distinct output identities. External apps own installation and model downloads; their internal execution provider is not inferred. Speech runs require explicit trace context.",
         "operationId": "get_useSpeech",
         "tags": [
           "neural-ai"
@@ -5313,7 +5313,7 @@
     "/hooks/useSpeech/actions/speak": {
       "post": {
         "summary": "Invoke speak (useSpeech)",
-        "description": "Speaks the text on the platform engine. Await it to sequence utterances instead of overlapping them.\n\n**Output Contract**: Resolves when the engine finishes or is stopped. Rejects when the text is too long or the engine errors, with the message also in error.",
+        "description": "Speaks through platform TTS or one exact explicit Android engine under caller-owned trace context. Await it to sequence utterances.\n\n**Output Contract**: Resolves on completion or stop. Rejects invalid text, unavailable identity, initialization/configuration failure, or synthesis error. Callback evidence does not prove audible voice identity.",
         "operationId": "useSpeech_speak",
         "tags": [
           "neural-ai"
@@ -5455,7 +5455,7 @@
     "/hooks/useSpeech/actions/refreshSpeechEngines": {
       "post": {
         "summary": "Invoke refreshSpeechEngines (useSpeech)",
-        "description": "Re-reads Android TTS services after installation or removal.\n\n**Output Contract**: Resolves with the installed services, also written to speechEngines. Empty on unsupported platforms or failure, with the reason in error.",
+        "description": "Re-reads Android TTS services and package versions after installation, update or removal.\n\n**Output Contract**: Resolves with the installed services, also written to speechEngines. Empty on unsupported platforms or failure, with the reason in error.",
         "operationId": "useSpeech_refreshSpeechEngines",
         "tags": [
           "neural-ai"
@@ -5499,6 +5499,72 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/useSpeech_voicesForLanguage_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useSpeech/actions/resolveSpeechEngineIdentity": {
+      "post": {
+        "summary": "Invoke resolveSpeechEngineIdentity (useSpeech)",
+        "description": "Initializes and inspects one explicit Android TTS package without speaking.\n\n**Output Contract**: Returns installed/resolved package and version, exact-match evidence, initialization state, selected voice/locale and explicit unavailable/error reason.",
+        "operationId": "useSpeech_resolveSpeechEngineIdentity",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking resolveSpeechEngineIdentity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useSpeech_resolveSpeechEngineIdentity_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useSpeech/actions/verifySpeechEngine": {
+      "post": {
+        "summary": "Invoke verifySpeechEngine (useSpeech)",
+        "description": "Resolves exact engine identity before submitting a caller-supplied verification phrase.\n\n**Output Contract**: Returns the pre-submission AndroidTtsIdentity plus a correlated terminal SpeechSynthesisResult. Audible identity still requires independent user/device evidence.",
+        "operationId": "useSpeech_verifySpeechEngine",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking verifySpeechEngine.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useSpeech_verifySpeechEngine_Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hooks/useSpeech/actions/getSpeechEngineStatus": {
+      "post": {
+        "summary": "Invoke getSpeechEngineStatus (useSpeech)",
+        "description": "Reads the native engine's current or last terminal state without inferring provider identity.\n\n**Output Contract**: Returns correlated status/identity/timestamps when the native bridge is present, otherwise null.",
+        "operationId": "useSpeech_getSpeechEngineStatus",
+        "tags": [
+          "neural-ai"
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of invoking getSpeechEngineStatus.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/useSpeech_getSpeechEngineStatus_Response"
                 }
               }
             }
@@ -17141,7 +17207,7 @@
       },
       "useSpeechTelemetry": {
         "type": "object",
-        "description": "Speaking text aloud with the voices the phone has installed.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. The requested service must be installed and initialize; Android can silently fall back after a binding failure, and public APIs cannot always identify the active engine. speak resolves when the engine finishes, so utterances can be awaited in sequence rather than overlapping. Text longer than maxInputLength is rejected. The hook stops only speech it owns on unmount.",
+        "description": "Speaking text aloud with the voices the phone has installed.\n\nWraps expo-speech for the system voice and can address an installed Android TTS service by package name without changing the phone default. Explicit-engine calls fail closed unless Android exposes an exact active-package match: PixelKit inventories and rechecks the installed package/version, resolves voice/locale identity, and rejects missing, changed, mismatched or unobservable engines before synthesis. Platform TTS, explicit Android TTS and Gemini Live audio use distinct output identities. External apps own installation and model downloads; their internal execution provider is not inferred. Speech runs require explicit trace context.",
         "properties": {
           "isSpeaking": {
             "type": "boolean",
@@ -17161,10 +17227,31 @@
           "speechEngines": {
             "type": "array",
             "items": {
-              "type": "object",
-              "description": "{ packageName: string; label: string }"
+              "$ref": "#/components/schemas/SpeechEngineInfo"
             },
-            "description": "Android TTS services installed on the device; empty when unavailable. Separate from the system engine's voice list."
+            "description": "Android TTS services installed on the device, including package label/version and external installation ownership; empty when unavailable."
+          },
+          "lastSpeechIdentity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeechOutputIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Observed identity for the latest output. Platform TTS, explicit Android TTS and Gemini Live audio are distinct discriminated types."
+          },
+          "lastSynthesis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeechSynthesisResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Latest explicit-engine terminal result with utterance identity, callback timestamps, status and redacted trace correlation."
           },
           "voice": {
             "anyOf": [
@@ -17233,33 +17320,30 @@
             "type": "string",
             "description": "What to say. Trimmed first; blank resolves immediately. Longer than maxInputLength is rejected, not truncated."
           },
-          "options.language": {
+          "run": {
+            "$ref": "#/components/schemas/SpeechRunOptions",
+            "description": "Explicit immutable trace context and optional local observability sink/redaction policy."
+          },
+          "options.language / options.voice": {
             "type": "string",
-            "description": "BCP-47 tag such as en-GB. Defaults to the system language."
+            "description": "Requested BCP-47 locale or voice identifier. Explicit-engine identity reports the voice and locale Android actually selected."
           },
-          "options.voice": {
-            "type": "string",
-            "description": "Identifier from voices; overrides language when both are given."
-          },
-          "options.rate": {
+          "options.rate / options.pitch / options.volume": {
             "type": "number",
-            "description": "Speaking speed; 1 is normal. Falls back to the hook rate."
-          },
-          "options.pitch": {
-            "type": "number",
-            "description": "Voice pitch; 1 is normal. Falls back to the hook pitch."
-          },
-          "options.volume": {
-            "type": "number",
-            "description": "0 to 1 for this utterance."
+            "description": "Per-utterance speech controls; rate and pitch default to the hook values and volume ranges from 0 to 1."
           },
           "options.enginePackage": {
             "type": "string",
-            "description": "Installed Android TTS service package to use for this utterance without changing the system default. Rejects when unavailable or when a different active engine can be detected; Android may silently fall back when the active engine cannot be inspected."
+            "description": "Installed Android TTS service package for this utterance. Missing, changed, mismatched or unobservable active identity is rejected before synthesis."
+          },
+          "options.onIdentityResolved / onStart / onDone / onError": {
+            "$ref": "#/components/schemas/callback",
+            "description": "Correlated local callbacks. Identity resolves before explicit text submission; terminal and late callbacks are accepted at most once for the owning utterance."
           }
         },
         "required": [
-          "text"
+          "text",
+          "run"
         ]
       },
       "useSpeech_speak_Response": {
@@ -17271,7 +17355,7 @@
             "description": "Whether the hardware accepted the command."
           },
           "output": {
-            "description": "Resolves when the engine finishes or is stopped. Rejects when the text is too long or the engine errors, with the message also in error."
+            "description": "Resolves on completion or stop. Rejects invalid text, unavailable identity, initialization/configuration failure, or synthesis error. Callback evidence does not prove audible voice identity."
           },
           "error": {
             "anyOf": [
@@ -17532,6 +17616,114 @@
           },
           "output": {
             "description": "Returns the matching voices; empty when none are installed for that language."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useSpeech_resolveSpeechEngineIdentity_Request": {
+        "type": "object",
+        "description": "Request payload for resolveSpeechEngineIdentity on useSpeech.",
+        "properties": {}
+      },
+      "useSpeech_resolveSpeechEngineIdentity_Response": {
+        "type": "object",
+        "description": "Response payload for resolveSpeechEngineIdentity on useSpeech.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Returns installed/resolved package and version, exact-match evidence, initialization state, selected voice/locale and explicit unavailable/error reason."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useSpeech_verifySpeechEngine_Request": {
+        "type": "object",
+        "description": "Request payload for verifySpeechEngine on useSpeech.",
+        "properties": {}
+      },
+      "useSpeech_verifySpeechEngine_Response": {
+        "type": "object",
+        "description": "Response payload for verifySpeechEngine on useSpeech.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Returns the pre-submission AndroidTtsIdentity plus a correlated terminal SpeechSynthesisResult. Audible identity still requires independent user/device evidence."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed."
+          },
+          "source": {
+            "$ref": "#/components/schemas/TelemetrySource"
+          }
+        },
+        "required": [
+          "success",
+          "source"
+        ]
+      },
+      "useSpeech_getSpeechEngineStatus_Request": {
+        "type": "object",
+        "description": "Request payload for getSpeechEngineStatus on useSpeech.",
+        "properties": {}
+      },
+      "useSpeech_getSpeechEngineStatus_Response": {
+        "type": "object",
+        "description": "Response payload for getSpeechEngineStatus on useSpeech.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the hardware accepted the command."
+          },
+          "output": {
+            "description": "Returns correlated status/identity/timestamps when the native bridge is present, otherwise null."
           },
           "error": {
             "anyOf": [
@@ -20460,6 +20652,31 @@
       "Voice": {
         "type": "object",
         "description": "Typed entity: Voice",
+        "additionalProperties": true
+      },
+      "SpeechEngineInfo": {
+        "type": "object",
+        "description": "Typed entity: SpeechEngineInfo",
+        "additionalProperties": true
+      },
+      "SpeechOutputIdentity": {
+        "type": "object",
+        "description": "Typed entity: SpeechOutputIdentity",
+        "additionalProperties": true
+      },
+      "SpeechSynthesisResult": {
+        "type": "object",
+        "description": "Typed entity: SpeechSynthesisResult",
+        "additionalProperties": true
+      },
+      "SpeechRunOptions": {
+        "type": "object",
+        "description": "Typed entity: SpeechRunOptions",
+        "additionalProperties": true
+      },
+      "callback": {
+        "type": "object",
+        "description": "Typed entity: callback",
         "additionalProperties": true
       },
       "stringnumber": {

@@ -417,6 +417,124 @@ export type SharedSecretResult = {
   error?: string | null;
 };
 
+export type SpeechEngineInfo = {
+  packageName: string;
+  label: string;
+  versionName: string | null;
+  versionCode: number | null;
+  /** The SDK observes this package; installation and model downloads remain owned by its app. */
+  installationOwner: 'external_app';
+};
+
+export type SpeechVoiceIdentity = {
+  name: string;
+  locale: string;
+  quality: number;
+  latency: number;
+  requiresNetwork: boolean;
+  features: string[];
+};
+
+export type AndroidTtsIdentity = {
+  audioSource: 'android_tts';
+  requestedPackage: string;
+  installedPackage: string | null;
+  installedVersionName: string | null;
+  installedVersionCode: number | null;
+  resolvedEnginePackage: string | null;
+  resolvedEngineName: string | null;
+  initializationStatus: 'initializing' | 'ready' | 'unavailable' | 'failed' | 'unverified' | 'fallback_rejected' | 'configuration_failed';
+  available: boolean;
+  /** True only when Android exposed an exact active-package match. */
+  identityVerified: boolean;
+  bindingEvidence: 'active_engine_api' | 'unavailable';
+  selectedVoice: SpeechVoiceIdentity | null;
+  selectedLocale: string | null;
+  /** External engines do not expose their inference execution provider through Android TTS. */
+  executionProvider: null;
+  executionProviderObserved: false;
+  installationOwner: 'external_app';
+  managesExternalInstallOrModels: false;
+  unavailableReason?: string;
+  error?: string;
+  errorCode?: string;
+};
+
+/** System Expo Speech has no explicit Android package identity. */
+export type PlatformTtsIdentity = {
+  audioSource: 'platform_tts';
+  requestedPackage: null;
+  identityVerified: false;
+  selectedVoice: string | null;
+  selectedLocale: string | null;
+};
+
+/** Gemini Live audio is cloud session audio, never Android TTS or Kokoro. */
+export type GeminiLiveAudioIdentity = {
+  audioSource: 'gemini_live_audio';
+  provider: 'google_gemini_live';
+  model: string;
+  voiceName: string | null;
+};
+
+export type SpeechOutputIdentity = AndroidTtsIdentity | PlatformTtsIdentity | GeminiLiveAudioIdentity;
+export type SpeechSynthesisStatus = 'preparing' | 'started' | 'completed' | 'failed' | 'cancelled' | 'replaced';
+
+export type SpeechEngineCallback = {
+  type: 'start' | 'done' | 'error' | 'stop' | 'replaced';
+  at: number;
+  errorCode?: string;
+  synthesisErrorCode?: number;
+};
+
+export type SpeechEngineSynthesisRequest = {
+  packageName: string;
+  text: string;
+  rate: number;
+  pitch: number;
+  volume: number;
+  language: string | null;
+  voice: string | null;
+  utteranceId: string;
+  traceContext: Record<string, string | null>;
+};
+
+export type SpeechSynthesisResult = {
+  status: Exclude<SpeechSynthesisStatus, 'preparing' | 'started'>;
+  identity: AndroidTtsIdentity | null;
+  utteranceId: string;
+  requestedAt: number;
+  identityResolvedAt: number | null;
+  startedAt: number | null;
+  completedAt: number | null;
+  failedAt: number | null;
+  cancelledAt: number | null;
+  callbacks: SpeechEngineCallback[];
+  errorCode: string | null;
+  error: string | null;
+  synthesisErrorCode: number | null;
+  textLength: number;
+  traceContext: Record<string, string | null>;
+};
+
+export type SpeechEngineStatus = Omit<Partial<SpeechSynthesisResult>, 'status' | 'identity'> & {
+  status: 'idle' | 'initializing' | 'ready' | 'unavailable' | SpeechSynthesisStatus;
+  identity?: AndroidTtsIdentity | null;
+  isSpeaking: boolean;
+};
+
+export type SpeechEngineEvent = {
+  callback: SpeechEngineCallback['type'];
+  callbackAt: number;
+  utteranceId: string;
+  status: SpeechSynthesisStatus;
+  identity: AndroidTtsIdentity | null;
+  traceContext: Record<string, string | null>;
+  errorCode?: string;
+  error?: string;
+  synthesisErrorCode?: number;
+};
+
 type Events = {
   onThermalStatus(e: { status: number }): void;
   onFrameStats(e: FrameStats): void;
@@ -425,6 +543,7 @@ type Events = {
   onSpeechResult(e: { requestId: string; text: string; isFinal: boolean }): void;
   onSpeechRms(e: { requestId: string; rmsdB: number }): void;
   onSpeechError(e: { requestId: string; error: string; code?: number }): void;
+  onSpeechEngineEvent(e: SpeechEngineEvent): void;
   onBleDeviceFound(e: DiscoveredBleDevice): void;
   onNfcTag(e: NfcTagEvent): void;
   onNfcError(e: { id: string; message: string }): void;
@@ -483,9 +602,14 @@ declare class PixelNativeModule extends NativeModule<Events> {
   startSpeechRecognition(requestId: string, onDevice: boolean): Promise<boolean>;
   stopSpeechRecognition(): boolean;
   cancelSpeechRecognition(): boolean;
-  /** Android TTS services visible to this app; an explicit engine never changes the system default. */
-  listSpeechEngines(): { packageName: string; label: string }[];
+  /** Android TTS services visible to this app; installation and models remain external. */
+  listSpeechEngines(): SpeechEngineInfo[];
+  /** Initializes one package and reports exact observed identity without synthesizing. */
+  resolveSpeechEngine(packageName: string, language?: string | null, voice?: string | null): Promise<AndroidTtsIdentity>;
+  /** Compatibility API retained for existing consumers. New code should use the detailed call. */
   speakWithSpeechEngine(packageName: string, text: string, rate: number, pitch: number, volume: number): Promise<void>;
+  speakWithSpeechEngineDetails(request: SpeechEngineSynthesisRequest): Promise<SpeechSynthesisResult>;
+  getSpeechEngineStatus(): SpeechEngineStatus;
   stopSpeechEngine(): boolean;
   isSpeechEngineSpeaking(): boolean;
   getAppFunctions(): AppFunctionInfo[];

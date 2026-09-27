@@ -6,7 +6,7 @@ battery cycles and health, display modes, GPU, MLX90632 FIR thermometer, acousti
 Wi-Fi 7 MLO, Wi-Fi RTT ranging, satellite NTN, Private Space isolation, Titan M2 StrongBox ECDH key agreement,
 torch, and haptic envelopes.
 
-The module also exposes Android's installed speech engines and explicit per-utterance TTS engine selection. It uses the platform TTS service; model weights and speaker settings stay with the separately installed engine.
+The module also exposes Android's installed speech engines and explicit per-utterance TTS engine selection. It inventories package versions, rejects missing, changed, mismatched or unobservable active engines before synthesis, and emits correlated start/terminal callbacks with exact package and voice/locale identity. Model weights, speaker settings, installation and downloads stay with the separately installed engine; its internal execution provider is not inferred.
 
 **Zero third-party dependencies.** It reads Android framework APIs and the kernel directly, so it
 adds nothing to your dependency graph. Its sibling [`@pixelkit-labs/mlkit`](https://www.npmjs.com/package/@pixelkit-labs/mlkit)

@@ -66,6 +66,7 @@ export function HardwareScreen() {
 - **Hardware Actuators**: Camera-bar HiLight LED sequences, custom LRA haptic waveforms, torch intensity, and reverse wireless battery sharing.
 - **Built-in Observability**: Every hardware operation is timed, traced, and logged via `traced()`. Inspect trace latencies and health summaries in the `<PixelKitDevTools />` in-app HUD.
 - **Explicit AI Run Ownership**: Cloud, Live, ADK, Nano, speech-recognition and TTS operations take application-owned trace context. Immutable capability adapters isolate concurrent runs, preflight availability and require an external policy decision for every effect.
+- **Verifiable Speech Engine Identity**: Explicit Android TTS requests fail closed unless the requested installed package/version is the observable active engine. Preflight and verification expose exact package, voice/locale, utterance and callback identity without claiming the external app's inference provider.
 - **Secure Native Credentials**: Gemini credentials persist only through native SecureStore with verified migration, write and deletion. Browser persistence is intentionally unavailable.
 - **Typed Hardware Provenance**: Every hook returns `source: 'hardware' | 'derived' | 'unavailable'`. When a sensor or feature is absent on a device, values cleanly evaluate to `null`.
 

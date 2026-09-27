@@ -113,7 +113,26 @@ export {
 // '@pixelkit-labs/sdk/mlkit'. They need @pixelkit-labs/mlkit, whose 19 ML Kit artifacts are a build cost that
 // installing the package imposes whether or not anything imports it. See src/mlkit.ts.
 export { useSpeechAI, type SpeechRecognitionRunOptions } from './ai/useSpeechAI';
-export { useSpeech, type SpeechRunOptions, type SpeakOptions } from './ai/useSpeech';
+export {
+  useSpeech,
+  type AndroidTtsIdentity,
+  type GeminiLiveAudioIdentity,
+  type PlatformTtsIdentity,
+  type SpeakOptions,
+  type SpeechEngineCallback,
+  type SpeechEngineEvent,
+  type SpeechEngineInfo,
+  type SpeechEngineStatus,
+  type SpeechEngineSynthesisRequest,
+  type SpeechOutputIdentity,
+  type SpeechPlaybackEvent,
+  type SpeechRunOptions,
+  type SpeechSynthesisResult,
+  type SpeechSynthesisStatus,
+  type SpeechVerificationOptions,
+  type SpeechVerificationResult,
+  type SpeechVoiceIdentity,
+} from './ai/useSpeech';
 export { getStoredApiKey, saveApiKey, removeApiKey, createGeminiClient } from './ai/geminiClient';
 
 // In-App Developer HUD & Diagnostics

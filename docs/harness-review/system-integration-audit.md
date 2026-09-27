@@ -167,16 +167,17 @@ The solid path is the normal local conversation. Dashed paths bypass parts of it
 
 ### Implemented
 
-- Delta does not bundle Kokoro inference. It detects the external Android TTS service `com.k2fsa.sherpa.onnx.tts.engine` and persists either `system` or `kokoro` as the selected speech engine.
-- `ConsoleScreen.speakReply` passes the selected package to PixelKit `useSpeech`, which binds Android `TextToSpeech` to that package. Missing services and reported binding errors surface as voice errors.
-- Nano replies can auto-speak. Completion can start a continuous follow-up recognition window. Gemini Live audio is separate and does not use Kokoro.
+- Delta does not bundle Kokoro inference. It selects the external Android TTS service `com.k2fsa.sherpa.onnx.tts.engine`; that separate app owns installation and model downloads.
+- PixelKit SDK 1.6.57 adds exact explicit-engine preflight and correlated synthesis results. Native code inventories and rechecks the requested package/version, initializes that package, observes the active engine, applies a selected voice/locale, and rejects missing, changed, mismatched or unobservable identity before submitting text.
+- `useSpeech.resolveSpeechEngineIdentity()` exposes preflight. `useSpeech.verifySpeechEngine()` resolves identity before speaking a caller-supplied phrase and records utterance-correlated `start`, `done`, `error`, `stop` or `replaced` callbacks under explicit trace/run ownership.
+- Platform-default TTS, explicit Android TTS and Gemini Live audio have distinct typed output identities. Phrase content is absent from native status/events and trace metadata.
 
 ### Boundaries and gaps
 
-- Android cannot always prove which engine produced audible output after service failure. The prior phone check established package binding and `Playback finished`, not audible Kokoro identity.
-- Delta has no Kokoro installer, model/version inventory, speaker selection, audio artifact, or waveform-level verification. Installation/download behavior belongs to the external package and is not disclosed or controlled by Delta.
-- AI Lab's manual `useSpeech` path does not consume the main Console's persisted engine selection.
-- The current uncommitted Voice redesign says Kokoro runs on Tensor G6; the app only delegates to the external Sherpa-ONNX service and has no evidence of its execution provider. That copy must be corrected separately.
+- This is SDK/native source behavior, not current Delta Mobile or phone acceptance. Delta still must consume one persisted engine selection across Console and AI Lab and expose the verification state in its UI.
+- Exact package/service identity and callback completion do not prove audible Kokoro voice identity. An unlocked-device run still needs user-confirmed audible evidence or a captured artifact, plus cold/warm timing, stop/replacement, package removal/update, initialization failure and fallback-rejection scenarios.
+- The external Sherpa-ONNX app's internal CPU/GPU/NPU execution provider remains unknown unless independently observed. PixelKit reports no inferred provider.
+- Delta has no Kokoro installer or bundled model inventory. It must disclose that installation and model downloads belong to the external app and must not claim Tensor execution.
 
 ## 9. MCP and external tools
 
