@@ -6,56 +6,69 @@
 import { GoogleGenAI } from '@google/genai';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import {
+  API_KEY_STORAGE_KEY,
+  LEGACY_API_KEY_STORAGE_KEY,
+  deleteCredential,
+  readCredential,
+  writeCredential,
+  type CredentialStore,
+} from './credentialStore';
 
-const API_KEY_STORAGE_KEY = 'PIXELKIT_GEMINI_API_KEY';
-const LEGACY_API_KEY_STORAGE_KEY = 'PIXELFORGE_GEMINI_API_KEY';
+const credentialStore: CredentialStore = {
+  get: key => SecureStore.getItemAsync(key),
+  set: (key, value) => SecureStore.setItemAsync(key, value),
+  remove: key => SecureStore.deleteItemAsync(key),
+};
+
+/** Browser persistence is unsupported; erase plaintext remnants from earlier SDK versions. */
+function removeBrowserCredentialCopies(): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    localStorage.removeItem(API_KEY_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY);
+    return localStorage.getItem(API_KEY_STORAGE_KEY) === null
+      && localStorage.getItem(LEGACY_API_KEY_STORAGE_KEY) === null;
+  } catch {
+    return false;
+  }
+}
 
 /** Cloud model used for chat, vision and transcription (Gemini API "Models" page, Sept 2026). */
 export const GEMINI_MODEL = 'gemini-3.8-flash';
 
 /** Error raised by AI hooks when no key is configured. There is no simulated fallback. */
 export const NO_API_KEY_MESSAGE =
-  'No Gemini API key configured. Open "Configure Gemini API Key" in the AI Lab; the key is stored in the Titan-backed SecureStore.';
+  'No Gemini API key configured. Native builds store the key in the Titan-backed SecureStore; browser credential persistence is unavailable.';
 
 /**
- * Retrieves the stored Gemini API key from Titan M3 Keystore or environment variables.
- * @returns Promise resolving to API key string or null if not yet configured.
+ * Retrieves the sole application-owned Gemini credential. A legacy value is migrated once into
+ * the canonical slot and removed; environment variables are intentionally not credential owners.
  */
 export async function getStoredApiKey(): Promise<string | null> {
-  try {
-    if (Platform.OS === 'web') {
-      return (
-        localStorage.getItem(API_KEY_STORAGE_KEY) ||
-        localStorage.getItem(LEGACY_API_KEY_STORAGE_KEY) ||
-        process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
-        null
-      );
-    }
-    const secureKey =
-      (await SecureStore.getItemAsync(API_KEY_STORAGE_KEY)) ||
-      (await SecureStore.getItemAsync(LEGACY_API_KEY_STORAGE_KEY));
-    return secureKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY || null;
-  } catch {
-    return process.env.EXPO_PUBLIC_GEMINI_API_KEY || null;
+  if (Platform.OS === 'web') {
+    removeBrowserCredentialCopies();
+    return null;
   }
+  try { return await readCredential(credentialStore); }
+  catch { return null; }
 }
 
-/**
- * Writes the Gemini API key to SecureStore (Android Keystore-backed).
- * @param key The Google Gemini API key (e.g. AIzaSy...).
- * @returns Promise resolving to true on successful write.
- */
+/** Writes and verifies the canonical Gemini credential. Browser persistence is unavailable. */
 export async function saveApiKey(key: string): Promise<boolean> {
-  try {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(API_KEY_STORAGE_KEY, key);
-      return true;
-    }
-    await SecureStore.setItemAsync(API_KEY_STORAGE_KEY, key);
-    return true;
-  } catch {
+  if (Platform.OS === 'web') {
+    removeBrowserCredentialCopies();
     return false;
   }
+  try { return await writeCredential(credentialStore, key); }
+  catch { return false; }
+}
+
+/** Removes and verifies native credentials; browser removal cleans legacy plaintext remnants. */
+export async function removeApiKey(): Promise<boolean> {
+  if (Platform.OS === 'web') return removeBrowserCredentialCopies();
+  try { return await deleteCredential(credentialStore); }
+  catch { return false; }
 }
 
 /** Default models list when API list is loading or unauthenticated */

@@ -1,12 +1,14 @@
 # Delta system integration audit
 
-Status: source audit and implementation checkpoint, 2026-09-27. The current app increment is Delta Mobile 1.0.83/code139. Automated checks and a web image-turn smoke are recorded below. The installed phone still reports 1.0.82/code138 and remained behind secure keyguard during the latest authorized check, so no 1.0.83 physical hardware, wake, voice, or model behavior is claimed.
+Status: source audit and implementation checkpoint, 2026-09-27. The current released app increment is Delta Mobile 1.0.83/code139. PixelKit SDK 1.6.56 source now contains explicit per-run capability and trace ownership, but its integrated checks, package publication, Delta migration and unlocked-device evidence are pending. The installed phone remained behind secure keyguard during the latest authorized check, so no new physical hardware, wake, voice, or model behavior is claimed.
 
 ## Decision
 
 Delta does not yet have one agent harness. The normal Nano conversation is a deterministic pre-model dispatcher; Gemini Live, the SDK cloud agent, and the ADK diagnostic code are separate execution systems. Skills are guidance, roster entries are prompt contexts, and Wiki pages are cited local notes. None of those labels means a workflow or sub-agent ran.
 
 Keep the current truthful fail-closed surfaces while replacing the split paths with one bounded coordinator. Do not broaden Laya, enable cloud hardware tools, or automate Wiki/Skill writes before that coordinator owns persistence, policy, confirmation, cancellation, tracing, and result evidence.
+
+PixelKit SDK 1.6.56 is the first implemented foundation step. Its former mutable global AI tool registry is replaced by immutable run-owned adapters with strict input/output validation, availability preflight, external effect authorization, deadlines and cancellation. Explicit trace context now crosses cloud, Live, ADK, Nano, recognition and TTS boundaries; bounded local sinks redact sensitive payloads and ignore late callbacks after a scope ends. This does not by itself unify Delta: the app must still build the adapter, own the root context and route every provider through the coordinator.
 
 ## Current request and response flow
 
@@ -28,8 +30,8 @@ flowchart LR
   Nano --> Session[Session persistence and UI]
   Session --> TTS[System TTS or external Kokoro package]
 
-  Live[Gemini Live] -. separate SDK registry and transcript .-> LiveUI[Live UI]
-  Cloud[AI Lab cloud agent] -. separate SDK registry .-> CloudUI[AI Lab]
+  Live[Gemini Live] -. separate SDK run adapter and transcript .-> LiveUI[Live UI]
+  Cloud[AI Lab cloud agent] -. separate SDK run adapter .-> CloudUI[AI Lab]
   LocalMCP[Hosted MCP server] -. Node listener only .-> Registry
 ```
 
@@ -51,7 +53,7 @@ The solid path is the normal local conversation. Dashed paths bypass parts of it
 - Gemini Live bypasses `DeltaAgent`, Delta's registry, confirmation gate, normal session turns, Skills, Wiki, memory retrieval, and Laya.
 - The trace opened in `DeltaAgent` closes before Nano inference, reply persistence, speech, or follow-up listening. Persisted user timing records `modelMs: 0`.
 - Custom instructions are applied both as the Nano system instruction and as a quoted user-prompt prefix. There is no canonical context assembly record or prompt-content provenance.
-- Delta Settings persists `geminiApiKey` in the ordinary JSON settings record, while the SDK Live/cloud clients read `PIXELKIT_GEMINI_API_KEY` from SecureStore. The Settings key field therefore does not configure those SDK clients and leaves a credential in plaintext app-private storage.
+- Delta Mobile 1.0.83 persists `geminiApiKey` in the ordinary JSON settings record, while SDK Live/cloud clients read the native SecureStore owner. SDK 1.6.56 source adds verified migration/save/remove and refuses persistent browser credentials, but the app migration and runtime proof remain pending until Delta consumes that release.
 - A card request is attached to the later model turn; model failure can prevent the card from being presented even though the tool request completed.
 
 ## 2. Tool loop and policy
@@ -114,8 +116,8 @@ The solid path is the normal local conversation. Dashed paths bypass parts of it
 ### Implemented
 
 - The normal roster selects one in-memory specialist prompt modifier. Delta Mobile 1.0.83 labels this as a prompt context, not delegation; tool-scope labels remain informational.
-- The SDK `useCloudHardwareAgent` contains a real bounded Gemini function-call loop, but it uses the SDK's separate global registry.
-- Delta Mobile does not call `registerHardwareTools`. In 1.0.83 AI Lab therefore reports the cloud hardware agent unavailable and removes the disconnected four-agent diagnostic control instead of asking cloud models to diagnose hardware with an empty tool list.
+- SDK 1.6.56 source gives `useCloudHardwareAgent`, Live and ADK immutable per-run capability adapters with explicit trace roots, strict contracts and external effect policy. It is not a Delta coordinator or application capability catalog.
+- Delta Mobile 1.0.83 does not construct that adapter. AI Lab therefore remains unavailable rather than asking a cloud model to diagnose hardware with an empty or implicit tool inventory.
 - Android AppFunctions are a separate system registry and are presented only when the hook reports published functions.
 
 ### Boundaries and gaps
@@ -272,3 +274,4 @@ Device boundary: the 651,687,677-byte 1.0.83/code139 debug APK (`SHA-256 C2B0910
 - 2026-09-27: keep Skills guidance-only, roster entries as prompt contexts, and Wiki writes evidence-reference gated.
 - 2026-09-27: do not choose an arbitrary wake threshold from one failed enrollment; require measured calibration and device acceptance.
 - 2026-09-27: keep shared coordinator, cloud policy, specialist execution form, and wake-template privacy policy open pending explicit user feedback.
+- 2026-09-27: implement SDK-owned immutable capability adapters, explicit asynchronous trace ownership and verified native credential removal as a source foundation; keep SDK verification/publication, Delta integration and phone evidence open.

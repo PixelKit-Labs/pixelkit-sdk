@@ -11,12 +11,10 @@ import {
   LIVE_WEBSOCKET_ENDPOINT,
 } from '../packages/sdk/src/ai/liveConstants.ts';
 import {
-  defineTool,
+  createCapabilityAdapter,
   runTool,
-  clearTools,
-  toFunctionDeclarations,
-  listTools,
 } from '../packages/sdk/src/ai/tools/registry.ts';
+import { createTraceContext } from '../packages/sdk/src/core/observability.ts';
 
 describe('Gemini 3.8 Multimodal Live Protocol', () => {
   it('declares canonical live WebSocket endpoint and default model', () => {
@@ -53,18 +51,25 @@ describe('Gemini 3.8 Multimodal Live Protocol', () => {
     assert.strictEqual(setupMsg.setup.generationConfig.thinkingConfig.thinkingBudget, 1024);
   });
 
-  it('dispatches tool call and wraps response in toolResponse message', async () => {
-    clearTools();
-    defineTool({
-      name: 'get_fan_speed',
-      description: 'Query cooling fan RPM',
-      parameters: { type: 'OBJECT', properties: {} },
-      execute: () => ({ rpm: 3200 }),
+  it('dispatches a Live tool call through its session adapter', async () => {
+    const adapter = createCapabilityAdapter({
+      provider: 'live-test',
+      tools: [{
+        name: 'get_fan_speed',
+        description: 'Query cooling fan RPM',
+        inputSchema: { type: 'OBJECT', properties: {} },
+        outputSchema: { type: 'OBJECT', properties: { rpm: { type: 'NUMBER' } }, required: ['rpm'] },
+        effect: 'read',
+        risk: 'low',
+        availability: () => ({ available: true }),
+        execute: () => ({ rpm: 3200 }),
+      }],
     });
-
     const call = { id: 'call_123', name: 'get_fan_speed', args: {} };
-    const toolResult = await runTool(call.name, call.args);
-
+    const toolResult = await runTool(adapter, call.name, call.args, {
+      context: createTraceContext({ runId: 'live-run' }),
+      toolCallId: call.id,
+    });
     assert.strictEqual(toolResult.ok, true);
     assert.deepStrictEqual(toolResult.result, { rpm: 3200 });
 

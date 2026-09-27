@@ -65,6 +65,8 @@ export function HardwareScreen() {
 - **Next-Gen Radios**: Wi-Fi 7 Multi-Link Operation (MLO), 802.11mc/az Wi-Fi RTT ranging, and Satellite NTN emergency states.
 - **Hardware Actuators**: Camera-bar HiLight LED sequences, custom LRA haptic waveforms, torch intensity, and reverse wireless battery sharing.
 - **Built-in Observability**: Every hardware operation is timed, traced, and logged via `traced()`. Inspect trace latencies and health summaries in the `<PixelKitDevTools />` in-app HUD.
+- **Explicit AI Run Ownership**: Cloud, Live, ADK, Nano, speech-recognition and TTS operations take application-owned trace context. Immutable capability adapters isolate concurrent runs, preflight availability and require an external policy decision for every effect.
+- **Secure Native Credentials**: Gemini credentials persist only through native SecureStore with verified migration, write and deletion. Browser persistence is intentionally unavailable.
 - **Typed Hardware Provenance**: Every hook returns `source: 'hardware' | 'derived' | 'unavailable'`. When a sensor or feature is absent on a device, values cleanly evaluate to `null`.
 
 ---

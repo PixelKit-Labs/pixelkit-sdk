@@ -1,165 +1,96 @@
-/**
- * @file adk.test.ts
- * @description Unit tests for Google Agent Development Kit (ADK) integration and Multi-Agent Diagnostic Team.
- */
-
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createADKTool,
-  createADKAgent,
-  createDiagnosticSpecialists,
-  runDiagnosticTeam,
-  type ADKTool,
-} from '../packages/sdk/src/ai/adk/index.ts';
 import { Type } from '@google/genai';
+import {
+  createADKAgent,
+  createADKTool,
+  runDiagnosticTeam,
+} from '../packages/sdk/src/ai/adk/index.ts';
+import { createCapabilityAdapter, createUnavailableCapabilityAdapter } from '../packages/sdk/src/ai/tools/registry.ts';
+import { createTraceContext } from '../packages/sdk/src/core/observability.ts';
 
-describe('Google Agent Development Kit (ADK) Integration', () => {
-  test('createADKTool builds valid ADK tool declaration and executes handler', async () => {
-    let executed = false;
-
-    const tool = createADKTool(
-      'read_temp',
-      'Reads MLX90632 surface temperature in Celsius',
-      {
-        type: Type.OBJECT,
-        properties: {},
-      },
-      () => {
-        executed = true;
-        return { surfaceC: 34.2, isCalibrated: true };
-      },
-    );
-
-    assert.equal(tool.name, 'read_temp');
-    assert.equal(tool.declaration.name, 'read_temp');
-    assert.equal(tool.declaration.description, 'Reads MLX90632 surface temperature in Celsius');
-
-    const res = await tool.execute({});
-    assert.equal(executed, true);
-    assert.equal(res.surfaceC, 34.2);
+function readTemperatureTool() {
+  return createADKTool({
+    name: 'read_temp',
+    description: 'Read temperature',
+    parameters: { type: Type.OBJECT, properties: {} },
+    outputSchema: {
+      type: 'OBJECT',
+      properties: { surfaceC: { type: 'NUMBER' }, traceId: { type: 'STRING' } },
+      required: ['surfaceC', 'traceId'],
+    },
+    effect: 'read',
+    risk: 'low',
+    availability: () => ({ available: true }),
+    execute: (_args, execution) => ({ surfaceC: 34.2, traceId: execution.trace.traceId }),
   });
+}
 
-  test('createADKAgent executes tool loops and formats structured response', async () => {
-    const testTool = createADKTool(
-      'check_cpu_throttling',
-      'Checks if CPU is thermal throttled',
-      {
-        type: Type.OBJECT,
-        properties: {},
+function twoTurnClient() {
+  let turn = 0;
+  return {
+    models: {
+      generateContent: async () => {
+        turn += 1;
+        if (turn === 1) return {
+          responseId: 'provider-tool',
+          functionCalls: [{ id: 'tool-call', name: 'read_temp', args: {} }],
+          candidates: [{ content: { role: 'model', parts: [] } }],
+        };
+        return {
+          responseId: 'provider-final', text: 'temperature observed', functionCalls: [],
+          candidates: [{ finishReason: 'STOP', content: { role: 'model', parts: [{ text: 'temperature observed' }] } }],
+        };
       },
-      () => ({ throttled: true, thermalStatus: 'severe' }),
-    );
+    },
+  };
+}
 
-    let turn = 0;
-    const mockAi: any = {
-      models: {
-        generateContent: async (req: any) => {
-          turn++;
-          if (turn === 1) {
-            return {
-              functionCalls: [{ id: 'c1', name: 'check_cpu_throttling', args: {} }],
-              candidates: [
-                {
-                  content: {
-                    role: 'model',
-                    parts: [{ functionCall: { id: 'c1', name: 'check_cpu_throttling', args: {} } }],
-                  },
-                },
-              ],
-            };
-          }
-          return {
-            text: 'Tensor G6 CPU is currently under severe thermal throttling.',
-            functionCalls: [],
-            candidates: [
-              {
-                content: {
-                  role: 'model',
-                  parts: [{ text: 'Tensor G6 CPU is currently under severe thermal throttling.' }],
-                },
-              },
-            ],
-          };
-        },
-      },
-    };
-
+describe('ADK explicit capability and trace ownership', () => {
+  test('worker and tool spans remain children of the application run', async () => {
+    const tool = readTemperatureTool();
+    const adapter = createCapabilityAdapter({ provider: 'device', tools: [tool] });
+    const root = createTraceContext({ traceId: 'app-trace', spanId: 'app-root', runId: 'run-1' });
     const agent = createADKAgent({
-      name: 'ThermalSpecialist',
-      role: 'Silicon Thermals',
-      description: 'Specializes in thermal profiling',
-      systemInstruction: 'Analyze thermal throttling.',
-      tools: [testTool],
+      name: 'Thermal', role: 'thermal', description: 'thermal worker',
+      systemInstruction: 'Use tools', toolNames: ['read_temp'],
     });
-
-    const result = await agent.execute(mockAi, 'Is the CPU overheating?');
-    assert.equal(result.agentName, 'ThermalSpecialist');
-    assert.equal(result.role, 'Silicon Thermals');
-    assert.equal(result.steps.length, 1);
-    assert.equal(result.steps[0].name, 'check_cpu_throttling');
-    assert.deepEqual(result.steps[0].result, { throttled: true, thermalStatus: 'severe' });
-    assert.ok(result.text.includes('severe thermal throttling'));
+    const result = await agent.execute(twoTurnClient() as never, 'read', { context: root, capabilityAdapter: adapter });
+    assert.equal(result.status, 'completed');
+    assert.equal(result.context.traceId, 'app-trace');
+    assert.equal(result.context.parentSpanId, 'app-root');
+    assert.equal(result.context.workerRunId, 'run-1:Thermal');
+    assert.equal(result.steps[0].id, 'tool-call');
+    assert.equal(result.steps[0].context.traceId, 'app-trace');
+    assert.equal(result.steps[0].result.policyOutcome, 'not_required');
   });
 
-  test('runDiagnosticTeam orchestrates multi-agent specialist sweep and synthesizes report', async () => {
-    const tools: ADKTool[] = [
-      createADKTool('get_thermal_headroom', 'Gets thermal headroom', { type: Type.OBJECT, properties: {} }, () => ({
-        thermalStatus: 'none',
-        cpuHeadroom: 0.85,
-      })),
-      createADKTool('get_battery_health', 'Gets battery health', { type: Type.OBJECT, properties: {} }, () => ({
-        stateOfHealthPercent: 98,
-        cycleCount: 42,
-        chargingTier: 'ultra_rapid',
-      })),
-      createADKTool('get_wifi7_status', 'Gets Wi-Fi 7 status', { type: Type.OBJECT, properties: {} }, () => ({
-        isMloActive: true,
-        aggregateSpeedMbps: 2880,
-      })),
-    ];
+  test('empty adapters stop workers before provider execution', async () => {
+    let providerCalls = 0;
+    const client = { models: { generateContent: async () => { providerCalls += 1; return {}; } } };
+    const agent = createADKAgent({
+      name: 'Thermal', role: 'thermal', description: 'thermal worker',
+      systemInstruction: 'Use tools', toolNames: ['read_temp'],
+    });
+    const result = await agent.execute(client as never, 'read', {
+      context: createTraceContext({ runId: 'empty' }),
+      capabilityAdapter: createUnavailableCapabilityAdapter(),
+    });
+    assert.equal(result.status, 'unavailable');
+    assert.equal(result.text, '');
+    assert.equal(providerCalls, 0);
+  });
 
-    const mockAi: any = {
-      models: {
-        generateContent: async (req: any) => {
-          const sys = req.config?.systemInstruction ?? '';
-          const contents = req.contents?.[0]?.parts?.[0]?.text ?? '';
-
-          if (contents.includes('Lead Hardware Diagnostic Coordinator')) {
-            // Coordinator synthesis step
-            return {
-              text: JSON.stringify({
-                verdict: 'healthy',
-                summary: 'All hardware systems operating within normal parameters. Battery at 98% health and Wi-Fi 7 MLO active at 2.88 Gbps.',
-                recommendations: ['Maintain current charging profile', 'No thermal mitigation required'],
-              }),
-            };
-          }
-
-          // Specialists step
-          return {
-            text: 'Telemetry reading verified normal.',
-            functionCalls: [],
-            candidates: [
-              {
-                content: {
-                  role: 'model',
-                  parts: [{ text: 'Telemetry reading verified normal.' }],
-                },
-              },
-            ],
-          };
-        },
-      },
-    };
-
-    const report = await runDiagnosticTeam(mockAi, 'Device checkup after intensive gaming', tools);
-
-    assert.equal(report.issue, 'Device checkup after intensive gaming');
-    assert.equal(report.verdict, 'healthy');
-    assert.ok(report.summary.includes('All hardware systems operating within normal parameters'));
-    assert.equal(report.specialistResults.length, 3);
-    assert.equal(report.recommendations.length, 2);
-    assert.ok(report.timestamp.length > 0);
+  test('diagnostic team rejects an empty adapter without synthesizing observations', async () => {
+    let providerCalls = 0;
+    const client = { models: { generateContent: async () => { providerCalls += 1; return {}; } } };
+    const report = await runDiagnosticTeam(client as never, 'battery issue', {
+      context: createTraceContext({ runId: 'team' }),
+      capabilityAdapter: createUnavailableCapabilityAdapter(),
+    });
+    assert.equal(report.status, 'unavailable');
+    assert.equal(report.verdict, 'unavailable');
+    assert.equal(report.summary, '');
+    assert.equal(providerCalls, 0);
   });
 });

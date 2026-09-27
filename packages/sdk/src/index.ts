@@ -93,6 +93,8 @@ export {
   useGeminiLive,
   type GeminiLiveTelemetry,
   type GeminiLiveConfig,
+  type GeminiLiveRunOptions,
+  type GeminiLiveConnectResult,
   type LiveVoiceName,
   type LiveMessage,
   type LiveToolCall,
@@ -110,29 +112,41 @@ export {
 // useGeminiNano, useGenAITasks, useVisionAI and useNaturalLanguageAI are exported from
 // '@pixelkit-labs/sdk/mlkit'. They need @pixelkit-labs/mlkit, whose 19 ML Kit artifacts are a build cost that
 // installing the package imposes whether or not anything imports it. See src/mlkit.ts.
-export { useSpeechAI } from './ai/useSpeechAI';
-export { useSpeech } from './ai/useSpeech';
-export { getStoredApiKey, saveApiKey, createGeminiClient } from './ai/geminiClient';
+export { useSpeechAI, type SpeechRecognitionRunOptions } from './ai/useSpeechAI';
+export { useSpeech, type SpeechRunOptions, type SpeakOptions } from './ai/useSpeech';
+export { getStoredApiKey, saveApiKey, removeApiKey, createGeminiClient } from './ai/geminiClient';
 
 // In-App Developer HUD & Diagnostics
 export { PixelKitDevTools, type PixelKitDevToolsProps } from './ui/PixelKitDevTools';
 
-// Hardware Tool Registry & Agent Function Calling (Google Gen AI SDK & ADK)
+// Explicit per-run capability adapters and function calling.
 export {
-  defineTool,
-  getTool,
-  listTools,
-  clearTools,
+  createCapabilityAdapter,
+  createUnavailableCapabilityAdapter,
+  createHardwareCapabilityAdapter,
+  probeCapabilityAdapter,
   toFunctionDeclarations,
   toGeminiParametersSchema,
   runTool,
+  toToolFunctionResponse,
   validateParameters,
-  registerHardwareTools,
-  type ToolDef,
+  type CapabilityAdapter,
+  type CapabilityTool,
+  type CapabilityProbeResult,
+  type CapabilityAvailability,
+  type CapabilityExecutionContext,
+  type CapabilityEffect,
+  type CapabilityRisk,
+  type EffectPolicyGateway,
+  type EffectProposal,
+  type PolicyDecision,
+  type PolicyOutcome,
+  type ToolExecutionStatus,
   type ToolType,
   type ToolPropertySchema,
   type ToolParametersSchema,
   type ToolExecutionResult,
+  type ToolExecutionOptions,
   type HardwareContext,
 } from './ai/tools/registry';
 
@@ -154,6 +168,7 @@ export {
   runDiagnosticTeam,
   type ADKTool,
   type ADKAgentConfig,
+  type ADKRunOptions,
   type ADKAgent,
   type ADKAgentStep,
   type ADKAgentExecutionResult,

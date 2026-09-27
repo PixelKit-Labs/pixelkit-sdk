@@ -1,6 +1,6 @@
 {
   "name": "pixelkit-sdk",
-  "version": "1.6.55",
+  "version": "1.6.56",
   "private": true,
   "description": "Monorepo for the PixelKit SDK: the hooks, and the two Kotlin Expo Modules they read hardware through.",
   "license": "MIT",
@@ -23,10 +23,11 @@
     "test:e2e": "node scripts/run-artemis-e2e.js",
     "test:e2e:flash": "node scripts/run-artemis-e2e.js --profile flash",
     "test:e2e:pro": "node scripts/run-artemis-e2e.js --profile pro",
-    "test": "node --test \"test/**/*.test.ts\""
+    "test": "tsx --test \"test/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "tsx": "4.23.15",
     "typescript": "~6.0.3"
   },
   "dependencies": {
@@ -35,6 +36,9 @@
     "@expo/metro-runtime": "~57.0.15",
     "@expo/vector-icons": "^15.0.2",
     "@google/genai": "^2.21.0",
+    "@pixelkit-labs/mlkit": "1.6.56",
+    "@pixelkit-labs/native": "1.6.56",
+    "@pixelkit-labs/sdk": "1.6.56",
     "expo": "~57.0.20",
     "expo-asset": "~57.0.16",
     "expo-audio": "~57.0.4",
@@ -66,9 +70,6 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-web": "^0.21.2",
-    "@pixelkit-labs/sdk": "1.6.55",
-    "@pixelkit-labs/native": "1.6.55",
-    "@pixelkit-labs/mlkit": "1.6.55"
+    "react-native-web": "^0.21.2"
   }
 }

@@ -17,10 +17,23 @@ import PixelNano, {
   type ProofreadResult,
   type RewriteResult,
 } from '@pixelkit-labs/mlkit';
-import { logEvent, recordMetric, type TelemetrySource, noteExpected } from '../core/observability';
+import {
+  beginTrace,
+  withTraceContextFields,
+  logEvent,
+  recordMetric,
+  type ObservabilityOptions,
+  type TelemetrySource,
+  type TraceContext,
+  noteExpected,
+} from '../core/observability';
 import type { AIMessage } from '../core/types';
 
 const MODULE = 'useGeminiNano';
+
+export interface NanoRunOptions extends ObservabilityOptions {
+  context: TraceContext;
+}
 
 /** Leaves room for the answer inside the model's token limit (4,096 on Nano v4 per ML Kit release notes). */
 const MAX_HISTORY_CHARS = 6000;
@@ -153,42 +166,63 @@ export function useGeminiNano() {
   }, []);
 
   /** Single-shot generation (text, optional image). Throws on failure; no fallback. */
-  const generate = useCallback(async (prompt: string, options?: NanoOptions): Promise<NanoResult> => {
+  const generate = useCallback(async (
+    prompt: string,
+    run: NanoRunOptions,
+    options?: NanoOptions,
+  ): Promise<NanoResult> => {
     if (!PixelNano) throw new Error('PixelNano module is not in this build');
+    const scope = beginTrace(MODULE, 'generate', 'hardware', { model: info?.baseModelName }, run);
     setIsGenerating(true);
     setError(null);
+    scope.event('request_accepted', { chars: prompt.length });
     try {
-      const res = await PixelNano.generate(prompt, options);
-      setThoughts(res.thoughts);
-      setLastLatencyMs(res.latencyMs);
-      setLastFirstTokenMs(res.firstTokenMs);
-      recordMetric(MODULE, 'latencyMs', res.latencyMs, 'hardware');
-      logEvent(MODULE, 'generate', { latencyMs: res.latencyMs, finishReason: res.finishReason });
-      return res;
-    } catch (e: any) {
-      setError(e?.message ?? 'generate failed');
-      logEvent(MODULE, 'generate error', { message: e?.message, code: e?.code }, 'error');
-      throw e;
+      const result = await PixelNano.generate(prompt, options);
+      setThoughts(result.thoughts);
+      setLastLatencyMs(result.latencyMs);
+      setLastFirstTokenMs(result.firstTokenMs);
+      scope.metric('latencyMs', result.latencyMs);
+      if (result.firstTokenMs != null) scope.event('first_response', { firstTokenMs: result.firstTokenMs });
+      scope.end('ok', { latencyMs: result.latencyMs, firstTokenMs: result.firstTokenMs, finishReason: result.finishReason });
+      return result;
+    } catch (cause: any) {
+      setError(cause?.message ?? 'generate failed');
+      scope.end('error', undefined, cause);
+      throw cause;
     } finally {
       setIsGenerating(false);
     }
-  }, []);
+  }, [info]);
 
-  /** Chat turn with streaming. Tokens accumulate in `partial` until the reply is appended to `messages`. */
-  const sendMessage = useCallback(async (userPrompt: string, sendOptions?: Partial<NanoOptions>): Promise<void> => {
+  /** Chat turn with request-id-bound callbacks; late native events are ignored after completion. */
+  const sendMessage = useCallback(async (
+    userPrompt: string,
+    run: NanoRunOptions,
+    sendOptions?: Partial<NanoOptions>,
+  ): Promise<void> => {
     const prompt = userPrompt.trim();
     if (!prompt) return;
     const now = Date.now();
+    const requestId = `nano_${now}_${run.context.runId ?? run.context.traceId}`;
+    const requestContext = withTraceContextFields(run.context, { nativeRequestId: requestId });
+    const scope = beginTrace(MODULE, 'stream', 'hardware', {
+      model: info?.baseModelName,
+      nativeRequestId: requestId,
+    }, { ...run, context: requestContext });
     const displayContent = sendOptions?.displayContent?.trim() || prompt;
-    setMessages(prev => [...prev, { id: `user_${now}`, role: 'user', content: displayContent, timestamp: now }]);
+    setMessages(previous => [...previous, { id: `user_${now}`, role: 'user', content: displayContent, timestamp: now }]);
 
     const fail = (content: string) => {
-      setMessages(prev => [...prev, { id: `err_${Date.now()}`, role: 'system', content, timestamp: Date.now() }]);
+      setMessages(previous => [...previous, { id: `err_${Date.now()}`, role: 'system', content, timestamp: Date.now() }]);
     };
-    if (!PixelNano) { fail('PixelNano module is not in this build (web or Expo Go).'); return; }
+    if (!PixelNano) {
+      fail('PixelNano module is not in this build (web or Expo Go).');
+      scope.end('unavailable', { reason: 'native_module_absent' });
+      return;
+    }
     if (status !== 'available') {
       fail(`Gemini Nano is ${status} on this device. ${status === 'downloadable' ? 'Tap "Download model" first.' : ''}`.trim());
-      logEvent(MODULE, 'sendMessage while unavailable', { status }, 'warn');
+      scope.end('unavailable', { reason: `model_${status}` });
       return;
     }
 
@@ -196,11 +230,21 @@ export function useGeminiNano() {
     setPartial('');
     setThoughts([]);
     setError(null);
-    const requestId = `nano_${now}_${Math.random().toString(36).slice(2)}`;
-    const subs = [
-      PixelNano.addListener('onToken', e => { if (e.requestId === requestId) setPartial(p => p + e.text); }),
-      PixelNano.addListener('onThought', e => { if (e.requestId === requestId) setThoughts(p => [...p, e.text]); }),
+    let firstTokenObserved = false;
+    const subscriptions = [
+      PixelNano.addListener('onToken', event => {
+        if (!scope.active || event.requestId !== requestId) return;
+        if (!firstTokenObserved) {
+          firstTokenObserved = true;
+          scope.event('first_response', { nativeRequestId: requestId });
+        }
+        setPartial(previous => previous + event.text);
+      }),
+      PixelNano.addListener('onThought', event => {
+        if (scope.active && event.requestId === requestId) setThoughts(previous => [...previous, event.text]);
+      }),
     ];
+    scope.event('request_accepted', { chars: prompt.length, nativeRequestId: requestId });
     try {
       const history = messagesRef.current;
       const useSystemPart = info?.systemPromptAvailable === true;
@@ -215,39 +259,43 @@ export function useGeminiNano() {
         ...(useSystemPart ? { systemInstruction } : {}),
         ...sendOptions,
       };
-
-      const res = await PixelNano.stream(requestId, text, options);
-
+      const result = await PixelNano.stream(requestId, text, options);
       let tokenCount: number | undefined;
-      let decodeTps: number | null = null;
+      let decodeTokensPerSec: number | null = null;
       try {
-        tokenCount = await PixelNano.countTokens(res.text || ' ');
-        const decodeMs = res.firstTokenMs != null ? res.latencyMs - res.firstTokenMs : null;
-        if (decodeMs != null && decodeMs > 0 && tokenCount > 0) decodeTps = Number((tokenCount / (decodeMs / 1000)).toFixed(1));
-      } catch { noteExpected(MODULE, 'tokenizer unavailable; token count left null'); }
-
-      setMessages(prev => [...prev, {
-        id: `model_${Date.now()}`, role: 'model', content: res.text || '(empty response)',
-        timestamp: Date.now(), latencyMs: res.latencyMs, tokenCount,
+        tokenCount = await PixelNano.countTokens(result.text || ' ');
+        const decodeMs = result.firstTokenMs != null ? result.latencyMs - result.firstTokenMs : null;
+        if (decodeMs != null && decodeMs > 0 && tokenCount > 0) {
+          decodeTokensPerSec = Number((tokenCount / (decodeMs / 1000)).toFixed(1));
+        }
+      } catch {
+        noteExpected(MODULE, 'tokenizer unavailable; token count left null');
+      }
+      setMessages(previous => [...previous, {
+        id: `model_${Date.now()}`, role: 'model', content: result.text || '(empty response)',
+        timestamp: Date.now(), latencyMs: result.latencyMs, tokenCount,
       }]);
-      setLastLatencyMs(res.latencyMs);
-      setLastFirstTokenMs(res.firstTokenMs);
+      setLastLatencyMs(result.latencyMs);
+      setLastFirstTokenMs(result.firstTokenMs);
       setLastOutputTokens(tokenCount ?? null);
-      setLastDecodeTokensPerSec(decodeTps);
-      recordMetric(MODULE, 'latencyMs', res.latencyMs, 'hardware');
-      if (res.firstTokenMs != null) recordMetric(MODULE, 'firstTokenMs', res.firstTokenMs, 'hardware');
-      if (decodeTps != null) recordMetric(MODULE, 'decodeTokensPerSec', decodeTps, 'derived');
-      logEvent(MODULE, 'reply', {
-        latencyMs: res.latencyMs, firstTokenMs: res.firstTokenMs, finishReason: res.finishReason,
-        outputTokens: tokenCount, decodeTokensPerSec: decodeTps, thoughts: res.thoughts.length,
+      setLastDecodeTokensPerSec(decodeTokensPerSec);
+      scope.metric('latencyMs', result.latencyMs);
+      if (result.firstTokenMs != null) scope.metric('firstTokenMs', result.firstTokenMs);
+      if (decodeTokensPerSec != null) scope.metric('decodeTokensPerSec', decodeTokensPerSec, 'derived');
+      scope.end('ok', {
+        nativeRequestId: requestId,
+        latencyMs: result.latencyMs,
+        firstTokenMs: result.firstTokenMs,
+        finishReason: result.finishReason,
+        outputTokens: tokenCount,
       });
-    } catch (e: any) {
-      const message = e?.message ?? 'Unknown error';
+    } catch (cause: any) {
+      const message = cause?.message ?? 'Unknown error';
       setError(message);
       fail(`Gemini Nano error: ${message}`);
-      logEvent(MODULE, 'error', { message, code: e?.code }, 'error');
+      scope.end('error', { nativeRequestId: requestId }, cause);
     } finally {
-      subs.forEach(s => s.remove());
+      subscriptions.forEach(subscription => subscription.remove());
       setPartial('');
       setIsGenerating(false);
     }

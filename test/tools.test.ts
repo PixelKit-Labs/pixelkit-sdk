@@ -1,206 +1,154 @@
-/**
- * @file tools.test.ts
- * @description Unit tests for the Unified Hardware Tool Registry and Gemini / ADK function calling.
- */
-
-import { test, describe, beforeEach } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  defineTool,
-  getTool,
-  listTools,
-  clearTools,
-  toFunctionDeclarations,
+  createCapabilityAdapter,
+  createHardwareCapabilityAdapter,
+  createUnavailableCapabilityAdapter,
   runTool,
+  toFunctionDeclarations,
   validateParameters,
-  registerHardwareTools,
+  type CapabilityTool,
 } from '../packages/sdk/src/ai/tools/registry.ts';
+import { createTraceContext, type ObservabilitySink, type TelemetryEvent } from '../packages/sdk/src/core/observability.ts';
 
-describe('Unified Tool Registry & Gemini Declarations', () => {
-  beforeEach(() => {
-    clearTools();
+const outputSchema = { type: 'OBJECT' as const, properties: { changed: { type: 'BOOLEAN' as const } }, required: ['changed'] };
+const inputSchema = {
+  type: 'OBJECT' as const,
+  properties: { value: { type: 'NUMBER' as const } },
+  required: ['value'],
+};
+
+function readTool(name: string, result: unknown): CapabilityTool {
+  return {
+    name,
+    description: `Read ${name}`,
+    inputSchema,
+    outputSchema: typeof result === 'string'
+      ? { type: 'STRING' }
+      : { type: 'OBJECT', properties: { measured: { type: 'NUMBER' } }, required: ['measured'] },
+    effect: 'read',
+    risk: 'low',
+    availability: () => ({ available: true }),
+    execute: () => result,
+  };
+}
+
+describe('explicit capability adapters', () => {
+  test('adapter snapshots are immutable and isolated per run', async () => {
+    const first = createCapabilityAdapter({ provider: 'first', tools: [readTool('read_value', 'one')] });
+    const second = createCapabilityAdapter({ provider: 'second', tools: [readTool('read_value', 'two')] });
+    const context = createTraceContext({ runId: 'run' });
+    const [one, two] = await Promise.all([
+      runTool(first, 'read_value', { value: 1 }, { context, toolCallId: 'call-1' }),
+      runTool(second, 'read_value', { value: 1 }, { context, toolCallId: 'call-2' }),
+    ]);
+    assert.equal(one.result, 'one');
+    assert.equal(one.provider, 'first');
+    assert.equal(two.result, 'two');
+    assert.equal(two.provider, 'second');
+    assert.notEqual(one.context.spanId, two.context.spanId);
+    assert.equal(Object.isFrozen(first.tools), true);
   });
 
-  test('defineTool registers and getTool retrieves definition', () => {
-    defineTool({
-      name: 'test_action',
-      description: 'A test action',
-      parameters: {
-        type: 'OBJECT',
-        properties: {
-          power: { type: 'NUMBER', description: 'Power in watts' },
-        },
-        required: ['power'],
-      },
-      execute: ({ power }: { power: number }) => ({ success: true, power }),
+  test('empty and missing capabilities return typed unavailable results', async () => {
+    const result = await runTool(
+      createUnavailableCapabilityAdapter('none'),
+      'read_sensor',
+      {},
+      { context: createTraceContext({ runId: 'empty' }), toolCallId: 'call-empty' },
+    );
+    assert.deepEqual({ ok: result.ok, status: result.status, policy: result.policyOutcome }, {
+      ok: false, status: 'unavailable', policy: 'unavailable',
     });
-
-    const retrieved = getTool('test_action');
-    assert.ok(retrieved);
-    assert.equal(retrieved.name, 'test_action');
-    assert.equal(retrieved.description, 'A test action');
-    assert.equal(listTools().length, 1);
+    assert.equal(result.result, undefined);
   });
 
-  test('validateParameters enforces required parameters and types', () => {
-    const schema = {
-      type: 'OBJECT' as const,
-      properties: {
-        name: { type: 'STRING' as const },
-        count: { type: 'NUMBER' as const },
-        active: { type: 'BOOLEAN' as const },
-        mode: { type: 'STRING' as const, enum: ['fast', 'slow'] },
-      },
-      required: ['name', 'count'],
+  test('effect execution always traverses the application policy gateway', async () => {
+    let executions = 0;
+    const effect: CapabilityTool = {
+      name: 'set_state', description: 'Set state', inputSchema, outputSchema,
+      effect: 'effect', risk: 'high', availability: () => ({ available: true }),
+      execute: () => { executions += 1; return { changed: true }; },
     };
-
-    // Valid inputs
-    const valid = validateParameters(schema, { name: 'Pixel', count: 11, active: true, mode: 'fast' });
-    assert.equal(valid.success, true);
-
-    // Missing required field
-    const missing = validateParameters(schema, { count: 11 });
-    assert.equal(missing.success, false);
-    if (!missing.success) {
-      assert.ok(missing.issues.some(i => i.includes('Missing required parameter: \'name\'')));
-    }
-
-    // Type mismatch
-    const typeMismatch = validateParameters(schema, { name: 'Pixel', count: 'eleven' as any });
-    assert.equal(typeMismatch.success, false);
-    if (!typeMismatch.success) {
-      assert.ok(typeMismatch.issues.some(i => i.includes('must be a number')));
-    }
-
-    // Invalid enum value
-    const invalidEnum = validateParameters(schema, { name: 'Pixel', count: 11, mode: 'turbo' });
-    assert.equal(invalidEnum.success, false);
-    if (!invalidEnum.success) {
-      assert.ok(invalidEnum.issues.some(i => i.includes('must be one of [fast, slow]')));
-    }
+    const withoutPolicy = createCapabilityAdapter({ provider: 'device', tools: [effect] });
+    const denied = createCapabilityAdapter({
+      provider: 'device', tools: [effect], authorizeEffect: () => ({ outcome: 'denied', reason: 'confirmation_required' }),
+    });
+    const approved = createCapabilityAdapter({
+      provider: 'device', tools: [effect], authorizeEffect: proposal => {
+        assert.equal(proposal.toolCallId, 'approved-call');
+        return { outcome: 'approved' };
+      },
+    });
+    const context = createTraceContext({ runId: 'effect' });
+    assert.equal((await runTool(withoutPolicy, 'set_state', { value: 1 }, { context, toolCallId: 'no-policy' })).status, 'unavailable');
+    assert.equal((await runTool(denied, 'set_state', { value: 1 }, { context, toolCallId: 'denied-call' })).status, 'denied');
+    const result = await runTool(approved, 'set_state', { value: 1 }, { context, toolCallId: 'approved-call' });
+    assert.equal(result.status, 'success');
+    assert.equal(result.policyOutcome, 'approved');
+    assert.equal(executions, 1);
   });
 
-  test('toFunctionDeclarations converts schemas to Google Gen AI format', () => {
-    defineTool({
-      name: 'adjust_brightness',
-      description: 'Sets screen brightness percentage',
-      parameters: {
-        type: 'OBJECT',
-        properties: {
-          level: { type: 'NUMBER', description: 'Brightness level from 0.0 to 1.0' },
-          smooth: { type: 'BOOLEAN', description: 'Animate smoothly' },
-        },
-        required: ['level'],
-      },
-      execute: () => ({ ok: true }),
+  test('rejects executor output that violates the declared output schema', async () => {
+    const adapter = createCapabilityAdapter({
+      provider: 'broken',
+      tools: [{
+        name: 'broken_read',
+        description: 'Return the wrong output shape',
+        inputSchema: { type: 'OBJECT', properties: {} },
+        outputSchema: { type: 'OBJECT', properties: { measured: { type: 'NUMBER' } }, required: ['measured'] },
+        effect: 'read',
+        risk: 'low',
+        availability: () => ({ available: true }),
+        execute: () => ({ measured: 'not-a-number' }),
+      }],
     });
-
-    const declarations = toFunctionDeclarations();
-    assert.equal(declarations.length, 1);
-    const decl = declarations[0];
-    assert.equal(decl.name, 'adjust_brightness');
-    assert.equal(decl.description, 'Sets screen brightness percentage');
-    assert.ok(decl.parameters);
-    assert.deepEqual(decl.parameters.required, ['level']);
-    assert.ok(decl.parameters.properties?.level);
-    assert.ok(decl.parameters.properties?.smooth);
+    const result = await runTool(adapter, 'broken_read', {}, {
+      context: createTraceContext({ runId: 'invalid-output' }),
+      toolCallId: 'invalid-output-call',
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'invalid_tool_result');
   });
 
-  test('runTool validates, executes, and handles errors gracefully', async () => {
-    defineTool({
-      name: 'multiply',
-      description: 'Multiplies two numbers',
-      parameters: {
-        type: 'OBJECT',
-        properties: {
-          a: { type: 'NUMBER' },
-          b: { type: 'NUMBER' },
-        },
-        required: ['a', 'b'],
-      },
-      execute: ({ a, b }: { a: number; b: number }) => {
-        if (a < 0) throw new Error('Negative numbers rejected');
-        return a * b;
-      },
+  test('tool proposal/result traces expose ids and policy without raw arguments', async () => {
+    const events: Readonly<TelemetryEvent>[] = [];
+    const sink: ObservabilitySink = {
+      event: event => { events.push(event); }, metric: () => undefined, span: () => undefined,
+    };
+    const adapter = createCapabilityAdapter({
+      provider: 'sensor', tools: [readTool('read_value', { measured: 7 })],
     });
+    await runTool(adapter, 'read_value', { value: 9 }, {
+      context: createTraceContext({ runId: 'trace' }), toolCallId: 'stable-call', sink,
+    });
+    const proposal = events.find(event => event.event === 'tool_proposed');
+    const result = events.find(event => event.event === 'tool_result');
+    assert.equal(proposal?.data?.toolCallId, 'stable-call');
+    assert.equal(proposal?.data?.capabilityProvider, 'sensor');
+    assert.equal(proposal?.data?.policyOutcome, 'not_required');
+    assert.equal(result?.data?.status, 'success');
+    assert.equal(proposal?.data?.arguments, undefined);
+  });
+});
 
-    // Success call
-    const success = await runTool('multiply', { a: 6, b: 7 });
-    assert.equal(success.ok, true);
-    assert.equal(success.result, 42);
-
-    // Validation failure (missing b)
-    const invalid = await runTool('multiply', { a: 6 });
-    assert.equal(invalid.ok, false);
-    assert.equal(invalid.error, 'invalid_arguments');
-
-    // Execution error
-    const failed = await runTool('multiply', { a: -5, b: 2 });
-    assert.equal(failed.ok, false);
-    assert.equal(failed.error, 'Negative numbers rejected');
-
-    // Unknown tool
-    const unknown = await runTool('nonexistent_tool', {});
-    assert.equal(unknown.ok, false);
-    assert.ok(unknown.error?.includes('unknown_tool'));
+describe('schemas and hardware availability', () => {
+  test('parameter validation and declarations remain strict', () => {
+    assert.equal(validateParameters(inputSchema, { value: 1 }).success, true);
+    assert.equal(validateParameters(inputSchema, {}).success, false);
+    assert.equal(validateParameters(inputSchema, { value: 1, extra: true }).success, false);
+    const declarations = toFunctionDeclarations([readTool('read_value', 1)]);
+    assert.equal(declarations[0].name, 'read_value');
+    assert.deepEqual(declarations[0].parameters?.required, ['value']);
   });
 
-  test('registerHardwareTools binds real hardware handlers and zero-simulation fallbacks', async () => {
-    let torchState = false;
-    let hapticFired: string | null = null;
-
-    registerHardwareTools({
-      torch: {
-        isTorchOn: torchState,
-        isStrobing: false,
-        toggleTorch: async () => {
-          torchState = !torchState;
-        },
-        startStrobe: async () => {},
-        stopStrobe: async () => {},
-      },
-      haptics: {
-        triggerHaptic: async pattern => {
-          hapticFired = pattern;
-        },
-      },
-      altimeter: {
-        altitudeM: 1042.5,
-        pressureHpa: 895.2,
-        verticalVelocityMps: 1.2,
-        trend: 'rising',
-        calibrateSeaLevel: () => {},
-      },
-      // Thermometer omitted to test zero-simulation fallback
-      thermometer: undefined,
+  test('unavailable hardware never fabricates a successful observation', async () => {
+    const adapter = createHardwareCapabilityAdapter({});
+    const result = await runTool(adapter, 'get_thermometer', {}, {
+      context: createTraceContext({ runId: 'hardware' }), toolCallId: 'thermometer',
     });
-
-    // Test torch execution
-    const torchRes = await runTool('set_torch', { on: true });
-    assert.equal(torchRes.ok, true);
-    assert.equal(torchState, true);
-
-    // Test haptic execution
-    const hapticRes = await runTool('play_haptic', { pattern: 'success' });
-    assert.equal(hapticRes.ok, true);
-    assert.equal(hapticFired, 'success');
-
-    // Test barometer read
-    const baroRes = await runTool('get_barometer', {});
-    assert.equal(baroRes.ok, true);
-    assert.deepEqual(baroRes.result, {
-      altitudeM: 1042.5,
-      pressureHpa: 895.2,
-      verticalVelocityMps: 1.2,
-      trend: 'rising',
-    });
-
-    // Test zero-simulation: unprovided hardware reports error, never fakes temperature
-    const thermoRes = await runTool('get_thermometer', {});
-    assert.equal(thermoRes.ok, true);
-    assert.deepEqual(thermoRes.result, {
-      isSupported: false,
-      error: 'fir_thermometer_unsupported',
-    });
+    assert.equal(result.status, 'unavailable');
+    assert.equal(result.result, undefined);
+    assert.equal(result.error, 'fir_thermometer_unsupported');
   });
 });

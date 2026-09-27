@@ -13,7 +13,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Speech from 'expo-speech';
 import PixelNative from '@pixelkit-labs/native';
-import { logError, logEvent, traced, type TelemetrySource } from '../core/observability';
+import {
+  beginTrace,
+  logError,
+  logEvent,
+  traced,
+  type ObservabilityOptions,
+  type TelemetrySource,
+  type TraceContext,
+  type TraceScope,
+} from '../core/observability';
 
 const MODULE = 'useSpeech';
 
@@ -32,6 +41,15 @@ export interface SpeakOptions {
   enginePackage?: string;
 }
 
+export interface SpeechRunOptions extends ObservabilityOptions {
+  context: TraceContext;
+}
+
+interface ActiveSpeech {
+  scope: TraceScope;
+  resolve?: () => void;
+}
+
 export function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -47,6 +65,7 @@ export function useSpeech() {
   const mounted = useRef(true);
   const explicitEngineRef = useRef(false);
   const ownsSpeechRef = useRef(false);
+  const activeSpeechRef = useRef<ActiveSpeech | null>(null);
 
   /** Longest string the engine accepts in one call. */
   const maxInputLength = Speech.maxSpeechInputLength;
@@ -86,6 +105,9 @@ export function useSpeech() {
     void refreshSpeechEngines();
     return () => {
       mounted.current = false;
+      activeSpeechRef.current?.scope.end('cancelled', { reason: 'unmounted' });
+      activeSpeechRef.current?.resolve?.();
+      activeSpeechRef.current = null;
       // Do not leave the engine talking after the screen goes away.
       if (ownsSpeechRef.current && !explicitEngineRef.current) {
         void traced(MODULE, 'stopOnUnmount', () => Speech.stop()).catch(e => { logError(MODULE, 'stopOnUnmount', e); });
@@ -100,20 +122,31 @@ export function useSpeech() {
    * Speaks the text. Resolves when the engine finishes, so it can be awaited in a sequence.
    * Text longer than `maxInputLength` is rejected rather than silently truncated.
    */
-  const speak = useCallback((text: string, options?: SpeakOptions): Promise<void> => {
+  const speak = useCallback((text: string, run: SpeechRunOptions, options?: SpeakOptions): Promise<void> => {
     const trimmed = text.trim();
     if (!trimmed) return Promise.resolve();
+    if (activeSpeechRef.current?.scope.active) return Promise.reject(new Error('Speech is already active'));
+    const scope = beginTrace(MODULE, 'speak', 'hardware', {
+      chars: trimmed.length,
+      enginePackage: options?.enginePackage,
+    }, run);
+    activeSpeechRef.current = { scope };
     if (trimmed.length > maxInputLength) {
       const message = `Text is ${trimmed.length} characters; the engine accepts ${maxInputLength}`;
       setError(message);
+      scope.end('error', undefined, message);
+      activeSpeechRef.current = null;
       return Promise.reject(new Error(message));
     }
     setError(null);
+    scope.event('request_accepted', { chars: trimmed.length });
     if (options?.enginePackage) {
       const native = PixelNative;
       if (!native?.speakWithSpeechEngine) {
         const message = 'Explicit Android speech engine is unavailable in this build';
         setError(message);
+        scope.end('unavailable', { reason: 'explicit_engine_unavailable' });
+        activeSpeechRef.current = null;
         return Promise.reject(new Error(message));
       }
       const enginePackage = options.enginePackage;
@@ -122,12 +155,18 @@ export function useSpeech() {
       setIsSpeaking(true);
       setIsPaused(false);
       setLastSpokenText(trimmed);
-      return traced(MODULE, 'speakWithEngine', () => native.speakWithSpeechEngine(
+      scope.event('first_response', { enginePackage });
+      return native.speakWithSpeechEngine(
         enginePackage, trimmed, options.rate ?? rate, options.pitch ?? pitch, options.volume ?? 1,
-      ), { enginePackage, chars: trimmed.length }).catch((e: any) => {
-        setError(e?.message ?? 'Speech engine failed');
-        throw e;
+      ).then(() => {
+        if (scope.active) scope.end('ok', { enginePackage });
+      }).catch((cause: unknown) => {
+        const message = cause instanceof Error ? cause.message : 'Speech engine failed';
+        setError(message);
+        scope.end('error', { enginePackage }, cause);
+        throw cause;
       }).finally(() => {
+        if (activeSpeechRef.current?.scope === scope) activeSpeechRef.current = null;
         explicitEngineRef.current = false;
         ownsSpeechRef.current = false;
         setIsSpeaking(false);
@@ -135,56 +174,73 @@ export function useSpeech() {
       });
     }
     return new Promise<void>((resolve, reject) => {
-      const started = Date.now();
+      if (activeSpeechRef.current?.scope === scope) activeSpeechRef.current.resolve = resolve;
       ownsSpeechRef.current = true;
-      void traced(MODULE, 'startPlatformSpeech', () => Speech.speak(trimmed, {
-        language: options?.language,
-        voice: options?.voice ?? voice ?? undefined,
-        rate: options?.rate ?? rate,
-        pitch: options?.pitch ?? pitch,
-        volume: options?.volume,
-        onStart: () => {
-          setIsSpeaking(true);
-          setIsPaused(false);
-          setLastSpokenText(trimmed);
-        },
-        onDone: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-          ownsSpeechRef.current = false;
-          logEvent(MODULE, 'spoken', { chars: trimmed.length, ms: Date.now() - started });
-          resolve();
-        },
-        onStopped: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-          ownsSpeechRef.current = false;
-          resolve();
-        },
-        onError: (e: Error) => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-          ownsSpeechRef.current = false;
-          setError(e?.message ?? 'Speech failed');
-          logEvent(MODULE, 'speak error', { message: e?.message }, 'error');
-          reject(e);
-        },
-      })).catch(e => { ownsSpeechRef.current = false; reject(e); });
+      try {
+        Speech.speak(trimmed, {
+          language: options?.language,
+          voice: options?.voice ?? voice ?? undefined,
+          rate: options?.rate ?? rate,
+          pitch: options?.pitch ?? pitch,
+          volume: options?.volume,
+          onStart: () => {
+            if (!scope.active || activeSpeechRef.current?.scope !== scope) return;
+            setIsSpeaking(true);
+            setIsPaused(false);
+            setLastSpokenText(trimmed);
+            scope.event('first_response', { engine: 'platform' });
+          },
+          onDone: () => {
+            if (!scope.active || activeSpeechRef.current?.scope !== scope) return;
+            setIsSpeaking(false);
+            setIsPaused(false);
+            ownsSpeechRef.current = false;
+            activeSpeechRef.current = null;
+            scope.end('ok');
+            resolve();
+          },
+          onStopped: () => {
+            if (!scope.active || activeSpeechRef.current?.scope !== scope) return;
+            setIsSpeaking(false);
+            setIsPaused(false);
+            ownsSpeechRef.current = false;
+            activeSpeechRef.current = null;
+            scope.end('cancelled');
+            resolve();
+          },
+          onError: (cause: Error) => {
+            if (!scope.active || activeSpeechRef.current?.scope !== scope) return;
+            setIsSpeaking(false);
+            setIsPaused(false);
+            ownsSpeechRef.current = false;
+            activeSpeechRef.current = null;
+            setError(cause.message || 'Speech failed');
+            scope.end('error', undefined, cause);
+            reject(cause);
+          },
+        });
+      } catch (cause) {
+        ownsSpeechRef.current = false;
+        activeSpeechRef.current = null;
+        scope.end('error', undefined, cause);
+        reject(cause);
+      }
     });
   }, [maxInputLength, pitch, rate, voice]);
 
   const stop = useCallback(async () => {
+    const active = activeSpeechRef.current;
+    activeSpeechRef.current = null;
+    if (active?.scope.active) active.scope.end('cancelled', { reason: 'stop_requested' });
+    active?.resolve?.();
     try {
-      if (explicitEngineRef.current && PixelNative?.stopSpeechEngine) {
-        await traced(MODULE, 'stopSpeechEngine', () => PixelNative!.stopSpeechEngine());
-      } else {
-        await traced(MODULE, 'stop', () => Speech.stop());
-      }
+      if (explicitEngineRef.current && PixelNative?.stopSpeechEngine) await PixelNative.stopSpeechEngine();
+      else await Speech.stop();
       setIsSpeaking(false);
       setIsPaused(false);
       ownsSpeechRef.current = false;
-    } catch (e: any) {
-      setError(e?.message ?? 'Could not stop speech');
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Could not stop speech');
     }
   }, []);
 

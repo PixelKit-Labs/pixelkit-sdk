@@ -16,6 +16,8 @@ import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  beginTrace,
+  createTraceContext,
   getErrorCounts,
   getExpectedCounts,
   getHealthSummary,
@@ -25,12 +27,15 @@ import {
   getTrace,
   getTraces,
   logError,
+  logEvent,
   noteExpected,
   normalizeError,
   recordMetric,
   resetObservability,
   traced,
   tracedSafe,
+  type ObservabilitySink,
+  type TelemetryEvent,
 } from '../packages/sdk/src/core/observability.ts';
 
 beforeEach(() => resetObservability());
@@ -179,7 +184,7 @@ describe('the diagnostics a reader actually looks at', () => {
     const { trace, events } = getTrace(id);
     assert.equal(trace?.op, 'range');
     assert.ok(events.length >= 1);
-    assert.ok(events.every((e) => e.traceId === id), 'only this trace, not the whole log');
+    assert.ok(events.every((e) => e.spanId === id), 'only this span, not the whole log');
   });
 
   test('getHealthSummary puts the module with the most errors first', async () => {
@@ -223,5 +228,81 @@ describe('logError', () => {
     const n = logError('useSecurity', 'unlock', new Error('user cancelled'));
     assert.equal(n.message, 'user cancelled');
     assert.equal(getErrorCounts().useSecurity, 1);
+  });
+});
+
+describe('explicit trace ownership and privacy', () => {
+  test('concurrent runs retain separate roots and correct child parents', async () => {
+    const first = createTraceContext({ traceId: 'trace-a', spanId: 'root-a', runId: 'run-a' });
+    const second = createTraceContext({ traceId: 'trace-b', spanId: 'root-b', runId: 'run-b' });
+    let releaseFirst!: () => void;
+    const blocked = new Promise<void>(resolve => { releaseFirst = resolve; });
+    const firstRun = traced('ai', 'generate', async context => {
+      await blocked;
+      logEvent('ai', 'first-complete', undefined, 'info', { context });
+    }, undefined, 'hardware', { context: first });
+    await traced('ai', 'generate', context => {
+      logEvent('ai', 'second-complete', undefined, 'info', { context });
+    }, undefined, 'hardware', { context: second });
+    releaseFirst();
+    await firstRun;
+
+    const records = getTraces();
+    const a = records.find(record => record.traceId === 'trace-a');
+    const b = records.find(record => record.traceId === 'trace-b');
+    assert.equal(a?.parentSpanId, 'root-a');
+    assert.equal(b?.parentSpanId, 'root-b');
+    assert.notEqual(a?.context.spanId, b?.context.spanId);
+    assert.equal(getRecentEvents().find(event => event.event === 'first-complete')?.traceId, 'trace-a');
+    assert.equal(getRecentEvents().find(event => event.event === 'second-complete')?.traceId, 'trace-b');
+  });
+
+  test('redacts sensitive nested attributes before they reach an application sink', () => {
+    const captured: TelemetryEvent[] = [];
+    const sink: ObservabilitySink = {
+      event: record => { captured.push(record as TelemetryEvent); },
+      metric: () => undefined,
+      span: () => undefined,
+    };
+    logEvent('ai', 'request', {
+      apiKey: 'secret',
+      nested: { prompt: 'private words', outputTokens: 12, message: 'failed for AIza1234567890abcdefghij' },
+    }, 'info', { sink });
+    assert.deepEqual(captured[0].data, {
+      apiKey: '[REDACTED]',
+      nested: { prompt: '[REDACTED]', outputTokens: 12, message: 'failed for [REDACTED]' },
+    });
+  });
+
+  test('sink failure cannot change the observed operation result', async () => {
+    const sink: ObservabilitySink = {
+      event: () => { throw new Error('sink unavailable'); },
+      metric: () => Promise.reject(new Error('backpressure')),
+      span: () => { throw new Error('sink unavailable'); },
+    };
+    const value = await traced('ai', 'generate', () => 42, undefined, 'hardware', {
+      context: createTraceContext({ runId: 'run' }),
+      sink,
+    });
+    assert.equal(value, 42);
+  });
+
+  test('late callbacks are ignored after a callback-safe scope ends', () => {
+    const captured: TelemetryEvent[] = [];
+    const sink: ObservabilitySink = {
+      event: record => { captured.push(record as TelemetryEvent); },
+      metric: () => undefined,
+      span: () => undefined,
+    };
+    const scope = beginTrace('speech', 'recognize', 'hardware', undefined, {
+      context: createTraceContext({ nativeRequestId: 'native-1' }),
+      sink,
+    });
+    scope.event('partial');
+    scope.end('ok');
+    const countAfterEnd = captured.length;
+    scope.event('late-partial');
+    assert.equal(captured.length, countAfterEnd);
+    assert.equal(captured.some(event => event.event === 'late-partial'), false);
   });
 });

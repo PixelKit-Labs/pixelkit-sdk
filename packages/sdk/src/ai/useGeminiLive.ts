@@ -1,21 +1,25 @@
-/**
- * @file useGeminiLive.ts
- * @description Real-time bidirectional streaming audio, text, and hardware tool execution
- * with Gemini 3.8 Multimodal Live API via WebSockets.
- *
- * Adheres to the Zero-Simulation Principle: reports source: 'unavailable' and null states
- * when disconnected or without a valid Gemini API key.
- */
-
-import { useState, useCallback, useEffect, useRef } from 'react';
+/** Gemini Live with explicit per-session capabilities and trace ownership. */
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  listTools,
-  toFunctionDeclarations,
   runTool,
-  type ToolDef,
+  probeCapabilityAdapter,
+  toFunctionDeclarations,
+  toToolFunctionResponse,
+  type CapabilityAdapter,
 } from './tools/registry';
 import { getStoredApiKey } from './geminiClient';
-import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/observability';
+import {
+  beginTrace,
+  withTraceContextFields,
+  logError,
+  logEvent,
+  type ObservabilityOptions,
+  type ObservabilitySink,
+  type RedactionPolicy,
+  type TelemetrySource,
+  type TraceContext,
+  type TraceScope,
+} from '../core/observability';
 import {
   DEFAULT_LIVE_MODEL,
   LIVE_WEBSOCKET_ENDPOINT,
@@ -36,440 +40,329 @@ export {
 
 const MODULE = 'useGeminiLive';
 
+export interface GeminiLiveRunOptions {
+  context: TraceContext;
+  capabilityAdapter: CapabilityAdapter;
+  apiKey?: string;
+  sink?: ObservabilitySink;
+  redaction?: RedactionPolicy;
+}
+
+export interface GeminiLiveConnectResult {
+  status: 'connected' | 'unavailable' | 'error' | 'cancelled';
+  context: TraceContext;
+  reason?: string;
+}
+
+interface LiveSession {
+  id: number;
+  socket: WebSocket;
+  run: GeminiLiveRunOptions;
+  scope: TraceScope;
+  firstResponseObserved: boolean;
+  toolSequence: number;
+  settle?: (result: GeminiLiveConnectResult) => void;
+}
+
 export interface GeminiLiveTelemetry {
-  /** Whether the WebSocket session to Gemini Live is active and ready. */
   isConnected: boolean;
-  /** Whether the model is actively streaming an audio or text response. */
   isStreaming: boolean;
-  /** Whether synthesized speech audio is currently playing. */
   isSpeaking: boolean;
-  /** Whether the client is streaming microphone audio chunks to the server. */
   isListening: boolean;
-  /** Whether the client is actively streaming media (camera video frames or images) to the server. */
   isStreamingMedia: boolean;
-  /** Real-time transcript of conversational dialogue. */
   transcript: LiveMessage[];
-  /** Latest reasoning thoughts emitted by the model during extended thinking. */
   currentThinking: string | null;
-  /** Real-time hardware tool invocations executed during the session. */
   activeToolCalls: LiveToolCall[];
-  /** Error message if connection or streaming protocol encountered a failure. */
   error: string | null;
-  /** Provenance of the data: 'hardware' when connected with valid key, or 'unavailable'. */
   source: TelemetrySource;
-  /** Establishes the bidirectional WebSocket session to the Gemini Live endpoint. */
-  connect: (customApiKey?: string) => Promise<boolean>;
-  /** Closes the active live streaming session. */
+  context: TraceContext | null;
+  connect: (run: GeminiLiveRunOptions) => Promise<GeminiLiveConnectResult>;
   disconnect: () => void;
-  /** Sends a text prompt through the live duplex session. */
   sendText: (text: string) => void;
-  /** Streams a base64 PCM audio chunk (16kHz 16-bit mono) from the microphone array. */
   sendAudioChunk: (pcmBase64: string) => void;
-  /** Streams a base64 camera image/video frame into the real-time multimodal live session. */
   sendImageChunk: (base64Data: string, mimeType?: string) => void;
-  /** Streams a continuous camera video frame (JPEG base64) into the real-time live session. */
   sendVideoFrame: (base64Jpeg: string) => void;
-  /** Sends a multimodal user turn containing both text and image attachments. */
   sendMultimodalTurn: (text: string, images?: Array<{ data: string; mimeType?: string }>) => void;
-  /** Signals the model to interrupt speech immediately. */
   interrupt: () => void;
-  /** Clears the transcript and active tool calls. */
   clearTranscript: () => void;
 }
 
 export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetry {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [isStreamingMedia, setIsStreamingMedia] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isStreamingMedia, setIsStreamingMedia] = useState(false);
   const [transcript, setTranscript] = useState<LiveMessage[]>([]);
   const [currentThinking, setCurrentThinking] = useState<string | null>(null);
   const [activeToolCalls, setActiveToolCalls] = useState<LiveToolCall[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [context, setContext] = useState<TraceContext | null>(null);
+  const sessionRef = useRef<LiveSession | null>(null);
+  const sessionSequence = useRef(0);
 
-  const socketRef = useRef<WebSocket | null>(null);
-  const apiKeyRef = useRef<string | null>(null);
-
-  const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      try {
-        socketRef.current.close(1000, 'User closed connection');
-      } catch {}
-      socketRef.current = null;
-    }
+  const resetStreamingState = useCallback(() => {
     setIsConnected(false);
     setIsStreaming(false);
     setIsSpeaking(false);
     setIsListening(false);
     setIsStreamingMedia(false);
-    logEvent(MODULE, 'disconnected', {});
   }, []);
 
-  const connect = useCallback(
-    async (customApiKey?: string): Promise<boolean> => {
-      disconnect();
+  const disconnect = useCallback(() => {
+    const session = sessionRef.current;
+    sessionRef.current = null;
+    sessionSequence.current += 1;
+    if (session) {
+      session.scope.event('cancelled', { reason: 'user_disconnect' }, 'warn');
+      session.scope.end('cancelled');
+      session.settle?.({ status: 'cancelled', context: session.run.context, reason: 'user_disconnect' });
+      try { session.socket.close(1000, 'User closed connection'); }
+      catch (closeError) { logError(MODULE, 'socket_close_failed', closeError, undefined, session.run); }
+    }
+    resetStreamingState();
+  }, [resetStreamingState]);
 
-      const key = customApiKey || (await getStoredApiKey());
-      if (!key) {
-        const msg = 'No Gemini API key available. Configure an API key to connect to Gemini Live.';
-        setError(msg);
-        logError(MODULE, 'missing_api_key', { message: msg });
-        return false;
-      }
-      apiKeyRef.current = key;
+  const connect = useCallback(async (run: GeminiLiveRunOptions): Promise<GeminiLiveConnectResult> => {
+    disconnect();
+    setContext(run.context);
+    const adapter = run.capabilityAdapter;
+    if (!adapter || adapter.tools.length === 0) {
+      const reason = 'capability_adapter_empty';
+      setError(reason);
+      logEvent(MODULE, 'unavailable', { reason }, 'warn', run);
+      return { status: 'unavailable', context: run.context, reason };
+    }
+    const probe = await probeCapabilityAdapter(adapter, run.context);
+    if (probe.availableTools.length === 0) {
+      const reason = 'capabilities_unavailable';
+      setError(reason);
+      logEvent(MODULE, 'unavailable', { reason, unavailableCapabilities: probe.unavailable }, 'warn', run);
+      return { status: 'unavailable', context: run.context, reason };
+    }
+    const key = run.apiKey ?? await getStoredApiKey();
+    if (!key) {
+      const reason = 'gemini_api_key_unavailable';
+      setError(reason);
+      logEvent(MODULE, 'unavailable', { reason }, 'warn', run);
+      return { status: 'unavailable', context: run.context, reason };
+    }
 
-      try {
-        const url = `${LIVE_WEBSOCKET_ENDPOINT}?key=${encodeURIComponent(key)}`;
-        const ws = new WebSocket(url);
-        socketRef.current = ws;
+    const scope = beginTrace(MODULE, 'live_session', 'hardware', {
+      model: config.model ?? DEFAULT_LIVE_MODEL,
+      capabilityProvider: adapter.provider,
+    }, run);
+    try {
+      const socket = new WebSocket(`${LIVE_WEBSOCKET_ENDPOINT}?key=${encodeURIComponent(key)}`);
+      const session: LiveSession = {
+        id: ++sessionSequence.current,
+        socket,
+        run,
+        scope,
+        firstResponseObserved: false,
+        toolSequence: 0,
+      };
+      sessionRef.current = session;
+      const ownsSession = (): boolean => sessionRef.current === session && sessionSequence.current === session.id && session.scope.active;
 
-        return new Promise<boolean>((resolve) => {
-          ws.onopen = () => {
-            setIsConnected(true);
-            setError(null);
-            logEvent(MODULE, 'connected', { endpoint: LIVE_WEBSOCKET_ENDPOINT });
+      return await new Promise<GeminiLiveConnectResult>(resolve => {
+        let settled = false;
+        const settle = (result: GeminiLiveConnectResult): void => {
+          if (settled) return;
+          settled = true;
+          resolve(result);
+        };
+        session.settle = settle;
 
-            // 1. Send Setup Handshake Message
-            const modelName = config.model ?? DEFAULT_LIVE_MODEL;
-            const toolsPayload =
-              config.enableHardwareTools !== false
-                ? [{ functionDeclarations: toFunctionDeclarations(listTools()) }]
-                : [];
-
-            const setupMsg: Record<string, unknown> = {
-              setup: {
-                model: modelName,
-                generationConfig: {
-                  responseModalities: ['AUDIO', 'TEXT'],
-                  speechConfig: {
-                    voiceConfig: {
-                      prebuiltVoiceConfig: {
-                        voiceName: config.voiceName ?? 'Aoede',
-                      },
-                    },
-                  },
-                  thinkingConfig: config.thinkingBudget
-                    ? { thinkingBudget: config.thinkingBudget }
-                    : undefined,
-                },
-                systemInstruction: {
-                  parts: [
-                    {
-                      text:
-                        config.systemInstruction ??
-                        'You are PixelKit Live, a real-time voice and hardware assistant running on a Google Pixel 11 Pro. You have full access to device hardware tools (thermals, sensors, battery, torch, radios). Execute tools when requested.',
-                    },
-                  ],
-                },
-                tools: toolsPayload,
+        socket.onopen = () => {
+          if (!ownsSession()) return;
+          setIsConnected(true);
+          setError(null);
+          const model = config.model ?? DEFAULT_LIVE_MODEL;
+          socket.send(JSON.stringify({
+            setup: {
+              model,
+              generationConfig: {
+                responseModalities: ['AUDIO', 'TEXT'],
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voiceName ?? 'Aoede' } } },
+                thinkingConfig: config.thinkingBudget ? { thinkingBudget: config.thinkingBudget } : undefined,
               },
-            };
+              systemInstruction: {
+                parts: [{ text: config.systemInstruction ?? 'You are PixelKit Live. Use only the explicitly supplied capabilities and report unavailable readings truthfully.' }],
+              },
+              tools: [{ functionDeclarations: toFunctionDeclarations(probe.availableTools) }],
+            },
+          }));
+          scope.event('connection_ready', { model, capabilityProvider: adapter.provider });
+          settle({ status: 'connected', context: run.context });
+        };
 
-            ws.send(JSON.stringify(setupMsg));
-            logEvent(MODULE, 'setup_sent', { model: modelName });
-            resolve(true);
-          };
-
-          ws.onmessage = async (event) => {
-            try {
-              const data = typeof event.data === 'string' ? JSON.parse(event.data) : null;
-              if (!data) return;
-
-              // Handle server content turns
-              if (data.serverContent) {
-                const parts = data.serverContent.modelTurn?.parts ?? [];
-                let fullChunkText = '';
-
-                for (const part of parts) {
-                  // Thinking thoughts
-                  if (part.thought) {
-                    setCurrentThinking(prev => (prev ? prev + part.thought : part.thought));
-                  }
-                  // Model text output
-                  if (part.text) {
-                    fullChunkText += part.text;
-                  }
-                  // Model audio stream chunk
-                  if (part.inlineData && part.inlineData.mimeType?.includes('audio')) {
-                    setIsSpeaking(true);
-                  }
-                }
-
-                if (fullChunkText) {
-                  setIsStreaming(true);
-                  setTranscript(prev => {
-                    const last = prev[prev.length - 1];
-                    if (last && last.role === 'model') {
-                      return [
-                        ...prev.slice(0, -1),
-                        { ...last, text: last.text + fullChunkText, timestamp: Date.now() },
-                      ];
-                    }
-                    return [
-                      ...prev,
-                      { id: `m-${Date.now()}`, role: 'model', text: fullChunkText, timestamp: Date.now() },
-                    ];
-                  });
-                }
-
-                if (data.serverContent.interrupted) {
-                  setIsSpeaking(false);
-                  setIsStreaming(false);
-                  logEvent(MODULE, 'interrupted', {});
-                }
-
-                if (data.serverContent.turnComplete) {
-                  setIsStreaming(false);
-                  setIsSpeaking(false);
-                  logEvent(MODULE, 'turn_complete', {});
-                }
-              }
-
-              // Handle model tool call requests
-              if (data.toolCall && Array.isArray(data.toolCall.functionCalls)) {
-                const calls = data.toolCall.functionCalls;
-                const responses: Array<{ id: string; name: string; response: Record<string, unknown> }> = [];
-
-                for (const call of calls) {
-                  const callId = call.id ?? `call-${Date.now()}`;
-                  const callName = call.name ?? '';
-                  const callArgs = call.args ?? {};
-
-                  setActiveToolCalls(prev => [
-                    ...prev,
-                    { id: callId, name: callName, args: callArgs, status: 'calling' },
-                  ]);
-
-                  const start = performance.now();
-                  const toolResult = await runTool(callName, callArgs);
-                  const durationMs = Math.round(performance.now() - start);
-
-                  setActiveToolCalls(prev =>
-                    prev.map(t =>
-                      t.id === callId
-                        ? {
-                            ...t,
-                            status: toolResult.ok ? 'executed' : 'failed',
-                            result: toolResult.result ?? toolResult.error,
-                            durationMs,
-                          }
-                        : t,
-                    ),
-                  );
-
-                  responses.push({
-                    id: callId,
-                    name: callName,
-                    response: { output: toolResult.result ?? { error: toolResult.error } },
-                  });
-                }
-
-                // Send toolResponse back to server
-                if (ws.readyState === WebSocket.OPEN) {
-                  ws.send(
-                    JSON.stringify({
-                      toolResponse: {
-                        functionResponses: responses,
-                      },
-                    }),
-                  );
-                  logEvent(MODULE, 'tool_responses_sent', { count: responses.length });
-                }
-              }
-            } catch (err: any) {
-              logError(MODULE, 'message_processing_failed', { message: err?.message || String(err) });
+        socket.onmessage = async event => {
+          if (!ownsSession()) return;
+          try {
+            const data = typeof event.data === 'string' ? JSON.parse(event.data) as Record<string, any> : null;
+            if (!data || !ownsSession()) return;
+            const providerRequestId = typeof data.requestId === 'string' ? data.requestId : undefined;
+            const callbackContext = providerRequestId
+              ? withTraceContextFields(scope.context, { providerRequestId })
+              : scope.context;
+            const observation: ObservabilityOptions = { ...run, context: callbackContext };
+            if (!session.firstResponseObserved) {
+              session.firstResponseObserved = true;
+              logEvent(MODULE, 'first_response', { providerRequestId }, 'info', observation);
             }
-          };
 
-          ws.onerror = (evt) => {
-            const msg = 'WebSocket connection to Gemini Live encountered an error.';
-            setError(msg);
-            logError(MODULE, 'websocket_error', { event: String(evt) });
-            resolve(false);
-          };
+            if (data.serverContent) {
+              const parts = data.serverContent.modelTurn?.parts ?? [];
+              let fullChunkText = '';
+              for (const part of parts) {
+                if (part.thought) setCurrentThinking(previous => previous ? previous + part.thought : part.thought);
+                if (part.text) fullChunkText += part.text;
+                if (part.inlineData?.mimeType?.includes('audio')) setIsSpeaking(true);
+              }
+              if (fullChunkText) {
+                setIsStreaming(true);
+                setTranscript(previous => {
+                  const last = previous[previous.length - 1];
+                  if (last?.role === 'model') return [...previous.slice(0, -1), { ...last, text: last.text + fullChunkText, timestamp: Date.now() }];
+                  return [...previous, { id: `m-${Date.now()}`, role: 'model', text: fullChunkText, timestamp: Date.now() }];
+                });
+              }
+              if (data.serverContent.interrupted) {
+                setIsSpeaking(false);
+                setIsStreaming(false);
+                logEvent(MODULE, 'cancelled', { providerRequestId, reason: 'provider_interrupted' }, 'warn', observation);
+              }
+              if (data.serverContent.turnComplete) {
+                setIsStreaming(false);
+                setIsSpeaking(false);
+                logEvent(MODULE, 'completed', {
+                  providerRequestId,
+                  finishReason: data.serverContent.finishReason,
+                  ...(data.usageMetadata ? { usage: data.usageMetadata } : {}),
+                }, 'info', observation);
+              }
+            }
 
-          ws.onclose = () => {
-            setIsConnected(false);
-            setIsStreaming(false);
-            setIsSpeaking(false);
-            setIsListening(false);
-            setIsStreamingMedia(false);
-            logEvent(MODULE, 'socket_closed', {});
-          };
-        });
-      } catch (err: any) {
-        const msg = err?.message || String(err);
-        setError(msg);
-        logError(MODULE, 'connection_failed', { message: msg });
-        return false;
-      }
-    },
-    [config, disconnect],
-  );
+            const calls = data.toolCall?.functionCalls;
+            if (Array.isArray(calls)) {
+              const responses: Array<{ id: string; name: string; response: Record<string, unknown> }> = [];
+              for (const call of calls) {
+                if (!ownsSession()) return;
+                const toolCallId = call.id ?? `${run.context.runId ?? run.context.traceId}:live-tool:${++session.toolSequence}`;
+                const callName = call.name ?? '';
+                setActiveToolCalls(previous => [...previous, { id: toolCallId, name: callName, args: call.args ?? {}, status: 'calling' }]);
+                const started = performance.now();
+                const toolResult = await runTool(adapter, callName, call.args ?? {}, {
+                  context: callbackContext,
+                  sink: run.sink,
+                  redaction: run.redaction,
+                  toolCallId,
+                });
+                if (!ownsSession()) return;
+                const durationMs = Math.round(performance.now() - started);
+                setActiveToolCalls(previous => previous.map(item => item.id === toolCallId
+                  ? { ...item, status: toolResult.ok ? 'executed' : 'failed', result: toolResult.result ?? toolResult.error, durationMs }
+                  : item));
+                responses.push({ id: toolCallId, name: callName, response: toToolFunctionResponse(toolResult) });
+              }
+              if (ownsSession() && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ toolResponse: { functionResponses: responses } }));
+              }
+            }
+          } catch (messageError) {
+            if (ownsSession()) logError(MODULE, 'message_processing_failed', messageError, undefined, run);
+          }
+        };
 
-  const sendText = useCallback(
-    (text: string) => {
-      const q = text.trim();
-      if (!q || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+        socket.onerror = event => {
+          if (!ownsSession()) return;
+          const reason = 'live_websocket_error';
+          setError(reason);
+          logError(MODULE, 'websocket_error', new Error(reason), { eventType: String(event.type) }, run);
+          scope.end('error', undefined, reason);
+          sessionRef.current = null;
+          resetStreamingState();
+          settle({ status: 'error', context: run.context, reason });
+        };
 
-      setTranscript(prev => [
-        ...prev,
-        { id: `u-${Date.now()}`, role: 'user', text: q, timestamp: Date.now() },
-      ]);
+        socket.onclose = closeEvent => {
+          if (!ownsSession()) return;
+          sessionRef.current = null;
+          resetStreamingState();
+          const normal = closeEvent.code === 1000;
+          scope.event(normal ? 'completed' : 'connection_closed', { code: closeEvent.code }, normal ? 'info' : 'warn');
+          scope.end(normal ? 'ok' : 'error', { code: closeEvent.code }, normal ? undefined : closeEvent.reason);
+          settle({ status: normal ? 'connected' : 'error', context: run.context, ...(!normal ? { reason: closeEvent.reason || 'connection_closed' } : {}) });
+        };
+      });
+    } catch (connectionError) {
+      const reason = logError(MODULE, 'connection_failed', connectionError, undefined, run).message;
+      scope.end('error', undefined, connectionError);
+      return { status: 'error', context: run.context, reason };
+    }
+  }, [config, disconnect, resetStreamingState]);
 
-      const clientMsg = {
-        clientContent: {
-          turns: [
-            {
-              role: 'user',
-              parts: [{ text: q }],
-            },
-          ],
-          turnComplete: true,
-        },
-      };
+  const sendText = useCallback((text: string) => {
+    const session = sessionRef.current;
+    const value = text.trim();
+    if (!value || !session || session.socket.readyState !== WebSocket.OPEN) return;
+    setTranscript(previous => [...previous, { id: `u-${Date.now()}`, role: 'user', text: value, timestamp: Date.now() }]);
+    session.socket.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: value }] }], turnComplete: true } }));
+    session.scope.event('request_accepted', { modality: 'text', chars: value.length });
+  }, []);
 
-      socketRef.current.send(JSON.stringify(clientMsg));
-      logEvent(MODULE, 'text_sent', { text: q });
-    },
-    [],
-  );
+  const sendAudioChunk = useCallback((pcmBase64: string) => {
+    const session = sessionRef.current;
+    if (!pcmBase64 || !session || session.socket.readyState !== WebSocket.OPEN) return;
+    setIsListening(true);
+    session.socket.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: pcmBase64 }] } }));
+  }, []);
 
-  const sendAudioChunk = useCallback(
-    (pcmBase64: string) => {
-      if (!pcmBase64 || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+  const sendImageChunk = useCallback((base64Data: string, mimeType = 'image/jpeg') => {
+    const session = sessionRef.current;
+    if (!base64Data || !session || session.socket.readyState !== WebSocket.OPEN) return;
+    const clean = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
+    setIsStreamingMedia(true);
+    session.socket.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType, data: clean }] } }));
+    session.scope.event('media_sent', { mimeType, bytes: clean.length });
+  }, []);
 
-      setIsListening(true);
-      const audioMsg = {
-        realtimeInput: {
-          mediaChunks: [
-            {
-              mimeType: 'audio/pcm;rate=16000',
-              data: pcmBase64,
-            },
-          ],
-        },
-      };
+  const sendVideoFrame = useCallback((base64Jpeg: string) => sendImageChunk(base64Jpeg, 'image/jpeg'), [sendImageChunk]);
 
-      socketRef.current.send(JSON.stringify(audioMsg));
-    },
-    [],
-  );
-
-  const sendImageChunk = useCallback(
-    (base64Data: string, mimeType: string = 'image/jpeg') => {
-      if (!base64Data || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-
-      setIsStreamingMedia(true);
-      const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
-      const imageMsg = {
-        realtimeInput: {
-          mediaChunks: [
-            {
-              mimeType,
-              data: cleanBase64,
-            },
-          ],
-        },
-      };
-
-      socketRef.current.send(JSON.stringify(imageMsg));
-      logEvent(MODULE, 'image_chunk_sent', { mimeType, bytes: cleanBase64.length });
-    },
-    [],
-  );
-
-  const sendVideoFrame = useCallback(
-    (base64Jpeg: string) => {
-      sendImageChunk(base64Jpeg, 'image/jpeg');
-    },
-    [sendImageChunk],
-  );
-
-  const sendMultimodalTurn = useCallback(
-    (text: string, images?: Array<{ data: string; mimeType?: string }>) => {
-      const q = text.trim();
-      if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-      if (!q && (!images || images.length === 0)) return;
-
-      setTranscript(prev => [
-        ...prev,
-        { id: `u-${Date.now()}`, role: 'user', text: q || '[Attached Image Frame]', timestamp: Date.now() },
-      ]);
-
-      const parts: Array<Record<string, unknown>> = [];
-      if (q) parts.push({ text: q });
-      if (images && images.length > 0) {
-        for (const img of images) {
-          const clean = img.data.replace(/^data:image\/[a-z]+;base64,/, '');
-          parts.push({
-            inlineData: {
-              mimeType: img.mimeType || 'image/jpeg',
-              data: clean,
-            },
-          });
-        }
-      }
-
-      const clientMsg = {
-        clientContent: {
-          turns: [
-            {
-              role: 'user',
-              parts,
-            },
-          ],
-          turnComplete: true,
-        },
-      };
-
-      socketRef.current.send(JSON.stringify(clientMsg));
-      logEvent(MODULE, 'multimodal_turn_sent', { text: q, imageCount: images?.length ?? 0 });
-    },
-    [],
-  );
+  const sendMultimodalTurn = useCallback((text: string, images?: Array<{ data: string; mimeType?: string }>) => {
+    const session = sessionRef.current;
+    const value = text.trim();
+    if (!session || session.socket.readyState !== WebSocket.OPEN || (!value && !images?.length)) return;
+    const parts: Array<Record<string, unknown>> = value ? [{ text: value }] : [];
+    for (const image of images ?? []) {
+      parts.push({ inlineData: { mimeType: image.mimeType ?? 'image/jpeg', data: image.data.replace(/^data:image\/[a-z]+;base64,/, '') } });
+    }
+    setTranscript(previous => [...previous, { id: `u-${Date.now()}`, role: 'user', text: value || '[Attached Image Frame]', timestamp: Date.now() }]);
+    session.socket.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts }], turnComplete: true } }));
+    session.scope.event('request_accepted', { modality: 'multimodal', chars: value.length, imageCount: images?.length ?? 0 });
+  }, []);
 
   const interrupt = useCallback(() => {
+    const session = sessionRef.current;
     setIsSpeaking(false);
     setIsStreaming(false);
-    logEvent(MODULE, 'interrupt_triggered', {});
+    session?.scope.event('cancelled', { reason: 'user_interrupt' }, 'warn');
   }, []);
 
   const clearTranscript = useCallback(() => {
     setTranscript([]);
     setCurrentThinking(null);
     setActiveToolCalls([]);
-    logEvent(MODULE, 'transcript_cleared', {});
   }, []);
 
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
-
-  const source: TelemetrySource = isConnected ? 'hardware' : 'unavailable';
+  useEffect(() => () => disconnect(), [disconnect]);
 
   return {
-    isConnected,
-    isStreaming,
-    isSpeaking,
-    isListening,
-    isStreamingMedia,
-    transcript,
-    currentThinking,
-    activeToolCalls,
-    error,
-    source,
-    connect,
-    disconnect,
-    sendText,
-    sendAudioChunk,
-    sendImageChunk,
-    sendVideoFrame,
-    sendMultimodalTurn,
-    interrupt,
-    clearTranscript,
+    isConnected, isStreaming, isSpeaking, isListening, isStreamingMedia,
+    transcript, currentThinking, activeToolCalls, error,
+    source: isConnected ? 'hardware' : 'unavailable', context,
+    connect, disconnect, sendText, sendAudioChunk, sendImageChunk, sendVideoFrame,
+    sendMultimodalTurn, interrupt, clearTranscript,
   };
 }

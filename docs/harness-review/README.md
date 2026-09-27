@@ -43,8 +43,7 @@ The [unified agent harness research and implementation contract](unified-agent-h
 compares production tool loops, chat event models, group orchestration,
 subagents, Skills, evidence-backed retrieval, telemetry and evaluation against
 Delta's source-audited gaps. Its
-[interactive architecture](diagrams/unified-delta-harness.html) and phased
-migration are proposed; they are not implemented or device-verified.
+[interactive architecture](diagrams/unified-delta-harness.html) remains the target rather than a device-verified flow. PixelKit SDK 1.6.56 source implements the first capability-adapter and trace-ownership foundation; Delta coordinator integration and runtime acceptance remain pending.
 
 The [system integration audit](system-integration-audit.md) traces the current
 Harness, tool loop, Skills, Wiki, Memory, roster/cloud agents, Laya,

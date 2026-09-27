@@ -4,6 +4,26 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.56] - 2026-09-27
+
+### Changed
+- Replace the mutable process-global AI tool registry with immutable per-run capability adapters. Cloud, Live and ADK callers must provide explicit capability and trace ownership; unavailable adapters fail before provider contact, effect tools require an application policy decision, and strict input/output contracts cover deadlines and cancellation.
+- Carry immutable run, turn, provider, worker, native and tool-call correlation through cloud, Live, Nano, speech recognition and TTS boundaries. Add bounded local observability sinks, parent/child spans, recursive redaction, sink-failure isolation and stale-callback suppression.
+- Make the SDK SecureStore slot the sole persistent Gemini credential owner on native. Add verified deletion, transactional legacy migration and rollback; browser reads/saves are unavailable and best-effort remove former plaintext `localStorage` copies.
+- Run TypeScript source tests through the pinned `tsx` runner so cross-module AI contract tests resolve the same source graph on supported Node versions.
+
+### Documentation
+- Record the SDK capability, trace and credential foundation in the public READMEs and Delta harness guide while keeping coordinator integration, package publication and device acceptance explicitly pending.
+
+### Fixed
+- Prevent concurrent AI runs from replacing one another's tools or trace ownership through module-global state.
+- Return typed unavailable, policy, validation, timeout and cancellation outcomes instead of contacting a provider or narrating an unobserved tool result.
+
+### Verification
+- `npm run verify` passed typecheck, all 94 tests, OpenAPI validation/export, all three package builds and the 53-hook remote documentation contract. Dry-run packaging passed for `@pixelkit-labs/native`, `@pixelkit-labs/mlkit` and `@pixelkit-labs/sdk` at 1.6.56.
+- A direct source smoke created an immutable adapter and application trace root, executed `read_probe`, and observed `status: success`, provider `smoke`, run `smoke-run` and tool call `smoke-call`. The documented `docs/harness-review/build-site.mjs` remains absent, so the local guide site could not be regenerated; no Android provider, SecureStore, Live, speech or TTS path was exercised in this increment.
+
+
 ## [1.6.55] - 2026-09-27
 
 ### Documentation

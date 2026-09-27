@@ -101,6 +101,10 @@ Every hook is typed, observed, and tested across real hardware:
 
 `useSpeech` can request an installed Android TTS engine for one utterance with `enginePackage`, without changing the system default. It rejects a missing service and checks the active engine when Android exposes it. Android can silently fall back after a binding failure and does not provide a public API to verify the active engine on every device; verify playback on the target phone when exact engine identity matters.
 
+Cloud, Live, ADK, Nano, speech-recognition and TTS runs use explicit application-owned trace context. Build an immutable capability adapter with `createCapabilityAdapter()` (or `createUnavailableCapabilityAdapter()`), create the root with `createTraceContext()`, and pass both into the run API. Effect capabilities cannot execute without the adapter's `authorizeEffect` policy callback; empty or unavailable adapters fail before model contact.
+
+Gemini credentials persist through native SecureStore only. `getStoredApiKey()`, `saveApiKey()` and `removeApiKey()` verify canonical storage state and migrate the legacy slot transactionally. Persistent browser credential storage is intentionally unavailable; browser callers must provide credentials ephemerally to APIs that accept them.
+
 ### On-Device AI (`@pixelkit-labs/sdk/mlkit`)
 `useGeminiNano` &middot; `useGenAITasks` &middot; `useVisionAI` &middot; `useNaturalLanguageAI` &middot; `useEmbeddings`
 

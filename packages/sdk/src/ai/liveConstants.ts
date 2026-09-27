@@ -34,6 +34,4 @@ export interface GeminiLiveConfig {
   systemInstruction?: string;
   /** Extended thinking budget in tokens before emitting speech/actions. Defaults to 1024. */
   thinkingBudget?: number;
-  /** Whether to bind the unified PixelKit hardware tools into the session. Defaults to true. */
-  enableHardwareTools?: boolean;
 }

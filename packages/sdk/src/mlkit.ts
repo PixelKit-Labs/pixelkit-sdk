@@ -15,7 +15,7 @@
  * ```
  */
 
-export { useGeminiNano, buildNanoTurn, NANO_SYSTEM_INSTRUCTION } from './ai/useGeminiNano';
+export { useGeminiNano, buildNanoTurn, NANO_SYSTEM_INSTRUCTION, type NanoRunOptions } from './ai/useGeminiNano';
 export { useGenAITasks, type TaskTone } from './ai/useGenAITasks';
 export { useNaturalLanguageAI } from './ai/useNaturalLanguageAI';
 export { useVisionAI } from './ai/useVisionAI';

@@ -11,13 +11,24 @@ import * as FileSystem from 'expo-file-system';
 import { useAudio } from '../hardware/useAudio';
 import { SpeechTranscriptionResult } from '../core/types';
 import { getStoredApiKey, createGeminiClient, GEMINI_MODEL, NO_API_KEY_MESSAGE } from './geminiClient';
-import { logEvent, recordMetric, traced, type TelemetrySource } from '../core/observability';
+import {
+  beginTrace,
+  withTraceContextFields,
+  type ObservabilityOptions,
+  type TelemetrySource,
+  type TraceContext,
+  type TraceScope,
+} from '../core/observability';
 import PixelNative from '@pixelkit-labs/native';
 
 const MODULE = 'useSpeechAI';
 const SPEECH_FINAL_RESULT_TIMEOUT_MS = 15_000;
 let nativeSpeechOwner: symbol | null = null;
 let speechRequestSequence = 0;
+
+export interface SpeechRecognitionRunOptions extends ObservabilityOptions {
+  context: TraceContext;
+}
 
 export function useSpeechAI() {
   const audio = useAudio();
@@ -42,6 +53,8 @@ export function useSpeechAI() {
   const startTimeRef = useRef<number | null>(null);
   const webRecognitionRef = useRef<any>(null);
   const webTranscriptRef = useRef<string>('');
+  const currentScopeRef = useRef<TraceScope | null>(null);
+  const firstSpeechResponseRef = useRef(false);
 
   useEffect(() => {
     if (PixelNative) {
@@ -58,54 +71,60 @@ export function useSpeechAI() {
     mountedRef.current = true;
     if (!PixelNative) return;
     const native = PixelNative;
-    const s1 = PixelNative.addListener('onSpeechPartial', e => {
-      if (e.requestId === currentRequestIdRef.current) {
-        setStreamingPartial(e.text);
-      }
-    });
-    const s2 = PixelNative.addListener('onSpeechResult', e => {
-      if (e.requestId === currentRequestIdRef.current) {
-        const durationSeconds = startTimeRef.current ? Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1)) : 0;
-        const latencyMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
-        const result: SpeechTranscriptionResult = {
-          transcript: e.text,
-          confidence: null,
-          durationSeconds,
-          latencyMs,
-          language: 'auto (on-device ASI)',
-        };
-        setLastTranscript(result);
-        if (pendingFinalRef.current?.requestId === e.requestId) {
-          clearTimeout(pendingFinalRef.current.timeout);
-          pendingFinalRef.current.resolve(result);
-          pendingFinalRef.current = null;
+    const s1 = PixelNative.addListener('onSpeechPartial', event => {
+      const scope = currentScopeRef.current;
+      if (scope?.active && event.requestId === currentRequestIdRef.current) {
+        if (!firstSpeechResponseRef.current) {
+          firstSpeechResponseRef.current = true;
+          scope.event('first_response', { nativeRequestId: event.requestId });
         }
-        currentRequestIdRef.current = null;
-        if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
-        setStreamingPartial('');
-        setIsListening(false);
-        recordMetric(MODULE, 'onDeviceLatencyMs', latencyMs, 'hardware');
-        logEvent(MODULE, 'onDeviceResult', { chars: e.text.length, latencyMs });
+        setStreamingPartial(event.text);
       }
     });
-    const s3 = PixelNative.addListener('onSpeechRms', e => {
-      if (e.requestId === currentRequestIdRef.current) {
-        setVoiceRms(e.rmsdB);
+    const s2 = PixelNative.addListener('onSpeechResult', event => {
+      const scope = currentScopeRef.current;
+      if (!scope?.active || event.requestId !== currentRequestIdRef.current) return;
+      const durationSeconds = startTimeRef.current ? Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1)) : 0;
+      const latencyMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+      const result: SpeechTranscriptionResult = {
+        transcript: event.text,
+        confidence: null,
+        durationSeconds,
+        latencyMs,
+        language: 'auto (on-device ASI)',
+      };
+      setLastTranscript(result);
+      if (pendingFinalRef.current?.requestId === event.requestId) {
+        clearTimeout(pendingFinalRef.current.timeout);
+        pendingFinalRef.current.resolve(result);
+        pendingFinalRef.current = null;
       }
+      scope.metric('onDeviceLatencyMs', latencyMs);
+      scope.end('ok', { nativeRequestId: event.requestId, chars: event.text.length, latencyMs });
+      currentScopeRef.current = null;
+      currentRequestIdRef.current = null;
+      if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
+      setStreamingPartial('');
+      setIsListening(false);
     });
-    const s4 = PixelNative.addListener('onSpeechError', e => {
-      if (e.requestId === currentRequestIdRef.current) {
-        setError(e.error);
-        if (pendingFinalRef.current?.requestId === e.requestId) {
-          clearTimeout(pendingFinalRef.current.timeout);
-          pendingFinalRef.current.resolve(null);
-          pendingFinalRef.current = null;
-        }
-        currentRequestIdRef.current = null;
-        if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
-        setIsListening(false);
-        logEvent(MODULE, 'speechError', { error: e.error, code: e.code }, 'warn');
+    const s3 = PixelNative.addListener('onSpeechRms', event => {
+      const scope = currentScopeRef.current;
+      if (scope?.active && event.requestId === currentRequestIdRef.current) setVoiceRms(event.rmsdB);
+    });
+    const s4 = PixelNative.addListener('onSpeechError', event => {
+      const scope = currentScopeRef.current;
+      if (!scope?.active || event.requestId !== currentRequestIdRef.current) return;
+      setError(event.error);
+      if (pendingFinalRef.current?.requestId === event.requestId) {
+        clearTimeout(pendingFinalRef.current.timeout);
+        pendingFinalRef.current.resolve(null);
+        pendingFinalRef.current = null;
       }
+      scope.end('error', { nativeRequestId: event.requestId, code: event.code }, event.error);
+      currentScopeRef.current = null;
+      currentRequestIdRef.current = null;
+      if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
+      setIsListening(false);
     });
 
     return () => {
@@ -115,11 +134,13 @@ export function useSpeechAI() {
         pendingFinalRef.current.resolve(null);
         pendingFinalRef.current = null;
       }
+      const scope = currentScopeRef.current;
+      if (scope?.active) scope.end('cancelled', { reason: 'unmounted' });
+      currentScopeRef.current = null;
       currentRequestIdRef.current = null;
       if (nativeSpeechOwner === ownerRef.current) {
         nativeSpeechOwner = null;
-        void traced(MODULE, 'cancelSpeechRecognition', async () => native.cancelSpeechRecognition())
-          .catch((e: any) => logEvent(MODULE, 'recognizer cleanup failed', { message: e?.message }, 'warn'));
+        try { native.cancelSpeechRecognition(); } catch { /* best-effort native cancellation */ }
       }
       s1.remove();
       s2.remove();
@@ -128,9 +149,17 @@ export function useSpeechAI() {
     };
   }, []);
 
-  const startListening = async (): Promise<boolean> => {
+  const startListening = async (run: SpeechRecognitionRunOptions): Promise<boolean> => {
     setError(null);
     setStreamingPartial('');
+    const requestId = `speech_${Date.now()}_${++speechRequestSequence}`;
+    const requestContext = withTraceContextFields(run.context, { nativeRequestId: requestId });
+    const scope = beginTrace(MODULE, recognitionMode === 'cloud' ? 'cloud_recognition' : 'on_device_recognition', 'hardware', {
+      nativeRequestId: requestId,
+      mode: recognitionMode,
+    }, { ...run, context: requestContext });
+    currentScopeRef.current = scope;
+    firstSpeechResponseRef.current = false;
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -142,41 +171,41 @@ export function useSpeechAI() {
           recognition.lang = 'en-US';
           webTranscriptRef.current = '';
           startTimeRef.current = Date.now();
-
           recognition.onresult = (event: any) => {
+            if (!scope.active) return;
+            if (!firstSpeechResponseRef.current) {
+              firstSpeechResponseRef.current = true;
+              scope.event('first_response', { nativeRequestId: requestId });
+            }
             let interim = '';
             let final = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-              if (event.results[i].isFinal) {
-                final += event.results[i][0].transcript;
-              } else {
-                interim += event.results[i][0].transcript;
-              }
+            for (let index = event.resultIndex; index < event.results.length; index++) {
+              if (event.results[index].isFinal) final += event.results[index][0].transcript;
+              else interim += event.results[index][0].transcript;
             }
-            if (final) {
-              webTranscriptRef.current = (webTranscriptRef.current ? webTranscriptRef.current + ' ' : '') + final;
-            }
-            const currentFull = (webTranscriptRef.current + (interim ? ' ' + interim : '')).trim();
-            setStreamingPartial(currentFull);
+            if (final) webTranscriptRef.current = `${webTranscriptRef.current}${webTranscriptRef.current ? ' ' : ''}${final}`;
+            setStreamingPartial(`${webTranscriptRef.current}${interim ? ` ${interim}` : ''}`.trim());
           };
-
           recognition.onerror = (event: any) => {
-            setError(`Web Speech error: ${event.error}`);
+            if (!scope.active) return;
+            const message = `Web Speech error: ${event.error}`;
+            setError(message);
             setIsListening(false);
+            scope.end('error', { nativeRequestId: requestId }, message);
+            if (currentScopeRef.current === scope) currentScopeRef.current = null;
           };
-
-          recognition.onend = () => {
-            // Native speech recognition session ended
-          };
-
           recognition.start();
           webRecognitionRef.current = recognition;
+          startTimeRef.current = Date.now();
           setIsListening(true);
-          logEvent(MODULE, 'startWebSpeech');
+          scope.event('request_accepted', { nativeRequestId: requestId, provider: 'web-speech' });
           return true;
-        } catch (e: any) {
-          setError(e?.message ?? 'Could not start browser speech recognition');
+        } catch (cause: any) {
+          const message = cause?.message ?? 'Could not start browser speech recognition';
+          setError(message);
           setIsListening(false);
+          scope.end('error', { nativeRequestId: requestId }, cause);
+          currentScopeRef.current = null;
           return false;
         }
       }
@@ -184,70 +213,73 @@ export function useSpeechAI() {
 
     if (recognitionMode === 'on-device' && !PixelNative) {
       setError('On-device speech recognition unavailable; cloud recognition was not started');
+      scope.end('unavailable', { reason: 'native_recognizer_unavailable' });
+      currentScopeRef.current = null;
       return false;
     }
     if (recognitionMode === 'on-device' && PixelNative) {
       const native = PixelNative;
       if (nativeSpeechOwner !== null) {
         setError('Speech recognition is already active');
+        scope.end('unavailable', { reason: 'recognizer_busy' });
+        currentScopeRef.current = null;
         return false;
       }
       nativeSpeechOwner = ownerRef.current;
-      const reqId = `speech_${Date.now()}_${++speechRequestSequence}`;
-      currentRequestIdRef.current = reqId;
+      currentRequestIdRef.current = requestId;
       startTimeRef.current = Date.now();
       try {
-        const ready = await traced(MODULE, 'startSpeechRecognition', async () => native.startSpeechRecognition(reqId, true), { reqId });
-        if (!mountedRef.current || currentRequestIdRef.current !== reqId) return false;
+        const ready = await native.startSpeechRecognition(requestId, true);
+        if (!mountedRef.current || currentRequestIdRef.current !== requestId || !scope.active) return false;
         if (!ready) throw new Error('Speech recognizer did not become ready');
         setIsListening(true);
-        logEvent(MODULE, 'startOnDeviceSpeech', { reqId });
+        scope.event('request_accepted', { nativeRequestId: requestId, provider: 'android-system-intelligence' });
         return true;
-      } catch (e: any) {
-        if (currentRequestIdRef.current === reqId) {
+      } catch (cause: any) {
+        if (currentRequestIdRef.current === requestId) {
           currentRequestIdRef.current = null;
           if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
           if (mountedRef.current) {
-            setError(e?.message ?? 'Failed to start on-device recognizer');
+            setError(cause?.message ?? 'Failed to start on-device recognizer');
             setIsListening(false);
-            logEvent(MODULE, 'speech startup failed', { message: e?.message, code: e?.code }, 'warn');
           }
         }
+        scope.end('error', { nativeRequestId: requestId }, cause);
+        if (currentScopeRef.current === scope) currentScopeRef.current = null;
         return false;
       }
-    } else {
-      // Cloud recording mode
-      const ok = await audio.startRecording();
-      if (ok) {
-        setRecordingStartedAt(Date.now());
-        setIsListening(true);
-      } else {
-        setError('Microphone unavailable or permission denied');
-      }
-      return ok;
     }
+
+    const started = await audio.startRecording();
+    if (started) {
+      setRecordingStartedAt(Date.now());
+      setIsListening(true);
+      scope.event('request_accepted', { nativeRequestId: requestId, provider: 'gemini-cloud' });
+    } else {
+      setError('Microphone unavailable or permission denied');
+      scope.end('unavailable', { reason: 'microphone_unavailable' });
+      currentScopeRef.current = null;
+    }
+    return started;
   };
 
   const stopListeningAndTranscribe = async (): Promise<SpeechTranscriptionResult | null> => {
+    const scope = currentScopeRef.current;
     if (Platform.OS === 'web' && webRecognitionRef.current) {
-      try {
-        webRecognitionRef.current.stop();
-      } catch {}
+      try { webRecognitionRef.current.stop(); }
+      catch (cause) { scope?.event('stop_failed', { error: String(cause) }, 'warn'); }
       webRecognitionRef.current = null;
       setIsListening(false);
       const text = (webTranscriptRef.current || streamingPartial).trim();
       const durationSeconds = startTimeRef.current ? Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1)) : 0;
       const latencyMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
       const result: SpeechTranscriptionResult = {
-        transcript: text,
-        confidence: null,
-        durationSeconds,
-        latencyMs,
-        language: 'Web Speech API',
+        transcript: text, confidence: null, durationSeconds, latencyMs, language: 'Web Speech API',
       };
       setLastTranscript(result);
       setStreamingPartial('');
-      logEvent(MODULE, 'webSpeechResult', { chars: text.length, latencyMs });
+      scope?.end('ok', { chars: text.length, latencyMs });
+      if (currentScopeRef.current === scope) currentScopeRef.current = null;
       return result;
     }
 
@@ -255,55 +287,63 @@ export function useSpeechAI() {
       const native = PixelNative;
       if (pendingFinalRef.current) return pendingFinalRef.current.promise;
       const requestId = currentRequestIdRef.current;
-      if (!requestId) return null;
+      if (!requestId || !scope?.active) return null;
       let resolveFinal!: (result: SpeechTranscriptionResult | null) => void;
       const finalResult = new Promise<SpeechTranscriptionResult | null>(resolve => { resolveFinal = resolve; });
       const timeout = setTimeout(() => {
-          if (pendingFinalRef.current?.requestId !== requestId) return;
-          pendingFinalRef.current = null;
-          currentRequestIdRef.current = null;
-          if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
-          setError('Speech recognition timed out waiting for a final result');
-          setIsListening(false);
-          logEvent(MODULE, 'speech final result timed out', { requestId }, 'warn');
-          void traced(MODULE, 'cancelSpeechRecognition', async () => native.cancelSpeechRecognition())
-            .catch((e: any) => logEvent(MODULE, 'recognizer cleanup failed', { message: e?.message }, 'warn'));
-          resolveFinal(null);
+        if (pendingFinalRef.current?.requestId !== requestId || !scope.active) return;
+        pendingFinalRef.current = null;
+        currentRequestIdRef.current = null;
+        currentScopeRef.current = null;
+        if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
+        setError('Speech recognition timed out waiting for a final result');
+        setIsListening(false);
+        scope.end('timeout', { nativeRequestId: requestId });
+        try { native.cancelSpeechRecognition(); } catch { /* best-effort native cancellation */ }
+        resolveFinal(null);
       }, SPEECH_FINAL_RESULT_TIMEOUT_MS);
       pendingFinalRef.current = { requestId, promise: finalResult, resolve: resolveFinal, timeout };
       try {
-        await traced(MODULE, 'stopSpeechRecognition', async () => native.stopSpeechRecognition(), { requestId });
-      } catch (e: any) {
+        await native.stopSpeechRecognition();
+      } catch (cause: any) {
         if (pendingFinalRef.current?.requestId === requestId) {
           clearTimeout(pendingFinalRef.current.timeout);
           pendingFinalRef.current.resolve(null);
           pendingFinalRef.current = null;
         }
         currentRequestIdRef.current = null;
+        currentScopeRef.current = null;
         if (nativeSpeechOwner === ownerRef.current) nativeSpeechOwner = null;
-        setError(e?.message ?? 'Could not stop speech recognition');
-        logEvent(MODULE, 'speech stop failed', { message: e?.message }, 'warn');
-        void traced(MODULE, 'cancelSpeechRecognition', async () => native.cancelSpeechRecognition())
-          .catch((cancelError: any) => logEvent(MODULE, 'recognizer cleanup failed', { message: cancelError?.message }, 'warn'));
+        setError(cause?.message ?? 'Could not stop speech recognition');
+        scope.end('error', { nativeRequestId: requestId }, cause);
+        try { native.cancelSpeechRecognition(); } catch { /* best-effort native cancellation */ }
       }
       setIsListening(false);
       return finalResult;
     }
 
-    // Cloud mode: stop recording and send to Gemini
     setIsListening(false);
     const uri = await audio.stopRecording();
     const durationSeconds = recordingStartedAt ? Number(((Date.now() - recordingStartedAt) / 1000).toFixed(1)) : 0;
     setRecordingStartedAt(null);
-    if (!uri) { setError('No recording captured'); return null; }
+    if (!uri) {
+      setError('No recording captured');
+      scope?.end('unavailable', { reason: 'recording_unavailable' });
+      currentScopeRef.current = null;
+      return null;
+    }
     setLastRecordingUri(uri);
-    logEvent(MODULE, 'recorded', { uri, durationSeconds });
-
+    scope?.event('recording_completed', { durationSeconds });
     const apiKey = await getStoredApiKey();
-    if (!apiKey) { setError(NO_API_KEY_MESSAGE); return null; }
+    if (!apiKey) {
+      setError(NO_API_KEY_MESSAGE);
+      scope?.end('unavailable', { reason: 'gemini_api_key_unavailable' });
+      currentScopeRef.current = null;
+      return null;
+    }
 
     setIsTranscribing(true);
-    const start = performance.now();
+    const started = performance.now();
     try {
       const base64Audio = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const client = createGeminiClient(apiKey);
@@ -318,22 +358,39 @@ export function useSpeechAI() {
         }],
       });
       const transcript = (response.text ?? '').trim();
-      const latencyMs = Math.round(performance.now() - start);
+      const latencyMs = Math.round(performance.now() - started);
+      const responseRecord = response as unknown as Record<string, unknown>;
+      const providerRequestId = typeof responseRecord.responseId === 'string' ? responseRecord.responseId : undefined;
+      const usage = responseRecord.usageMetadata;
       const result: SpeechTranscriptionResult = {
-        transcript,
-        confidence: null,
-        durationSeconds,
-        latencyMs,
-        language: 'cloud Gemini',
+        transcript, confidence: null, durationSeconds, latencyMs, language: 'cloud Gemini',
       };
       setLastTranscript(result);
-      recordMetric(MODULE, 'latencyMs', latencyMs, 'hardware');
-      logEvent(MODULE, 'transcribed', { chars: transcript.length, latencyMs });
+      if (scope) {
+        scope.event(
+          'first_response',
+          { providerRequestId },
+          'info',
+          providerRequestId
+            ? withTraceContextFields(scope.context, { providerRequestId })
+            : scope.context,
+        );
+      }
+      scope?.metric('latencyMs', latencyMs);
+      scope?.end('ok', {
+        chars: transcript.length,
+        latencyMs,
+        providerRequestId,
+        finishReason: response.candidates?.[0]?.finishReason,
+        ...(usage ? { usage } : {}),
+      });
+      currentScopeRef.current = null;
       return result;
-    } catch (e: any) {
-      const message = e?.message ?? 'transcription failed';
+    } catch (cause: any) {
+      const message = cause?.message ?? 'transcription failed';
       setError(message);
-      logEvent(MODULE, 'error', { message }, 'error');
+      scope?.end('error', undefined, cause);
+      currentScopeRef.current = null;
       return null;
     } finally {
       setIsTranscribing(false);
