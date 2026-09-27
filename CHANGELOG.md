@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.50] - 2026-09-27
+
+### Documentation
+- Inventory Delta's 49 built-in tool definitions, five bundled Skills, three seeded Wiki pages and proposals, and 16 declared local MCP exports. Trace current routing and distinguish registered, executed and device-verified capability.
+
+### Verification
+- Source inventory checked against the pinned Delta Mobile 1.0.79 code and existing guide audit. SDK `npm run verify` passed (80 tests, typecheck, OpenAPI, build and docs contract); package dry run and sibling docs build passed. The local guide-site builder remains absent. No runtime behavior, SDK hook contract or mobile test changes; ARTEMIS-dependent paths remain unverified. Other guide diagrams, feature status and hardware glossary remain unchanged.
+
 ## [1.6.49] - 2026-09-27
 
 ### Documentation

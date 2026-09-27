@@ -31,6 +31,10 @@ The [assistant modes chapter](assistant-modes.md) links interactive diagrams of
 the current chat paths and the target shared capability layer for Gemini Nano,
 Gemini Live and Gemini API. It distinguishes source evidence from design intent.
 
+The [capability inventory](capability-inventory.md) lists all registered Delta
+tools, bundled Skills, seeded Wiki content and local MCP exports, with their
+actual routing and verification limits.
+
 The [application reliability review](application-reliability-review.md) tracks
 source-confirmed failures in persistence, MCP lifecycle, and AI Lab result
 truthfulness, with the current automated-check and ARTEMIS evidence boundary.
