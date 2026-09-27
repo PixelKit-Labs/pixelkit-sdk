@@ -32,9 +32,16 @@ the current chat paths and the target shared capability layer for Gemini Nano,
 Gemini Live and Gemini API. It distinguishes source evidence from design intent.
 
 The [capability inventory](capability-inventory.md) lists all registered Delta
-tools, bundled Skills, seeded Wiki content and local MCP exports, with their
-actual routing and verification limits.
+tools, bundled Skills, evidence-backed Wiki behavior, and local MCP exports, with
+their routing and verification limits.
 
 The [application reliability review](application-reliability-review.md) tracks
 source-confirmed failures in persistence, MCP lifecycle, and AI Lab result
 truthfulness, with the current automated-check and ARTEMIS evidence boundary.
+
+The [unified agent harness research and implementation contract](unified-agent-harness-research.md)
+compares production tool loops, chat event models, group orchestration,
+subagents, Skills, evidence-backed retrieval, telemetry and evaluation against
+Delta's source-audited gaps. Its
+[interactive architecture](diagrams/unified-delta-harness.html) and phased
+migration are proposed; they are not implemented or device-verified.

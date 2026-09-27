@@ -1,8 +1,10 @@
 # Delta application reliability review
 
-Source review on 2026-09-27 of Delta Mobile `83b2319` (1.0.79/code135) plus an uncommitted UI pass. The UI pass changes Settings, Agent, Connections, and the conversation shell, so its final behavior is not yet a stable commit. The installed wireless Pixel (`10.0.0.25:37197`) reports Delta 1.0.79/code135. These are source findings, not ARTEMIS acceptance or app speed measurements. See [the agent harness audit](agent-harness-audit.md) for the model/tool architecture and tool inventory.
+Baseline source review on 2026-09-27 used Delta Mobile `83b2319` (1.0.79/code135) plus an uncommitted UI pass. The resolution increment is Delta Mobile 1.0.81 source. Its debug APK is installed on wireless Pixel `10.0.0.25:37197` as 1.0.81/code137, but secure keyguard prevented ARTEMIS from entering the app. These remain source/build findings, not phone UI acceptance or app speed measurements. See [the agent harness audit](agent-harness-audit.md) for the model/tool architecture and tool inventory.
 
-## Findings to resolve before expanding the agent
+## Findings and source-resolution status
+
+Delta Mobile 1.0.81 source corrects the baseline findings in rows 1, 2, 4, 5 and 6 below; 1.0.80 corrected stale remote-tool removal in row 3. The table retains the reviewed failure mechanisms and acceptance requirements. Legacy unchecked stores, split Gemini credentials/model selection, the bounded coordinator, restart recovery and phone acceptance remain open.
 
 | Priority | Source finding and user effect | Required correction and acceptance evidence |
 | --- | --- | --- |
@@ -16,16 +18,18 @@ Source review on 2026-09-27 of Delta Mobile `83b2319` (1.0.79/code135) plus an u
 | P1 | App Settings writes `geminiApiKey` to ordinary settings JSON (`src/core/settingsStore.ts:21,49,109`); SDK Live/cloud hooks use their separate stored key. The configured Live model is `gemini-3.8-flash-live-preview` (`:51`), while current official model documentation names a different Live model. | Establish one secure credential path and one supported model selection, then connect with a real key and record failure details. Do not infer success from a saved Settings field. Confirm the model against [Google's current list](https://ai.google.dev/gemini-api/docs/models) at implementation time. |
 | P2 | The ordinary chat agent is a one-pass keyword dispatcher (`src/core/deltaAgent.ts`); Laya is called only for ambiguous flashlight intent (`:219-235`). Registry membership does not mean a tool is routable. Cloud and Live use separate registries/policy paths. | Build a bounded coordinator and one catalog only after the P0/P1 truth and persistence defects are fixed. Use capability/permission checks and confirmation at execution time. [The harness chapter](agent-harness-audit.md) records the proposed design, which awaits user feedback. |
 
-The P0/P1 labels express review priority, not proof of exploit or a completed device failure. Source alone is sufficient to show the unconditional status, fabricated report, missing unregister, and ignored returns. Phone acceptance must still reproduce the user-facing outcomes. Other source claims in the harness chapter, including fabricated `doctor`/`device_info` results and `clear_history`/`hand_off` semantics, remain open and were not changed here.
+The P0/P1 labels express review priority, not proof of exploit or a completed device failure. The corrected rows have source-level regression coverage but are not phone-accepted: 1.0.81/code137 is installed, but ARTEMIS could not pass secure keyguard and observed no app action. Other source claims in the harness chapter, including fabricated `doctor`/`device_info` results and `clear_history`/`hand_off` semantics, remain open and were not changed here.
 
 ## Current validation boundary
 
 | Check | Observed result | Meaning |
 | --- | --- | --- |
-| Delta TypeScript | Passed on the uncommitted UI tree | Static types compile; no phone interaction proven. |
-| Android JS export | Passed; 3,421 modules, 7.6 MB bundle | Bundle creation works. The 36.4-second export is build time, not app latency. |
-| Node suite | 155 passed, 7 failed of 162 | Existing red baseline: settings persistence/reset, seeded telemetry/trace expectations, wake phrase storage, and WhatsApp pairing. Exact failure contracts need investigation; memory-only Node storage must not be called durable, and fake boot records must not be added to satisfy tests. |
-| ARTEMIS/device | Delta chat hierarchy observed; edit/regenerate task failed before its first action | Authorized wireless Pixel is connected and unlocked. ARTEMIS Flash trace `3390337e-3097-4ca6-9311-9b43369d7ea9` terminated with `Task runner process terminated unexpectedly`; trace inspection reports no action steps. Diagnostics passed 4/4 required checks and a device probe (40 UI elements), but warned that MCP and runner use different Python environments. Prior provider rate-limit failures also remain in its logs. Installed Delta 1.0.79 does not contain the uncommitted UI pass. No BDD code or performance result is claimed. |
+| Delta TypeScript | Passed for 1.0.81 source | Static types compile; no phone interaction proven. |
+| Android JS export | Passed; 3,420 modules, `index-3786f7c4e75f0130eddbddf4bdebea6d.hbc` | Bundle creation works; build duration is not app latency. |
+| Native debug build/install | Passed; 651,687,677 bytes, SHA-256 `147296DA937724503563B96282CDFA89A7084B620F64EFBC66A9DF8FBF7E3E4F` | Package manager on `10.0.0.25:37197` reports 1.0.81/code137. The development APK does not prove a loaded 1.0.81 JS session. |
+| Node suite | 161 passed, 7 failed of 168 | The six new session/MCP tests pass. Existing red baseline remains settings persistence/reset, seeded telemetry/trace expectations, wake phrase storage, and WhatsApp pairing. |
+| Browser smoke | New conversation closed the drawer to a blank composer; Local MCP showed `UNAVAILABLE ON MOBILE`; no page errors | Web validates those user surfaces, not native persistence or hardware. AI Lab is not reachable from the current main navigation and was not visually accepted. |
+| ARTEMIS/device | Trace `619ca5a1-32d0-46e6-8cfc-977c5391ad12` failed at secure keyguard with zero action steps | Installed identity is proven; phone UI behavior, restart recovery and performance remain unverified. |
 
 ## Exploration and BDD gate
 
@@ -34,3 +38,5 @@ The next device pass should first establish app/native/JS identity, then use ART
 ## Implementation and decision log
 
 2026-09-27: review only. No app or SDK runtime behavior changed. The recommended first fix is to stop presenting fabricated diagnostics and a non-listening MCP host as successful, then repair persistence semantics before broadening intent routing. User feedback on agent form/function and cloud escalation remains pending; this recommendation is not an accepted design decision. The guide's Laya, voice, telemetry and orb chapters remain accurate for their recorded source versions. No diagram, glossary term, public hook contract, or unrelated hardware chapter changes are needed for this source review. The local guide-site builder `docs/harness-review/build-site.mjs` remains absent, so this Markdown chapter is the review artifact. ARTEMIS could inspect Delta but could not execute the planned edit/regenerate flow; its trace and diagnosis are recorded above.
+
+2026-09-27: Delta Mobile 1.0.81 removed AI Lab's fabricated healthy/no-key report and fake media-success controls, made hosted MCP availability conditional on a real listener bind, captured queued workspace snapshots at mutation request time, rolled failed durable mutations back, and retained/surfaced/retried unsaved drafts while coalescing rapid revisions. Conversation navigation now stays in place on write failure. Injected repository tests cover durable rollback, retry and interleaved snapshots; an occupied Node port covers bind failure. TypeScript, Android export, debug build and install passed; the suite is 161 passed with the same seven baseline failures. Browser smoke exercised new-conversation and MCP-unavailable surfaces without page errors. The installed 1.0.81/code137 APK is identified above, but ARTEMIS stopped at secure keyguard before any app action, so AI Lab, phone UI and restart recovery remain unverified. Legacy stores, credential unification, Android listener support and the coordinator remain open.

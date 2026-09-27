@@ -6,6 +6,8 @@ Source audit on 2026-09-26. Delta Mobile HEAD was `83b2319` (1.0.79/code135), wi
 
 Delta Mobile 1.0.80 source increment: tool argument validation now runs before the confirmation gate, confirmed calls re-enter the registry, and MCP wrappers are removed on disable/remove. Chat displays the first persisted tool outcome. These correct part of the pinned 1.0.79 findings below, but do not create the shared model/tool/result loop or establish a successful phone turn. ARTEMIS was stopped after its Gemini provider returned HTTP 402 for depleted prepayment credits; its only new UI evidence was the installed 1.0.79 Nano chat hierarchy.
 
+Delta Mobile 1.0.82 source increment removes the false-success paths identified in this audit: absent providers and rejected mutations now fail explicitly; device, diagnostic, vision, memory, imagery, and MCP paths no longer synthesize success or identity; Skills are durably persisted guidance with zero implied steps; and Wiki starts empty and requires durable evidence references. Nano routes Wiki search/read and injects selected specialist/Skill guidance. This still does not implement the proposed shared Nano/Live/API loop, enforce specialist tool scopes, or establish phone execution. See the [current capability inventory](capability-inventory.md).
+
 ## Current execution paths
 
 | Entry | Implemented path | Boundary and evidence gap |

@@ -4,6 +4,34 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.54] - 2026-09-27
+
+### Documentation
+- Reconcile the living Delta capability inventory with Mobile 1.0.82: 52 registry tools, truthful provider and persistence failures, guidance-only Skills, an initially empty evidence-backed Wiki, corrected MCP resources/aliases, and the remaining separate Nano/Live/API execution boundary.
+- Replace obsolete seeded-Wiki and fabricated-success claims while preserving the unlocked-device acceptance, shared coordinator, specialist-policy, and autonomous-authoring gaps.
+
+### Verification
+- SDK `npm run verify` passed 80 tests, typecheck, OpenAPI, build and docs contract; package dry runs passed for all synchronized 1.6.54 packages. Delta TypeScript, 83 focused capability tests and the complete 177-test suite passed. Browser smoke visually verified the Tools, Skills and empty Wiki surfaces with no page errors. The documented harness-review site builder remains absent, so no local guide site was generated. No SDK hook, native module, public hook contract or architecture diagram changed.
+
+## [1.6.53] - 2026-09-27
+
+### Documentation
+- Record Delta Mobile 1.0.81's first migration-step-0 increment: truthful AI Lab/MCP availability, durable conversation rollback, queued-write snapshots and surfaced/coalesced draft persistence. Preserve the remaining legacy-store, credential, coordinator and device-acceptance gates.
+
+### Verification
+- SDK `npm run verify` passed 80 tests, typecheck, OpenAPI, build and docs contract; package dry runs passed for all synchronized 1.6.53 packages; the sibling docs site built 106 pages. Delta TypeScript, Android export, native build/install and all 20 relevant focused tests passed; the full suite is 161 passed with the same seven baseline failures. Delta 1.0.81/code137 is installed on wireless Pixel `10.0.0.25:37197`, but ARTEMIS trace `619ca5a1-32d0-46e6-8cfc-977c5391ad12` stopped at secure keyguard before any app action. Browser smoke covered new-conversation and MCP-unavailable surfaces. No SDK hook, native module, public contract or diagram changed.
+
+## [1.6.52] - 2026-09-27
+
+### Documentation
+- Research production agent loops, chat event models, approval/resume, group orchestration, subagent contracts, Agent Skills, evidence-backed Wiki retrieval, MCP policy, OpenTelemetry GenAI spans and evaluation practices against Delta's source-audited gaps.
+- Define a provider-neutral event-sourced coordinator, single capability and policy gateway, durable UI projection, scoped worker supervisor, telemetry contract and gated migration from the existing Nano path. Add an interactive unified architecture while preserving current-state and earlier target diagrams separately.
+
+### Verification
+- The unified diagram passed all nine Archify showcase checks with zero errors or warnings and light/dark containment at 1440×900, 1600×1000, 1920×1080 and 2048×1320; manual browser inspection confirmed its diagram, legend, controls and decision cards fit the audit viewport.
+- SDK `npm run verify` passed 80 tests, typecheck, OpenAPI, build and docs contract. Package dry runs passed for all three synchronized 1.6.52 packages, and the sibling documentation site built 106 pages after OpenAPI synchronization.
+- This is a research and implementation-contract increment only. No Delta Mobile runtime, SDK hook, native module, provider, tool, Skill or Wiki behavior changed, and no phone or ARTEMIS flow was exercised. The local guide-site builder remains absent; unrelated guide chapters, hardware glossary and public hook contracts are unchanged.
+
 ## [1.6.51] - 2026-09-27
 
 ### Documentation

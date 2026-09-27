@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Unified Delta agent harness",
+    "subtitle": "Proposed event-sourced runtime for chat, tools, skills, Wiki, group work and subagents",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow",
+    "viewBox": [1380, 560],
+    "views": [
+      {
+        "id": "turn",
+        "label": "One accountable turn",
+        "focus": ["ui", "coordinator", "context", "providers", "eventStore"],
+        "note": "Every text, voice and Live interaction becomes one durable, resumable run."
+      },
+      {
+        "id": "action",
+        "label": "Safe action path",
+        "focus": ["coordinator", "policy", "catalog", "tools", "eventStore"],
+        "note": "Model proposals never bypass schema, capability, permission, approval or observed-result checks."
+      },
+      {
+        "id": "knowledge",
+        "label": "Skills and evidence",
+        "focus": ["skills", "wiki", "context", "coordinator"],
+        "note": "Procedures and cited knowledge enter context progressively; neither grants authority."
+      },
+      {
+        "id": "team",
+        "label": "Group and subagents",
+        "focus": ["coordinator", "supervisor", "policy", "telemetry"],
+        "note": "One coordinator owns the user response while scoped workers run under inherited limits."
+      }
+    ],
+    "legend": {
+      "mode": "all",
+      "entries": {
+        "frontend": { "label": "User experience" },
+        "backend": { "label": "Runtime service" },
+        "database": { "label": "Durable data" },
+        "cloud": { "label": "Model adapters" },
+        "security": { "label": "Policy boundary" },
+        "messagebus": { "label": "Telemetry stream" },
+        "external": { "label": "Effect adapters" }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Chat + voice UI",
+      "sublabel": "messages, approvals, stop, status",
+      "pos": [30, 220],
+      "size": [190, 76]
+    },
+    {
+      "id": "coordinator",
+      "type": "backend",
+      "label": "Run coordinator",
+      "sublabel": "bounded state machine",
+      "pos": [310, 220],
+      "size": [200, 76]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "Provider adapters",
+      "sublabel": "Nano / Live / Gemini API",
+      "pos": [310, 25],
+      "size": [200, 76]
+    },
+    {
+      "id": "context",
+      "type": "backend",
+      "label": "Context assembler",
+      "sublabel": "history + scoped capabilities",
+      "pos": [580, 25],
+      "size": [210, 76]
+    },
+    {
+      "id": "skills",
+      "type": "database",
+      "label": "Skill catalog",
+      "sublabel": "versioned procedures",
+      "pos": [850, 0],
+      "size": [200, 76]
+    },
+    {
+      "id": "wiki",
+      "type": "database",
+      "label": "Evidence Wiki",
+      "sublabel": "sources, claims, revisions",
+      "pos": [850, 110],
+      "size": [200, 76]
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "Policy + approval gate",
+      "sublabel": "validate, authorize, resume",
+      "pos": [580, 220],
+      "size": [210, 76]
+    },
+    {
+      "id": "catalog",
+      "type": "backend",
+      "label": "Capability catalog",
+      "sublabel": "schema + live availability",
+      "pos": [850, 220],
+      "size": [210, 76]
+    },
+    {
+      "id": "tools",
+      "type": "external",
+      "label": "Tool adapters",
+      "sublabel": "device / SDK / MCP / network",
+      "pos": [1130, 220],
+      "size": [210, 76]
+    },
+    {
+      "id": "eventStore",
+      "type": "database",
+      "label": "Event store + checkpoints",
+      "sublabel": "threads, runs, projections",
+      "pos": [310, 420],
+      "size": [220, 76]
+    },
+    {
+      "id": "supervisor",
+      "type": "backend",
+      "label": "Worker supervisor",
+      "sublabel": "group policy + subagent budgets",
+      "pos": [580, 420],
+      "size": [220, 76]
+    },
+    {
+      "id": "telemetry",
+      "type": "messagebus",
+      "label": "Traces + eval stream",
+      "sublabel": "spans, metrics, artifacts",
+      "pos": [850, 420],
+      "size": [210, 76]
+    }
+  ],
+  "connections": [
+    {
+      "from": "ui",
+      "to": "coordinator",
+      "label": "commands + events",
+      "labelAt": [265, 200]
+    },
+    {
+      "from": "coordinator",
+      "to": "context",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "from": "context",
+      "to": "providers"
+    },
+    {
+      "from": "providers",
+      "to": "coordinator",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    },
+    {
+      "from": "skills",
+      "to": "context",
+      "variant": "dashed"
+    },
+    {
+      "from": "wiki",
+      "to": "context",
+      "variant": "dashed"
+    },
+    {
+      "from": "coordinator",
+      "to": "policy",
+      "label": "propose",
+      "labelAt": [560, 200]
+    },
+    {
+      "from": "policy",
+      "to": "catalog",
+      "label": "authorize",
+      "labelAt": [820, 200]
+    },
+    {
+      "from": "catalog",
+      "to": "tools",
+      "label": "call + result",
+      "labelAt": [1095, 200]
+    },
+    {
+      "from": "coordinator",
+      "to": "eventStore",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "coordinator",
+      "to": "supervisor",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "supervisor",
+      "to": "policy",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "variant": "dashed"
+    },
+    {
+      "from": "catalog",
+      "to": "telemetry",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Core invariants",
+      "items": [
+        "The event log is canonical; the UI is a replayable projection",
+        "Every tool call has one ID and one terminal result",
+        "Children inherit stricter permissions and finite budgets"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Design status",
+      "items": [
+        "Proposed architecture, not implemented or device-verified",
+        "Current Delta has split Nano, Live, cloud and MCP paths",
+        "First cutover is the existing Nano path with a small verified tool set"
+      ]
+    }
+  ]
+}
