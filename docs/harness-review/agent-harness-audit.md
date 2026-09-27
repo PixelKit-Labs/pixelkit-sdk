@@ -4,6 +4,8 @@ Source audit on 2026-09-26. Delta Mobile HEAD was `83b2319` (1.0.79/code135), wi
 
 2026-09-27 update: the user directed one shared Laya, Tool Harness, Skills and Wiki capability layer across Gemini Nano, Gemini Live and Gemini API modes. See the [assistant modes chapter and diagrams](assistant-modes.md) for that target and the current/target distinction. The detailed implementation order and unresolved provider behavior in this source audit remain proposals.
 
+Delta Mobile 1.0.80 source increment: tool argument validation now runs before the confirmation gate, confirmed calls re-enter the registry, and MCP wrappers are removed on disable/remove. Chat displays the first persisted tool outcome. These correct part of the pinned 1.0.79 findings below, but do not create the shared model/tool/result loop or establish a successful phone turn. ARTEMIS was stopped after its Gemini provider returned HTTP 402 for depleted prepayment credits; its only new UI evidence was the installed 1.0.79 Nano chat hierarchy.
+
 ## Current execution paths
 
 | Entry | Implemented path | Boundary and evidence gap |

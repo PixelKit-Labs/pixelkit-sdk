@@ -2,9 +2,11 @@
 
 Source checkpoint: Delta Mobile commit `83b2319` (1.0.79/code135), reviewed 2026-09-27. The app checkout has unrelated local UI edits; this is a source inventory, not a claim that any listed capability worked on the Pixel. The [mode diagrams](assistant-modes.md) show how the inventory fits into the current and target assistant.
 
+Implementation update, Delta Mobile 1.0.80 source: the Nano chat tool registry now validates declared inputs, routes confirmed execution back through the registry, and removes disconnected MCP wrappers. The conversation displays the first persisted tool outcome by its originating request. This code has passed source checks but is not installed/device-verified; the 49/5/3 inventory below remains the pinned 1.0.79 source count.
+
 ## What the three surfaces mean
 
-**Tools** are named executors in `src/core/tools/registry.ts`. The constructor registers 49 built-in definitions, each with a name, description, category, optional parameter metadata and an `execute` function. `ToolRegistry.execute` applies the confirmation gate, calls the executor, captures duration and error, and emits a trace. It does **not** centrally validate arguments against the parameter metadata or probe current availability before dispatch. A registered tool is therefore not proof that a device capability exists, that chat can route to it, or that its reported effect was observed.
+**Tools** are named executors in `src/core/tools/registry.ts`. The constructor registers 49 built-in definitions, each with a name, description, category, optional parameter metadata and an `execute` function. `ToolRegistry.execute` applies the confirmation gate, calls the executor, captures duration and error, and emits a trace. At the pinned 1.0.79 checkpoint it did **not** centrally validate arguments; the 1.0.80 source now validates declared required fields, types and enums before dispatch. It still does not probe current availability before every call. A registered tool is therefore not proof that a device capability exists, that chat can route to it, or that its reported effect was observed.
 
 **Skills** are Markdown procedures in `src/core/skills/skillStore.ts`, not executors. `search_skills` returns names and descriptions; `use_skill` returns full instructions. User-authored skills persist under `STORAGE_KEYS.SKILLS`. The five bundled skills live in source. Chat only calls the skill tools for specific keyword patterns, and the one-pass Nano path does not continue through a procedure's steps. `search` filters disabled skills, but `use_skill` calls `get`, which does not enforce `enabled`; a disabled skill can still be loaded by exact name. Bundled enable toggles change the in-memory object only and are not persisted.
 
@@ -57,7 +59,7 @@ These entries should be treated as illustrative content. Their hardware claims a
 
 The app's local MCP host declares 16 exports: `pixel_torch`, `pixel_thermometer`, `pixel_altimeter`, `pixel_battery`, `pixel_battery_share`, `pixel_wifi7`, `pixel_satellite`, `pixel_uwb`, `pixel_titan`, `pixel_haptic_pulse`, `pixel_device_info`, `pixel_search_logs`, `pixel_read_clipboard`, `pixel_set_clipboard`, `pixel_memory_recall`, `pixel_memory_store`. They are server exports, not 16 more Delta registry entries. The host's listener/bind state is not established by this declaration.
 
-`McpStore` also contains two **disabled** example remote servers (GitHub and Home Assistant). Discovered remote definitions would be wrapped into Delta's registry with `mcp_` names, but the current keyword router passes `{}` as arguments. Disabling/removing a server only deletes the bookkeeping set: `unregisterServerTools` never removes those wrappers from `ToolRegistry`, so stale entries may remain callable. Neither a connected remote server nor a successful remote tool call is established here.
+`McpStore` also contains two **disabled** example remote servers (GitHub and Home Assistant). Discovered remote definitions would be wrapped into Delta's registry with `mcp_` names, but the current keyword router passes `{}` as arguments. At the pinned 1.0.79 checkpoint, disabling/removing a server only deleted bookkeeping; the 1.0.80 source removes those wrappers and rejects stale in-flight discovery. Neither a connected remote server nor a successful remote tool call is established here.
 
 ## How a request currently moves
 

@@ -2,6 +2,8 @@
 
 Status: source-audited current state and user-directed target, 2026-09-27. The diagrams are explorable HTML with light/dark views. The current diagram is pinned to Delta Mobile commit `83b2319` (1.0.79/code135); local app edits and phone behavior are not claimed as verified by these diagrams.
 
+Implementation update: Delta Mobile 1.0.80 source adds declared-input validation, normalized confirmed calls, MCP unregistering and a per-message tool outcome label in the Nano path. The diagrams remain pinned to 1.0.79 so they show the original split; Live, Gemini API, Laya, Skills and Wiki are still not on one shared turn loop. ARTEMIS reached the installed 1.0.79 Nano chat screen on the wireless Pixel but its provider returned HTTP 402 before submitting a turn, so 1.0.80 remains device-unverified.
+
 - [Current Delta chat architecture](diagrams/current-delta-chat.html) shows the ordinary Nano text path, narrow Laya flashlight branch, Delta tool registry and separate Live path.
 - [Target shared assistant architecture](diagrams/proposed-assistant-harness.html) shows the requested common capability layer. It is a design, not an implemented flow.
 

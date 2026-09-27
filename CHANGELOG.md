@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.51] - 2026-09-27
+
+### Documentation
+- Record Delta Mobile 1.0.80's first Nano harness source increment—argument validation, confirmed-call normalization, MCP wrapper removal and per-message tool outcome UI—against the pinned 1.0.79 inventory and mode diagrams. Preserve the unverified Live/API and ARTEMIS acceptance boundary.
+
+### Verification
+- SDK `npm run verify` passed (80 tests, typecheck, OpenAPI, build and docs contract); package dry run and sibling docs build passed. This is guide/source reconciliation only, with no SDK hook or native behavior change. The historical diagrams remain pinned to the earlier app commit. The local guide-site builder remains absent; unrelated guide chapters, hardware glossary and public hook contracts are unchanged.
+
 ## [1.6.50] - 2026-09-27
 
 ### Documentation
