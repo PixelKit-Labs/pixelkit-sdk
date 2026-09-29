@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.60] - 2026-09-29
+
+### Documentation
+- Update the canonical Delta decision chapter for the 1.0.89 source correction: default-on local Laya respects persisted settings and never downloads automatically; registered deterministic matchers route flashlight and tool-catalog requests while registry policy retains execution authority.
+- Document the Nano prompt-budget correction that retains the current request/persona when optional context is dropped, instead of truncating the latest question.
+- Record the observed false flashlight confirmation and repetitive capabilities reply, the source correction, and the secure-lock-screen limit on corrected phone acceptance. SDK hooks, native APIs, and provider contracts are unchanged.
+
+### Verification
+- Delta Mobile `npm run verify` passed TypeScript, 284/284 tests, and all 52 chat contract cases. SDK `npm run verify` passed 98/98 tests, typecheck, OpenAPI export, builds, and remote 53-hook documentation contract; all three npm package dry-runs completed. SDK version synchronization and OpenAPI export completed at 1.6.60. `node docs/harness-review/build-site.mjs` failed (`MODULE_NOT_FOUND`), so site output and corrected phone behavior remain unverified.
+
 ## [1.6.59] - 2026-09-28
 
 ### Documentation
