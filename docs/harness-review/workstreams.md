@@ -4,15 +4,11 @@ User scope recorded September 26, 2026. This is the active acceptance checklist,
 
 ## 1. Local Laya and the JEV replacement
 
-Delta Mobile 1.0.78/code134 source retains the non-executing intent preview in Settings → Models and removes the old credential cleanup and warning UI. The preview requires a ready model and shows its real candidate, selected probability, and measured decision duration. Current-schema filtering prevents an old opt-in from enabling Laya. Model inference and the screen flow are not yet device-verified. The app's existing seven Node test failures remain a separate baseline issue.
+Delta Mobile 1.0.86/code142 source integrates Laya into the durable Nano Turn Coordinator as advisory intent and bounded tool-selection guidance. The production taxonomy and labeled `tool-intent-v1` corpus cover ordinary chat plus representative memory, hardware, language, web, diagnostics, vision, image, Skills, Wiki, settings, and delegation requests. The conversation persists and displays selected label, uncalibrated probability, margin, disposition, model, and duration.
 
-Delta Mobile 1.0.76/code132 removes the unusable retired cloud benchmark. TypeScript and Android export passed; Node tests remain 155 passed and seven failed. This source version has not been installed, and no new ARTEMIS path or Laya inference is verified.
+Execution authority remains deterministic and fail-closed. Laya cannot create tool arguments, replace an explicit deterministic proposal, execute a tool, change availability, or bypass registry validation and confirmation. A high-score unmatched label can only ask for an explicit command. Disabled, missing, failed, cancelled, and timed-out inference preserve the core harness. The dedicated flashlight-only Laya classifier is removed; flashlight arguments remain deterministic.
 
-Implemented in Delta Mobile 1.0.72/code128: a reusable typed decision interface, local native adapter, model setup/preview settings, and retirement of the active JEV service and key editor. One successful app startup was observed through ARTEMIS after correcting the native/bundle mismatch. Model installation, local inference, and the new settings flow remain unverified on the phone. See [the Laya chapter](laya-decision-layer.md).
-
-Acceptance requires verified missing-model, installation, loading, ready, error, disable and restart states; a real preview with measured inference time; no prompt upload during inference; and preserved explicit-command handling when Laya is unavailable. Check current-schema filtering of old settings. Review wording, progress, recovery and keyboard layout with the user.
-
-The layer is intended to support future intent and MCP/tool candidate routing. The initial connected use remains flashlight clarification. Do not label general tool routing or model-proposed tool arguments as implemented. Execution stays behind the existing registry, capability checks and confirmation policy.
+Source verification covers artifacts, distributions, cancellation quarantine, deadlines, thresholds, routing corroboration/conflict, explicit-command clarification, and unavailable fallback. Acceptance still requires the exact model download/load flow and repeated phone scenarios with app/native/JS identity, model/corpus revision, scores, timings, resource measurements, and hierarchy/screenshot evidence. See [the Laya chapter](laya-decision-layer.md).
 
 ## 2. Fast, reliable voice: STT, TTS and Kokoro
 
@@ -97,4 +93,4 @@ At 12:54, a fresh ARTEMIS screenshot confirmed Delta's Conversations drawer was 
 
 **Cold run:** required runtime/model resources are not already loaded. **Warm run:** the identified resources remain loaded. **BDD:** executable behavior scenarios with explicit preconditions, actions and observed outcomes. **Verified:** supported by recorded evidence for the named build and scenario; not inferred from compilation.
 
-Decision: these four workstreams are the current scope; broader Laya routing stays a separate expansion until the replacement is verified. Hardware APIs, memory architecture and provider contracts are not changed by this planning document. The local guide site builder remains missing, so this Markdown checklist does not imply a rebuilt guide site.
+Decision: Laya intent/tool ranking is implemented for Nano turns behind the durable coordinator; phone model acceptance remains open. Shared Live and Gemini API use remains a separate provider-integration gap. Hardware APIs and memory semantics are unchanged by the 1.0.86 increment.

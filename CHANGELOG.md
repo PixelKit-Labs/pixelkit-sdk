@@ -4,6 +4,22 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.58] - 2026-09-27
+
+### Documentation
+- Define deterministic physical-phone validation as direct, serial-scoped ADB input with an observed ARTEMIS hierarchy or screenshot checkpoint after every user-visible action. Blind batched coordinates and autonomous model delegation are excluded from known validation paths; autonomous ARTEMIS remains appropriate for discovering unknown paths.
+- Keep `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` identical.
+- Update the canonical Delta harness guide for Delta Mobile 1.0.86: Laya now supplies advisory bounded tool-intent ranking and visible uncalibrated score provenance inside the Nano coordinator; deterministic arguments and registry policy retain authority.
+- Add the canonical Delta chat E2E chapter for the versioned 52-case application-chat input/output, tool, Skill, Wiki, MCP, Laya, voice-turn privacy, and response-UI contract. Record result-schema-v2 evidence, the generated manual, expected-versus-actual Laya assessment, remediation-owner reports, linked reruns, and explicit non-causal Laya influence.
+
+### Cleanup
+- Remove transient root package and verification logs and ignore future `.*-pack.log` and `.*-verify.log` scratch output.
+
+### Verification
+- Confirmed the three agent guides have identical SHA-256 hashes. Version synchronization and OpenAPI export completed at 1.6.58.
+- Delta harness-review chapters distinguish Nano guidance from separate Live/API paths and record both the 1.0.86/code142 USB checkpoint and 1.0.87/code143 result-schema-v2 phone reruns. Typed-turn TTS no longer starts continuous speech recognition; Laya remained non-causal but incorrectly returned `use_skill` for the exact greeting at 100% uncalibrated under `tool-intent-v2`, leaving model training and the full 26-case evaluation open.
+- `npm run verify` passed 98 tests, typecheck, OpenAPI 3.1 validation/export, all package builds, and the remote 53-hook documentation contract. The canonical guide site builder is absent (`MODULE_NOT_FOUND`), so no rebuilt site is claimed.
+
 ## [1.6.57] - 2026-09-27
 
 ### Changed

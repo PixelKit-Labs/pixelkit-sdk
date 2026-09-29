@@ -27,6 +27,8 @@ yarn-debug.*
 yarn-error.*
 debug.log
 .preview-check.mjs
+.*-pack.log
+.*-verify.log
 /%SystemDrive%/
 
 # Local device evidence and generated review output

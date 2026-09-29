@@ -1,16 +1,16 @@
 # Delta system integration audit
 
-Status: source audit and implementation checkpoint, 2026-09-27. The current released app increment is Delta Mobile 1.0.83/code139. PixelKit SDK 1.6.56 source now contains explicit per-run capability and trace ownership, but its integrated checks, package publication, Delta migration and unlocked-device evidence are pending. The installed phone remained behind secure keyguard during the latest authorized check, so no new physical hardware, wake, voice, or model behavior is claimed.
+Status: source audit with a Delta Mobile 1.0.86/code142 update, 2026-09-28. The detailed flow and findings below preserve the 1.0.83 baseline where explicitly stated. Nano now uses a durable Turn Coordinator; Live and Gemini API remain separate. The authorized Pixel verified 1.0.85/code141 startup, one hardware battery turn, and a 28-turn Nano conversation, but Laya was disabled and missing.
 
 ## Decision
 
-Delta does not yet have one agent harness. The normal Nano conversation is a deterministic pre-model dispatcher; Gemini Live, the SDK cloud agent, and the ADK diagnostic code are separate execution systems. Skills are guidance, roster entries are prompt contexts, and Wiki pages are cited local notes. None of those labels means a workflow or sub-agent ran.
+Delta now has one bounded harness for Nano turns, including durable input, context, deterministic proposals, registry policy, confirmation, checkpoints, tool results, continuation, and terminal projection. This is not yet one harness across all provider modes: Gemini Live and the SDK cloud/API paths remain separate execution systems.
 
-Keep the current truthful fail-closed surfaces while replacing the split paths with one bounded coordinator. Do not broaden Laya, enable cloud hardware tools, or automate Wiki/Skill writes before that coordinator owns persistence, policy, confirmation, cancellation, tracing, and result evidence.
+Laya may rank bounded tool intents inside the Nano coordinator but remains untrusted. It cannot create arguments, execute calls, grant capabilities, or bypass confirmation. Skills and Wiki supply provenance-bearing guidance/context rather than privileged execution. Provider unification must reuse these boundaries rather than create another registry.
 
-PixelKit SDK 1.6.56 is the first implemented foundation step. Its former mutable global AI tool registry is replaced by immutable run-owned adapters with strict input/output validation, availability preflight, external effect authorization, deadlines and cancellation. Explicit trace context now crosses cloud, Live, ADK, Nano, recognition and TTS boundaries; bounded local sinks redact sensitive payloads and ignore late callbacks after a scope ends. This does not by itself unify Delta: the app must still build the adapter, own the root context and route every provider through the coordinator.
+PixelKit SDK and Delta retain separate ownership: the SDK supplies hardware/native hooks and explicit traces; Delta owns turn policy, root identity, persistence, and provider adapters.
 
-## Current request and response flow
+## 1.0.83 baseline request and response flow
 
 ```mermaid
 flowchart LR
@@ -132,18 +132,19 @@ The solid path is the normal local conversation. Dashed paths bypass parts of it
 
 ### Implemented
 
-- Laya is optional and off by default. An explicit button downloads four revision-pinned files (about 613 decimal MB) from Hugging Face; file sizes are checked before staged files replace the current model.
-- Loading is serialized and lazy. `loadMobileFusedAgent` is configured with `executionProvider: "cpu"`.
-- Explicit flashlight commands are resolved locally without Laya. Only an ambiguous flashlight phrase can call Laya when the setting is enabled.
-- Laya returns an untrusted candidate used to improve a clarification. It never authorizes the torch or executes a registry tool.
+- Laya is optional and off by default. Settings explicitly discloses and downloads four revision-pinned files totaling 613,050,729 bytes, verifies exact sizes and SHA-256 digests, and atomically publishes them.
+- Loading and prediction are serialized on the observed CPU provider. Caller deadlines and stale-request quarantine prevent late results from affecting another turn.
+- `toolIntentGuidance.ts` defines bounded tool labels and a labeled corpus. The router creates deterministic calls/arguments first, then records Laya's suggested label, uncalibrated probability, runner-up margin, disposition, model, and duration.
+- Matching guidance corroborates a proposal. Disagreement is visible but cannot replace it. With no deterministic call, a score of at least 0.80 and margin of at least 0.20 can only ask for an explicit command.
+- Terminal outcomes persist the guidance; conversation UI renders `LAYA · ADVISORY`; model context treats it as untrusted data.
 
 ### Boundaries and gaps
 
-- Laya is not a general router, planner, MCP selector, argument generator, Skill runner, or sub-agent.
-- The 15-second caller deadline does not cancel native model loading or inference already queued behind the serializer.
-- Model probability is not measured intent accuracy; there is no calibrated threshold, task corpus, false-action rate, or device latency/power acceptance for routing.
-- The current uncommitted Settings redesign says Laya runs on the Tensor G6 TPU, but the service explicitly selects CPU inference. That copy must be corrected without folding unrelated owner changes into an audit commit.
-- Downloads are explicit and size-pinned but not hash/signature verified, resumable, metered-network aware, or centrally managed with the wake models.
+- Laya is not an executor, argument generator, planner, Skill runner, permission system, or sub-agent.
+- The 15-second caller deadline cannot forcibly cancel native model loading or inference already executing; late results are quarantined.
+- The threshold is policy, not calibrated accuracy. Device confusion, false-guidance rate, warm/cold latency, memory, thermal, and power evidence remain open.
+- The dedicated flashlight-only model branch is removed. Flashlight state arguments remain deterministic.
+- Nano integration is implemented; Live and Gemini API do not yet consume this coordinator guidance.
 
 ## 7. OpenWakeWord and transcript wake matching
 
@@ -276,3 +277,4 @@ Device boundary: the 651,687,677-byte 1.0.83/code139 debug APK (`SHA-256 C2B0910
 - 2026-09-27: do not choose an arbitrary wake threshold from one failed enrollment; require measured calibration and device acceptance.
 - 2026-09-27: keep shared coordinator, cloud policy, specialist execution form, and wake-template privacy policy open pending explicit user feedback.
 - 2026-09-27: implement SDK-owned immutable capability adapters, explicit asynchronous trace ownership and verified native credential removal as a source foundation; keep SDK verification/publication, Delta integration and phone evidence open.
+- 2026-09-28: Nano's bounded coordinator is implemented. Broaden Laya only as advisory intent/tool-selection guidance inside that coordinator; keep argument construction and every execution authority deterministic. Persist and display score provenance. Remove the obsolete flashlight-only model path.

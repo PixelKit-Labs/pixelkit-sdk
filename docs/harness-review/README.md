@@ -39,6 +39,11 @@ The [application reliability review](application-reliability-review.md) tracks
 source-confirmed failures in persistence, MCP lifecycle, and AI Lab result
 truthfulness, with the current automated-check and ARTEMIS evidence boundary.
 
+The [chat E2E validation chapter](chat-e2e-validation.md) defines Delta Mobile's
+versioned 52-case application-chat input/output, tool, Skill, Wiki, MCP, Laya,
+voice-turn privacy and response-UI contract; the generated manual; result-schema-v2
+ARTEMIS evidence; and the remediation-owner loop for source corrections and reruns.
+
 The [unified agent harness research and implementation contract](unified-agent-harness-research.md)
 compares production tool loops, chat event models, group orchestration,
 subagents, Skills, evidence-backed retrieval, telemetry and evaluation against
