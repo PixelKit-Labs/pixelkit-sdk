@@ -4,6 +4,17 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.59] - 2026-09-28
+
+### Documentation
+- Update the canonical Delta harness guide for Delta Mobile 1.0.88: compact Flow status now shares the assistant metadata line, while expansion exposes complete Laya and execution provenance with nested redacted I/O.
+- Record `tool-intent-v10`: the strongest measured 32-label primary classifier conditionally invokes a two-option model verifier only for ambiguous `use_skill` results. Exact greeting and joke cases now select no-tool without granting Laya routing or execution authority.
+
+### Verification
+- Delta Mobile `npm run verify` passed TypeScript, 278/278 tests across 65 suites, and the 52-case/eight-area chat contract validator.
+- One pinned-checkpoint Pixel CPU evaluation completed 26/26 cases with zero inference failures: 76.9% accuracy, 0.3753942774 Brier score, 0.1569807446 ECE, and 489.15 ms mean latency. Memory, thermal, and power remain unmeasured.
+- Version synchronization and OpenAPI export completed at 1.6.59. The canonical guide site builder remains absent, so no rebuilt guide site is claimed.
+
 ## [1.6.58] - 2026-09-27
 
 ### Documentation
