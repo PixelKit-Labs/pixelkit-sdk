@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.63] - 2026-09-29
+
+### Documentation
+- Document Delta 1.0.92's registry-derived Laya choice catalog, v12 evaluation snapshots, automatic suggestion refresh, and unchanged tool execution boundary. Earlier static v11 quality measurements remain historical; no model retraining or large-catalog performance claim.
+- Synchronize package versions and generated OpenAPI exports to 1.6.63. SDK hook, native module, and non-causal routing contracts are unchanged.
+
+### Verification
+- SDK `npm run verify` passed 98/98 tests, typecheck, builds, OpenAPI check/export, and remote 53-hook documentation contract; three npm dry-run packages and pixelkit-docs `npm run check:api` passed. Delta `npm run verify` passed 287/287 tests and 52 chat contracts; Android arm64 `assembleDebug` succeeded. The canonical guide site builder remains absent (`MODULE_NOT_FOUND`), so generated site output is unverified. Other guide chapters, routing diagrams, hardware glossary, and hook contracts require no update.
+- Wireless Pixel 11 Pro `adb-66110DLKX001YW-5R845E._adb-tls-connect._tcp` ran Delta 1.0.92/code148 with clean Metro JavaScript. ARTEMIS observed Settings → Models withholding stale v11 accuracy. A 27/27 v12 CPU run archived 35 exact candidate choices and scored 19 correct (70.4%), eight misses, mean inference 497.56 ms; this regressed versus earlier v11 20/27. Dynamic MCP registration, live tool calls, and memory/thermal/power measurements were not exercised in this checkpoint.
+
 ## [1.6.62] - 2026-09-29
 
 ### Documentation
