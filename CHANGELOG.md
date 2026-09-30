@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.62] - 2026-09-29
+
+### Documentation
+- Record the seven measured `tool-intent-v11` misclassifications, the separately archived future labeled runs, and plainly labeled model suggestions versus rule-selected tools in the canonical Delta guide. Update the glossary; routing diagrams and SDK hook/native contracts remain unchanged.
+- Synchronize all package versions and generated OpenAPI specifications to 1.6.62.
+
+### Verification
+- SDK `npm run verify` passed 98/98 tests, typecheck, OpenAPI export/check, builds, and the remote 53-hook contract; all three npm package dry-runs passed. pixelkit-docs `npm run check:api` passed. Canonical `node docs/harness-review/build-site.mjs` remains unavailable (`MODULE_NOT_FOUND`), so generated site output is unverified.
+- Delta `npm run verify` passed 286/286 tests and 52 chat contract cases. On the wireless Pixel 11 Pro, installed Delta 1.0.91/code147 with clean Metro JS showed the Laya suggestions and seven labeled misses; two 27-case CPU runs kept distinct private archives, each with 20 correct and seven misses. Model scores did not grant tool authority; memory/thermal/power measurements remain unverified. Other guide chapters and non-causal diagrams require no update.
+
 ## [1.6.61] - 2026-09-29
 
 ### Documentation
