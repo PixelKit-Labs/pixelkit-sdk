@@ -4,6 +4,16 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.61] - 2026-09-29
+
+### Documentation
+- Record Delta Mobile 1.0.90's complete registry-backed capability list and source-level fix for cut-off user input: original persisted bubbles, visible rejection over 8,000 characters, no partial tool turn.
+- Record the wireless Pixel's local `tool-intent-v11` CPU evaluation: 27/27 completed, 74.1% accuracy, 0.4077762408 Brier score, 0.1902499756 ECE, 488.44 ms mean latency; Laya remains non-causal advisory, with memory/thermal/power unmeasured. SDK hook and native contracts are unchanged.
+
+### Verification
+- SDK `npm run verify` passed 98/98 tests, typecheck, OpenAPI check/export, builds and the remote 53-hook docs contract; three npm package dry-runs completed. Version synchronization and generated OpenAPI export completed for 1.6.61.
+- Delta Mobile `npm run verify` passed 285/285 tests and 52 chat contracts. The Pixel 11 Pro reported installed Delta 1.0.90/code146; real `set_torch` on/off completed with verified state, `get_battery` returned 74%, and `list_tools` displayed 34 tool names. One original bubble containing `User:` and `Answer` rendered intact. The canonical site builder is absent (`MODULE_NOT_FOUND`); local Markdown is current, generated site output unverified. Other guide chapters, diagrams and glossary are unchanged.
+
 ## [1.6.60] - 2026-09-29
 
 ### Documentation
