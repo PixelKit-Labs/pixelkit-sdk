@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.71] - 2026-10-01 (unreleased)
+
+### Documentation
+- Extend the canonical Local Gemini audit with Delta 1.0.99's language-tool boundary cases and the unchanged physical-device limits. Synchronize SDK source manifests and generated OpenAPI identity only; no SDK code or public hook contract changed, **no v1.6.71 tag was pushed**, and the public docs remain on published SDK 1.6.68.
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 328/328 unit tests and validation of 52 chat case definitions after removing three mock-echo language assertions. The authorized Pixel remains in personal use; no new Nano, speech, gesture, gallery, or physical-tool device results exist. Other SDK guide sections, glossary definitions, diagrams and hook contracts remain unchanged; the guide-site builder is absent, so generated site output remains unverified.
+
 ## [1.6.70] - 2026-10-01 (unreleased)
 
 ### Documentation
