@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.67] - 2026-09-30
+
+### Documentation
+- Add the Local Gemini conversation/multimodal audit chapter with source, browser and two-turn Pixel evidence, token/context and image handling decisions, and explicit phone-verification gaps. Update the guide index and correct its obsolete coordinator integration claim; SDK hook/native contracts remain unchanged.
+- Synchronize root/native/ML Kit/SDK identities and generated OpenAPI exports to 1.6.67.
+
+### Verification
+- SDK `npm run verify` passed typecheck, 98/98 tests, OpenAPI checks, builds and the remote 53-hook docs contract; pixelkit-docs `npm run check:api` passed. Delta's focused coordinator, voice/wake and 52-case chat-contract checks plus isolated browser image/model-choice interactions are recorded in the new chapter. Delta 1.0.96/code152 was installed on the Pixel and its package identity confirmed, but its updated JavaScript/model behavior is not device-verified because the phone is locked; installed 1.0.94/code150 supplied only a two-turn baseline. The guide-site builder was attempted and is absent (`MODULE_NOT_FOUND`), so generated site output is unverified. Other SDK API, native hardware, provider protocol and diagram sections are unchanged; the new glossary is local to the audit chapter.
+
 ## [1.6.66] - 2026-09-29
 
 ### Documentation

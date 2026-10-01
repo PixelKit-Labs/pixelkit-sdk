@@ -44,11 +44,17 @@ versioned 52-case application-chat input/output, tool, Skill, Wiki, MCP, Laya,
 voice-turn privacy and response-UI contract; the generated manual; result-schema-v2
 ARTEMIS evidence; and the remediation-owner loop for source corrections and reruns.
 
+The [Local Gemini conversation and multimodal audit](local-gemini-audit.md)
+tracks the on-device prompt/context boundary, durable composer acceptance, image
+storage and viewer, model track selection, concurrent trace/journal ownership,
+and the still-unverified Pixel voice/tool/image matrix. The two-turn baseline and
+isolated browser checks do not establish updated-build device acceptance.
+
 The [unified agent harness research and implementation contract](unified-agent-harness-research.md)
 compares production tool loops, chat event models, group orchestration,
 subagents, Skills, evidence-backed retrieval, telemetry and evaluation against
 Delta's source-audited gaps. Its
-[interactive architecture](diagrams/unified-delta-harness.html) remains the target rather than a device-verified flow. PixelKit SDK 1.6.56 source implements the first capability-adapter and trace-ownership foundation; Delta coordinator integration and runtime acceptance remain pending.
+[interactive architecture](diagrams/unified-delta-harness.html) remains a target rather than a device-verified flow. The Delta coordinator implements the capability and trace ownership path; full real-model/tool/device acceptance remains pending.
 
 The [system integration audit](system-integration-audit.md) traces the current
 Harness, tool loop, Skills, Wiki, Memory, roster/cloud agents, Laya,
