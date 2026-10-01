@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.68] - 2026-10-01
+
+### Fixed
+- `useMediaLibrary().save()` checks write-only gallery permission independently of read permission, requests only the grant needed for unnamed image saves, and uses SDK 57 `Asset.create` rather than deprecated `saveToLibraryAsync`. An existing named album requires read access. Media permission, asset creation, metadata and album operations now produce traced outcomes; failures surface through `error` instead of silently treating an album lookup failure as an absent album.
+- Synchronize root, native, ML Kit, SDK and generated OpenAPI identities to 1.6.68; update the media hook contract and Delta gallery integration guidance. No public hook shape or hardware module implementation changes.
+
+### Verification
+- `npm run verify` passed TypeScript, 98/98 tests, OpenAPI regeneration, all package builds and the remote 53-hook documentation contract. Local `check-docs-contract` passed against the updated unpublished contract; pixelkit-docs `check:api` passed 53 hooks, and `npm pack --dry-run` passed all three packages. On-device write-only grant and Photos artifact still require a Delta client run against the published SDK; the obsolete direct Expo save call cannot count as success. The media hook docs, guide evidence, and generated OpenAPI were updated; unrelated chapters, diagrams and glossary sections are unchanged.
+
 ## [1.6.67] - 2026-09-30
 
 ### Documentation

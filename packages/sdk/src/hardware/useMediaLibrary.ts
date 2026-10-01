@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Album, Asset, AssetField, Query, requestPermissionsAsync, getPermissionsAsync } from 'expo-media-library';
-import { logEvent, type TelemetrySource } from '../core/observability';
+import { logError, logEvent, traced, tracedSafe, type TelemetrySource } from '../core/observability';
 
 const MODULE = 'useMediaLibrary';
 
@@ -53,6 +53,7 @@ async function describe(asset: Asset): Promise<SavedMedia> {
 
 export function useMediaLibrary() {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const [writePermissionGranted, setWritePermissionGranted] = useState<boolean>(false);
   /** Android 13+: the user may have shared only some items rather than the whole library. */
   const [hasLimitedAccess, setHasLimitedAccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -61,27 +62,36 @@ export function useMediaLibrary() {
   const [lastSaved, setLastSaved] = useState<SavedMedia | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const source: TelemetrySource = permissionGranted ? 'hardware' : 'unavailable';
+  const source: TelemetrySource = permissionGranted || writePermissionGranted ? 'hardware' : 'unavailable';
 
   useEffect(() => {
-    getPermissionsAsync()
+    void tracedSafe(MODULE, 'readPermissionStatus', () => getPermissionsAsync(false), null)
       .then(p => {
+        if (!p) { setError('Could not check media library read permission'); return; }
         setPermissionGranted(p.granted);
         setHasLimitedAccess(p.accessPrivileges === 'limited');
-      })
-      .catch(() => setPermissionGranted(false));
+      });
+    void tracedSafe(MODULE, 'writePermissionStatus', () => getPermissionsAsync(true), null)
+      .then(p => {
+        if (p) setWritePermissionGranted(p.granted);
+        else setError('Could not check media library write permission');
+      });
   }, []);
 
   /** Asks for library access. Pass true when the app only needs to write. */
   const requestPermission = useCallback(async (writeOnly = false): Promise<boolean> => {
     try {
-      const p = await requestPermissionsAsync(writeOnly);
-      setPermissionGranted(p.granted);
-      setHasLimitedAccess(p.accessPrivileges === 'limited');
-      logEvent(MODULE, 'permission', { granted: p.granted, privileges: p.accessPrivileges });
+      const p = await traced(MODULE, 'requestPermission', () => requestPermissionsAsync(writeOnly), { writeOnly });
+      if (writeOnly) {
+        setWritePermissionGranted(p.granted);
+      } else {
+        setPermissionGranted(p.granted);
+        setHasLimitedAccess(p.accessPrivileges === 'limited');
+      }
+      logEvent(MODULE, 'permission', { granted: p.granted, privileges: p.accessPrivileges, writeOnly });
       return p.granted;
-    } catch (e: any) {
-      setError(e?.message ?? 'Permission request failed');
+    } catch (e) {
+      setError(logError(MODULE, 'permissionFailed', e).message);
       return false;
     }
   }, []);
@@ -94,34 +104,40 @@ export function useMediaLibrary() {
     setError(null);
     setIsSaving(true);
     try {
-      if (!permissionGranted) {
-        const granted = await requestPermission(false);
+      if (!writePermissionGranted) {
+        const granted = await requestPermission(true);
         if (!granted) {
-          setError('Media library permission denied');
+          setError('Media library write permission denied');
           return null;
         }
       }
       let album: Album | undefined;
       if (albumName) {
-        album = (await Album.get(albumName).catch(() => null)) ?? undefined;
+        if (!permissionGranted && !await requestPermission(false)) {
+          setError('Media library read permission is required to select an album');
+          return null;
+        }
+        album = (await traced(MODULE, 'findAlbum', () => Album.get(albumName))) ?? undefined;
       }
-      const asset = await Asset.create(localUri, album);
+      const asset = await traced(MODULE, 'createAsset', () => Asset.create(localUri, album));
       if (albumName && !album) {
-        // No album by that name yet, so make one holding this asset.
-        await Album.create(albumName, [asset], false).catch(() => undefined);
+        try {
+          await traced(MODULE, 'createAlbum', () => Album.create(albumName, [asset], false));
+        } catch (e) {
+          setError(`Saved media but could not create album: ${logError(MODULE, 'albumFailed', e).message}`);
+        }
       }
-      const described = await describe(asset);
+      const described = await traced(MODULE, 'describeSavedAsset', () => describe(asset));
       setLastSaved(described);
       logEvent(MODULE, 'saved', { filename: described.filename, album: albumName ?? null });
       return described;
-    } catch (e: any) {
-      setError(e?.message ?? 'Could not save to the media library');
-      logEvent(MODULE, 'save error', { message: e?.message }, 'error');
+    } catch (e) {
+      setError(logError(MODULE, 'saveFailed', e).message);
       return null;
     } finally {
       setIsSaving(false);
     }
-  }, [permissionGranted, requestPermission]);
+  }, [permissionGranted, writePermissionGranted, requestPermission]);
 
   /** Reads the newest items, most recent first. */
   const loadRecent = useCallback(async (limit = 20): Promise<SavedMedia[]> => {

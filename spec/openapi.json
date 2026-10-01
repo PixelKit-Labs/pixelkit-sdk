@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PixelKit SDK API",
-    "version": "1.6.67",
+    "version": "1.6.68",
     "description": "OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).\n\n### The Zero-Simulation Principle\nEvery telemetry read exposes `source: 'hardware' | 'derived' | 'unavailable'`.\n- Fabricated readings are completely unrepresentable in this specification.\n- Unreadable sensor readings are `null` and report `unavailable`.\n- Actuators reject with an explicit reason in `error` when hardware is unavailable or disabled.\n\nCovers all 53 typed hardware and AI hooks, low-overhead native telemetry, and actuators.",
     "contact": {
       "name": "PixelKit Labs",
@@ -4148,7 +4148,7 @@
     "/hooks/useMediaLibrary": {
       "get": {
         "summary": "Saving captures to the gallery, and reading what is there.",
-        "description": "Puts a photo or video into the user's own gallery, where it survives and other apps can see it. Without this a capture sits in the app's cache and disappears when the system needs space. Also lists recent items and can delete one.\n\nWraps expo-media-library. SDK 57 uses the class API (Asset.create, Album.create, Query) rather than the deprecated createAssetAsync helpers, which now throw at runtime. Asset fields are async accessors, so the hook flattens each into a plain SavedMedia object that a list can render directly. Permission is more subtle than a yes or no on modern Android: access is granted per media type, and the user can share only selected items, which is what hasLimitedAccess reports.",
+        "description": "Puts a photo or video into the user's own gallery, where it survives and other apps can see it. Without this a capture sits in the app's cache and disappears when the system needs space. Also lists recent items and can delete one.\n\nWraps expo-media-library. SDK 57 uses Asset.create, Album.create, and Query; deprecated saveToLibraryAsync and createAssetAsync throw. save() requests write-only access and does not require read permission unless an album name is supplied. Read and write grants are tracked independently: permissionGranted and hasLimitedAccess describe browsing, not permission to add new media. Asset fields are async accessors flattened into a SavedMedia object; failures surface through error.",
         "operationId": "get_useMediaLibrary",
         "tags": [
           "system-media"
@@ -4170,7 +4170,7 @@
     "/hooks/useMediaLibrary/actions/requestPermission": {
       "post": {
         "summary": "Invoke requestPermission (useMediaLibrary)",
-        "description": "Asks for media library access.\n\n**Output Contract**: Resolves true when granted. hasLimitedAccess becomes true when the user shared only selected items, so a grant is not full access.",
+        "description": "Asks for read access by default, or only write access when writeOnly is true.\n\n**Output Contract**: Resolves true when granted. A write-only grant does not set permissionGranted or imply browsing rights; hasLimitedAccess describes read access.",
         "operationId": "useMediaLibrary_requestPermission",
         "tags": [
           "system-media"
@@ -4202,7 +4202,7 @@
     "/hooks/useMediaLibrary/actions/save": {
       "post": {
         "summary": "Invoke save (useMediaLibrary)",
-        "description": "Copies a capture out of the app cache into the user media store, where it survives.\n\n**Output Contract**: Resolves with { id, uri, filename, width, height, durationSeconds, creationTime }, or null when permission was denied or the write failed.",
+        "description": "Copies a local capture into the user media store using SDK 57 Asset.create; requests write-only permission automatically, and read permission only if selecting a named album.\n\n**Output Contract**: Resolves with { id, uri, filename, width, height, durationSeconds, creationTime }, or null when the grant or write fails; error explains the failure. A failed album creation after the asset is saved is reported in error without claiming that the file itself failed to save.",
         "operationId": "useMediaLibrary_save",
         "tags": [
           "system-media"
@@ -15024,11 +15024,11 @@
       },
       "useMediaLibraryTelemetry": {
         "type": "object",
-        "description": "Saving captures to the gallery, and reading what is there.\n\nWraps expo-media-library. SDK 57 uses the class API (Asset.create, Album.create, Query) rather than the deprecated createAssetAsync helpers, which now throw at runtime. Asset fields are async accessors, so the hook flattens each into a plain SavedMedia object that a list can render directly. Permission is more subtle than a yes or no on modern Android: access is granted per media type, and the user can share only selected items, which is what hasLimitedAccess reports.",
+        "description": "Saving captures to the gallery, and reading what is there.\n\nWraps expo-media-library. SDK 57 uses Asset.create, Album.create, and Query; deprecated saveToLibraryAsync and createAssetAsync throw. save() requests write-only access and does not require read permission unless an album name is supplied. Read and write grants are tracked independently: permissionGranted and hasLimitedAccess describe browsing, not permission to add new media. Asset fields are async accessors flattened into a SavedMedia object; failures surface through error.",
         "properties": {
           "permissionGranted": {
             "type": "boolean",
-            "description": "Whether library access was granted."
+            "description": "Whether browsing the media library is permitted; save() separately requests write-only access."
           },
           "hasLimitedAccess": {
             "type": "boolean",
@@ -15078,7 +15078,7 @@
               "derived",
               "unavailable"
             ],
-            "description": "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+            "description": "Hardware when read or write gallery permission is granted; unavailable otherwise."
           }
         },
         "required": [
@@ -15104,7 +15104,7 @@
             "description": "Whether the hardware accepted the command."
           },
           "output": {
-            "description": "Resolves true when granted. hasLimitedAccess becomes true when the user shared only selected items, so a grant is not full access."
+            "description": "Resolves true when granted. A write-only grant does not set permissionGranted or imply browsing rights; hasLimitedAccess describes read access."
           },
           "error": {
             "anyOf": [
@@ -15152,7 +15152,7 @@
             "description": "Whether the hardware accepted the command."
           },
           "output": {
-            "description": "Resolves with { id, uri, filename, width, height, durationSeconds, creationTime }, or null when permission was denied or the write failed."
+            "description": "Resolves with { id, uri, filename, width, height, durationSeconds, creationTime }, or null when the grant or write fails; error explains the failure. A failed album creation after the asset is saved is reported in error without claiming that the file itself failed to save."
           },
           "error": {
             "anyOf": [
