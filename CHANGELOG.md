@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.64] - 2026-09-29
+
+### Documentation
+- Record Delta Mobile 1.0.93's simplified conversation header and direct New chat action in the canonical UI chapter. Conversation creation uses the existing session store; SDK hook and hardware contracts are unchanged.
+- Synchronize SDK package versions and generated OpenAPI exports to 1.6.64.
+
+### Verification
+- `npm run verify` passed SDK typecheck, 98/98 tests, builds, OpenAPI checks and the remote 53-hook docs contract. Three npm package dry-runs and pixelkit-docs `npm run check:api` passed. Delta's focused session tests (9/9), chat contracts (52), Android arm64 debug build, and 1.0.93/code149 Pixel header/New chat interaction passed; its full Node suite has 21 failures in concurrently added, untracked `test/allToolsComprehensive.test.ts`. `node docs/harness-review/build-site.mjs` remains unavailable (`MODULE_NOT_FOUND`), so generated guide-site output is unverified. Other chapters, diagrams, glossary, hook contracts, and hardware/API references need no change.
+
 ## [1.6.63] - 2026-09-29
 
 ### Documentation
