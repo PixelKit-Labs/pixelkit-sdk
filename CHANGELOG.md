@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.65] - 2026-09-29
+
+### Documentation
+- Record Delta Mobile 1.0.94's custom New chat Error popup, dismissal/retry path, and unchanged session-store failure boundary in the canonical UI chapter.
+- Synchronize SDK package versions and generated OpenAPI exports to 1.6.65; SDK hook/native contracts are unchanged.
+
+### Verification
+- SDK `npm run verify` passed typecheck, 98/98 tests, OpenAPI checks, builds and the remote 53-hook documentation contract. All three npm package dry-runs and pixelkit-docs `npm run check:api` passed. Delta typecheck, focused session tests (9/9), 52 chat contracts, Android arm64 build, and installation of 1.0.94/code150 on the Pixel passed. The New chat Error popup and dismissal/retry behavior were observed in an isolated Expo web runtime; the Pixel's error path was not exercised while another actor was using its conversation. `node docs/harness-review/build-site.mjs` failed with `MODULE_NOT_FOUND`, so generated guide-site output is unverified. Other guide chapters, diagrams, glossary, hook contracts and hardware/API references need no change.
+
 ## [1.6.64] - 2026-09-29
 
 ### Documentation
