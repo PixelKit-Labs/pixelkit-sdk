@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.70] - 2026-10-01 (unreleased)
+
+### Documentation
+- Update the Local Gemini audit chapter with Delta's 1.0.98 test-only registry contract correction and 328 passing unit checks. Distinguish isolated 34-tool unit fixtures from unresolved through-Nano and hardware acceptance; no 1.0.98/code154 APK is installed. Synchronize SDK source manifests and generated OpenAPI identities; **no v1.6.70 tag was pushed** and the pixelkit-docs public OpenAPI remains on released 1.6.68.
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 328/328 unit tests, and validation of 52 chat case definitions. Authorized Pixel `adb-66110DLKX001YW-5R845E._adb-tls-connect._tcp` was observed in another person's YouTube Shorts session, so Nano follow-up, physical tools, image gestures and gallery save remain unverified. SDK public hooks, native modules, diagrams and unrelated guide chapters remain unchanged. The guide-site builder remains absent at `docs/harness-review/build-site.mjs`; generated site output is unverified.
+
 ## [1.6.69] - 2026-10-01 (unreleased)
 
 ### Documentation
