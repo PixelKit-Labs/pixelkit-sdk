@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.69] - 2026-10-01 (unreleased)
+
+### Documentation
+- Record the installed Delta 1.0.97/code153 Pixel checkpoint, published SDK 1.6.68 consumption, one successful Nano instruction-following turn, bounded older-topic retrieval and its unresolved second-turn/image checks in the canonical Local Gemini guide. Compare session continuity with OpenAI Agents SDK and LangGraph without adding either dependency. Synchronize source manifests and generated OpenAPI identity; **no v1.6.69 tag was pushed** and the public documentation API remains at the released 1.6.68.
+
+### Verification
+- Delta TypeScript, 27 earlier coordinator/compaction tests and seven updated compaction tests passed; 52 chat contract definitions validated. `npm run verify` in Delta reported 306/327 unit tests passing and 21 failures in a newly authored comprehensive-tool suite expecting fields/wording absent from actual tool responses; those assertions do not establish a 34-tool device verdict. Delta's arm64 1.0.97/code153 APK with released SDK 1.6.68 was installed on Pixel `adb-66110DLKX001YW-5R845E._adb-tls-connect._tcp`; one new Nano input received `ACK`, while another actor locked the phone before follow-up, native gallery and pinch checks. The guide-site builder still cannot run: `docs/harness-review/build-site.mjs` is absent (`MODULE_NOT_FOUND`). Other guide sections, diagrams and public hook/native contracts are unchanged; npm 1.6.69 is **not published**.
+
 ## [1.6.68] - 2026-10-01
 
 ### Fixed
