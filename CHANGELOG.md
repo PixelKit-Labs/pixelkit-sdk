@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.76] - 2026-10-02 (unreleased)
+
+### Documentation
+- Accept the user's continuing Nano repetition/context report; document Delta 1.0.103's nonadjacent saved-reply guard and Regenerate's duplicate rejection, the desktop regression, and the unverified physical acceptance path in the canonical guide. Synchronize source package and local OpenAPI identities only; no SDK API/native changes, **no v1.6.76 tag was pushed**, and public pixelkit-docs remains on published 1.6.68.
+
+### Verification
+- A Delta coordinator test reproduced an earlier-answer repeat before correction and passed afterward; Delta `npm run verify` passed TypeScript, 333/333 tests and 52 chat definitions. SDK `npm run verify` passed TypeScript, 98/98 tests, OpenAPI checks, build and the remote 53-hook contract. Phone evaluation remains blocked until the user's explicit handoff. Other guide chapters, public contracts, glossary and diagrams are unchanged; the absent site builder leaves generated guide-site output unverified.
+
 ## [1.6.75] - 2026-10-01 (unreleased)
 
 ### Documentation
