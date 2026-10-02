@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.77] - 2026-10-02 (unreleased)
+
+### Documentation
+- Record the authorized Pixel's exact Gemini Nano response ledger, including two visible duplicate Regenerate failures, an excluded-topic violation, later prompt-order correction, intentional repeat, longer-chat recall, isolated new chat and current battery/thermal read. Add the installed Delta 1.0.104/code160 bundled-JS release-variant result: context recall worked but Regenerate still failed to produce a new telescope joke. Document the debug signing and unresolved production gates in the canonical guide. Synchronize SDK/ML Kit/native/root source manifests and local OpenAPI to 1.6.77 with `scripts/sync-versions.js`; no SDK API or native implementation changed, no tag was pushed, and public pixelkit-docs remains on released 1.6.68.
+
+### Verification
+- Physical Pixel `66110DLKX001YW` ran both the installed Delta 1.0.97/code153 debug client with SDK 1.6.68 and Metro8095 development JavaScript (per-generation Nano traces/timings), and then Delta 1.0.104/code160 bundled-JS release variant signed with a debug keystore after removing Metro reverse. The latter persisted prior chats and returned `Otter` and a telescope joke, but a Regenerate attempt failed and preserved the original; release logcat did not supply native timing. Delta `npm run verify` passed TypeScript, 333/333 tests and 52 chat definitions. SDK `npm run verify` passed TypeScript, 98/98 tests, build and remote 53-hook contract; npm pack dry run passed all three packages. SDK guide-site builder remains absent; no generated site claim. Other SDK guide chapters, public hook contracts, glossary and diagrams remain unchanged.
+
 ## [1.6.76] - 2026-10-02 (unreleased)
 
 ### Documentation
