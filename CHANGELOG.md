@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.74] - 2026-10-01 (unreleased)
+
+### Documentation
+- Record a physical Nano/SOP truthfulness failure and a battery-result/history conflict in the canonical Local Gemini audit, plus Delta 1.0.102's direct guidance-only `use_skill` response and current-tool-result prompt priority. Synchronize source package and local OpenAPI identities only; no SDK code, native module or public hook changes, **no v1.6.74 tag was pushed**, and public pixelkit-docs remains on released SDK 1.6.68.
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 332/332 tests and 52 chat definitions; SDK `npm run verify` passed TypeScript, 98/98 tests, OpenAPI checks, builds and the remote 53-hook documentation contract. Physical USB Pixel `66110DLKX001YW`, installed Delta 1.0.97/code153 with SDK 1.6.68 and updated Metro8095 JavaScript: the repeated skill request displayed zero steps executed and the written two-step SOP. One corrected combined battery/thermal turn showed 61% in both Nano's answer and the `get_battery` result after an earlier 60%-tool/57%-reply miss. This does not verify automatic SOP execution or all 34 Nano tool routes. Other guide chapters, public hook contracts and hardware diagrams remain unchanged, while the absent guide-site builder leaves site output unverified.
+
 ## [1.6.73] - 2026-10-01 (unreleased)
 
 ### Documentation
