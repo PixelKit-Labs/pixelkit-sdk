@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.72] - 2026-10-01 (unreleased)
+
+### Documentation
+- Record charged USB Pixel 11 Pro Nano context continuity, 12-turn recall, session isolation, the exact joke repetition failure, and Delta 1.0.100's trace-owned bounded correction in the canonical Local Gemini audit. Sync SDK source manifests and generated local OpenAPI identity only; the SDK's public hooks and native modules do not change, **no v1.6.72 tag was pushed**, and public pixelkit-docs OpenAPI remains on released 1.6.68.
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 330/330 unit tests and 52 chat definitions; SDK `npm run verify` passed TypeScript, 98/98 tests, OpenAPI checks, builds and the remote 53-hook documentation contract. Installed Delta 1.0.97/code153 with SDK 1.6.68 ran 1.0.100 development JavaScript on USB Pixel `66110DLKX001YW`: after one identical AICore joke response, a trace-correlated second generation persisted a different joke. A single corrected turn does not verify broad instruction quality, voice, hardware tools, images, gallery or 34-tool Nano execution. The other guide chapters, public hook contracts and hardware diagrams remain unchanged; `node docs/harness-review/build-site.mjs` failed with `MODULE_NOT_FOUND`, so generated site output is unverified.
+
 ## [1.6.71] - 2026-10-01 (unreleased)
 
 ### Documentation
