@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.75] - 2026-10-01 (unreleased)
+
+### Documentation
+- Record the user's explicit design choice that named Skills remain guidance-only, including `run skill`; listed SOP steps are never implicitly executed. Update the next device checkpoint to wait for explicit handoff of the currently locked personal Pixel. Synchronize package and local OpenAPI identities only; no SDK API/native changes, **no v1.6.75 tag was pushed**, and public pixelkit-docs remains on published 1.6.68.
+
+### Verification
+- SDK `npm run verify` passed TypeScript, 98/98 tests, OpenAPI checks, builds and the remote 53-hook documentation contract; Delta 1.0.102 previously passed 332/332 tests and 52 chat definitions. The recorded physical procedure check showed `use_skill` with zero steps executed and the full SOP; the user explicitly confirmed this behavior. No further device action was taken after the phone returned to personal use. Other SDK guide sections, diagrams and public contracts remain unchanged; the absent site builder leaves guide-site output unverified.
+
 ## [1.6.74] - 2026-10-01 (unreleased)
 
 ### Documentation
