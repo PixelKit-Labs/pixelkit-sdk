@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.78] - 2026-10-02 (unreleased)
+
+### Documentation
+- Record the user's explicit **strictly local** policy after a second on-device Regenerate failure: do not add a network-model fallback; keep the saved reply, report exhaustion and leave Nano reliability and production readiness unverified. The code160 installed release variant remains debug-signed. Synchronize root/SDK/native/ML Kit manifests and local OpenAPI with `scripts/sync-versions.js`; no SDK API/native implementation or Delta app change, tag, publish or cloud request.
+
+### Verification
+- This is a documentation and manifest-only clarification of the already observed Pixel result and existing strict-local behavior, not a newly tested model improvement. Previous USB release-variant response ledger remains the hardware evidence; SDK generated guide-site builder is unavailable. Other guide chapters, public hook contracts, glossary and diagrams remain unchanged.
+
 ## [1.6.77] - 2026-10-02 (unreleased)
 
 ### Documentation
