@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.73] - 2026-10-01 (unreleased)
+
+### Documentation
+- Extend the Local Gemini audit with a real Nano `get_battery` result, stale app-mount reading reproduced on Pixel, and Delta 1.0.101's subscribed PixelKit `useDevice` source correction. Document that deterministic tool intent and isolated registry tests do not mean all 34 tools are selected by Nano. Synchronize source package and local OpenAPI identities only; no SDK code or public hook contract changes, **no v1.6.73 tag was pushed**, and public pixelkit-docs remains on released SDK 1.6.68.
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 330/330 tests and 52 chat definitions; SDK `npm run verify` passed TypeScript, 98/98 tests, OpenAPI checks, builds and the remote 53-hook documentation contract. Installed native Delta 1.0.97/code153 and SDK 1.6.68 with updated JavaScript returned an inspector-backed 57% charging reading that matched Android Battery Service before the turn, versus a stale 54% pre-fix reading. A 34-tool model-directed acceptance result is not established. Other SDK guide sections and hardware diagrams remain unchanged; the guide-site builder is absent (`MODULE_NOT_FOUND`), so site output remains unverified.
+
 ## [1.6.72] - 2026-10-01 (unreleased)
 
 ### Documentation
