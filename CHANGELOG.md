@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.79] - 2026-10-02 (unreleased)
+
+### Documentation
+- Record ML Kit's documented temperature 0/topK 3 single-shot defaults and Delta Mobile 1.0.105's explicit 0.7/40 normal and 0.9/40 Regenerate sampling, with exact installed code161 answer/failure ledger in the canonical local Gemini audit. The bounded correction places the latest user request last. Source manifests and local OpenAPI synchronized with `scripts/sync-versions.js`; **no SDK API/native implementation changed**, and this unpublished SDK patch was not installed on the tested Pixel (the app uses released SDK 1.6.68).
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 333/333 tests and 52 chat definitions after the final source change. Both bundled code161 APKs installed on authorized USB serial `66110DLKX001YW`; the final artifact was SHA256 `fd1ce0c73660dd4ea1aacd4560776f04cdba4805d923b9cc8aa73764970a39fd`. Five Regenerates yielded distinct answers, but a natural request exhausted its duplicate correction and two replies violated the user's no-breakup exclusion. No semantic reliability or production-readiness claim. Debug signing, missing release native timings, 34-tool model-selection, image/voice and old-fact retrieval remain unverified. The guide-site builder remains absent; other chapters, public hook contracts, glossary and diagrams remain unchanged.
+
 ## [1.6.78] - 2026-10-02 (unreleased)
 
 ### Documentation
