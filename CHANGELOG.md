@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.80] - 2026-10-02 (unreleased)
+
+### Documentation
+- Record the user's torch-off failure, Delta 1.0.106's guarded off-command and `list_memories` route fixes, and a per-tool audit separating 34 isolated registry contracts, 33 non-executing natural-language proposals, and still-unverified on-device effects. Leave evidence-gated Wiki observations outside bare-prompt Nano routing; preserve strictly local and confirmation boundaries. Synchronize root/SDK/native/ML Kit manifests and local OpenAPI using `scripts/sync-versions.js`; no SDK API or native implementation changed, no release tag or package publication.
+
+### Verification
+- Delta `npm run verify` passed TypeScript, 337/337 tests and 52 chat definitions; focused 34-tool registry, 33-route coverage, and 21 torch regressions passed. Delta's arm64 1.0.106/code162 bundled APK built successfully (942 Gradle tasks; SHA256 `6f625dd55b22e9d916f41dadbb928763b55a3e41036ffc571b6193777aea9244`) but is debug-signed and uninstalled. SDK `npm run verify` passed TypeScript, 98/98 tests, build and the remote 53-hook documentation contract. Authorized USB Pixel `66110DLKX001YW` was not enumerated (`adb -s ... get-state` returned device-not-found), so physical torch-off, other code162 device effects, Nano answers and production readiness are unverified. `node docs/harness-review/build-site.mjs` failed `MODULE_NOT_FOUND` because the builder does not exist; other chapters, hook contracts, glossary and diagrams remain unchanged.
+
 ## [1.6.79] - 2026-10-02 (unreleased)
 
 ### Documentation

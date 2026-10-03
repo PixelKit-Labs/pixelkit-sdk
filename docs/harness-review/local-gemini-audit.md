@@ -90,6 +90,50 @@ Arm64 release-variant build passed `app:assembleRelease` (942 tasks), bundled 3,
 
 - Device evidence for each future phone case must include installed app/native/JS identity, serial, deterministic UI path, repeats, success/failure, elapsed application intervals and retained trace/artifact references. Agent exploration or model deliberation time is not an application benchmark. No production quality ranking is supported by these checkpoints.
 
+### 2026-10-02 tool-by-tool audit (Delta 1.0.106 source; device pending)
+
+The direct isolated registry suite exercised **34/34** registered tool contracts with fixture providers and isolated local storage. The new intent-coverage suite exercised **33/34** user-request-to-proposal routes **without executing** any proposed effects. `record_wiki_observation` has no free-form Nano route by design: its evidence kind/reference, provenance, privacy, and confirmation must not be invented from a bare prompt; its direct registry test only establishes that unconfirmed claims are not written. A routed proposal is **not** model-selected execution: the Nano adapter produces final text only. The earlier code153 USB `get_battery` and `get_thermals` turns are separate physical evidence, not code162 retests. The user reports torch-on works but torch-off does not; this report is accepted, not re-tested as a prerequisite to fixing it. Delta 1.0.106 corrects the ambiguous `/torch` insertion, trailing-`now` off parsing, and strictly guarded immediate verified-on “turn it off” follow-up. Desktop torch regressions passed 21/21; **physical torch-off remains unverified** because `adb -s 66110DLKX001YW get-state` returned device-not-found while only a wireless alias was enumerated.
+
+| Tool | Direct fixture and user route | Remaining real acceptance |
+|:---|:---|:---|
+| `set_torch` | Failed verification reports error; explicit off and guarded follow-up route | Observe physical off/on/off and callback on authorized USB Pixel; reported off failure remains open |
+| `get_temperature` | Observed fixture values/unavailable; routes | Real FIR reading or honest hardware unavailable |
+| `get_thermals` | Observed fixture/unavailable; routes | Retest actual ADPF values and model answer on current APK (older code153 two-read turn worked) |
+| `get_battery` | Observed fixture/unavailable; routes | Retest OS/current-result agreement on current APK (older code153 turn worked) |
+| `remember` | Durable isolated write and empty rejection; routes | Save/reopen/recall a disposable real session fact |
+| `recall` | Isolated matching episodic retrieval; routes | Recall disposable fact after relaunch |
+| `forget` | Isolated targeted removal; routes | Only delete a disposable test fact with consent |
+| `list_memories` | Isolated persisted categories and newly restored user route | List real disposable fixture without exposing private memories |
+| `clear_memory` | Unconfirmed deletion blocked; routes with confirmation | Do not wipe personal store; isolated fixture consent flow only |
+| `diagnostics_summary` | Fixture telemetry without fabricated defaults; routes | Real installed-runtime availability |
+| `doctor` | Fixture provider inventory; routes | Current device providers, no inferred success |
+| `search_logs` | Isolated log filtering; routes | Known disposable event with no private log disclosure |
+| `end_conversation` | Isolated session lifecycle; routes | Fresh disposable chat standby state |
+| `clear_history` | Unconfirmed deletion blocked; routes with confirmation | Do not clear personal history; isolated disposable session only |
+| `hand_off` | Validated specialist target/listing; routes | Real handoff state in disposable chat |
+| `delegate_task` | Validated target/task; routes | Specialist result or explicit unavailable state |
+| `translate_text` | Empty provider output fails; routes | Real local model translation, not fixture echo |
+| `identify_language` | Empty provider reports undetermined; routes | Real local language ID |
+| `summarize_text` | Empty provider fails; routes | Real on-device summary with input/output evidence |
+| `http_request` | Private/loopback SSRF rejected; routes | External request **not sent** under strictly local policy; requires explicit network consent |
+| `device_info` | Observed fixture device metadata; routes | OS/device values on current APK |
+| `get_setting` | Protected fields excluded; routes | Live preference read without disclosing secrets |
+| `set_setting` | Allowed fixture preference update; routes | Reversible disposable preference change and restore |
+| `list_tools` | Exact registered catalog returned; routes | UI list and actual per-tool availability, not only catalog |
+| `show_card` | Invalid payload rejected; routes | Render and dismiss actual timer/gauge |
+| `research.arxiv_search` | Out-of-bounds limit rejected without network; routes | Network request **not sent**; requires explicit consent |
+| `analyze_image` | Missing input/provider failure reported; routes | Consented disposable image and local description |
+| `scan_code_or_barcode` | Missing input/no result reported without inventing code; routes | Disposable QR image and decoded value |
+| `generate_image` | Empty prompt rejected without cloud; routes | Provider/network disclosure and consent; no generation performed |
+| `search_skills` | Isolated installed SOP catalog searched; routes | Current installed skill listing |
+| `use_skill` | Returns guidance without steps; routes | Older code153 USB run disclosed zero steps; retest current APK as guidance-only |
+| `search_wiki` | Isolated claim search; routes | Disposable evidence-backed claim |
+| `read_wiki_page` | Isolated page read; routes | Revisioned disposable page |
+| `record_wiki_observation` | Unconfirmed write blocked; **no bare-prompt Nano route** | Structured evidence/provenance and explicit confirmation; do not fabricate a claim |
+
+Source/build references: Delta `src/core/turns/intentRouter.ts`, `src/core/tools/{hardwareTools,memoryTools,wikiTools}.ts`, `src/core/verifiedTorch.ts`, `src/screens/ConsoleScreen.tsx`, `test/{torchIntent,toolIntentCoverage,allToolsComprehensive}.test.ts`. Delta `npm run verify` passed TypeScript, 337 tests and 52 chat definitions; arm64 Gradle `app:assembleRelease` passed 942 tasks and produced uninstalled, debug-signed 1.0.106/code162 APK SHA256 `6f625dd55b22e9d916f41dadbb928763b55a3e41036ffc571b6193777aea9244`. This table is an implementation/decision ledger, **not** 34 on-device passes or a production-readiness claim. Device serial, installed app/native/JS identity, effect checkpoints, trace IDs, repeats and timing remain to be recorded after exclusive USB handoff. No network tool/provider request was executed in this audit; `npm run verify` separately fetched public hook documentation.
+
+
 ### 2026-10-01 live image correction
 
 The user reported that native **pinch-to-zoom did not work** and the uploaded image was not centered. This is ground-truth behavior of code152: `ConversationImage.tsx` used two nested `ScrollView`s and a button-only `zoom` state, with no pinch recognizer; `ConversationTurn.tsx` right-aligned the image-containing user turn. The direct `expo-media-library.saveToLibraryAsync` call in code152 imports SDK 57's `legacyWarnings.ts`, whose implementation throws instead of saving; a successful browser download is irrelevant to Android Photos. The 1.0.97 code now uses a gesture root inside its Android Modal, focal-aware pinch/pan worklets bounded to 1–3×, center-aligned contain-fit uploaded images, and calls the **SDK** media hook. SDK 1.6.68 separately tracks read/write grants and requests only write permission for unnamed saves. Code153 was built and installed, but gesture, alignment and Photos artifact still need direct device checkpoints.
@@ -133,5 +177,6 @@ The user reported that native **pinch-to-zoom did not work** and the uploaded im
 - **2026-10-02, standalone release-variant checkpoint**: a debug-signed code160 arm64 release build retained the conversation without Metro and answered an in-chat codename question, but Regenerate again visibly failed to produce a distinct telescope joke. A bundled release-mode UI is not equivalent to a production-signed binary or a production-quality model. Keep the hard duplicate rejection and the release gate open; prompt tweaks and one success cannot demonstrate reliable novelty or all-tool autonomy.
 - **2026-10-02, user decision after code160 evidence**: choose the strictly local reliability policy over opt-in cloud fallback. Continue using the existing bounded regeneration guard and honest error; do not silently send prompt content to a network provider or disguise model repetition as success. This policy protects data locality but does **not** certify Nano response quality, solve the observed Regenerate failure, or clear the production release gate.
 - **2026-10-02, sampler cause and remaining defect**: official ML Kit single-shot defaults were temperature 0/topK 3, whereas the SDK's streamed chat uses 0.7/40. Passing explicit sampling parameters improved distinct Regenerate replies across five observed tries, but two disallowed breakup outputs and one honest duplicate-exhaustion failure persisted. The updated correction puts the latest user request last, but installed code161 evidence does not demonstrate reliable semantic exclusion or that a specific corrected native candidate was accepted. Keep strictly local failure handling and the production gate open.
+- **2026-10-02, user-reported torch-off and per-tool audit**: accept the physical failure as reported. Route `/torch` by observed torch state, recognize explicit off with trailing “now”, and interpret bare “turn it off” only after a verified, immediately preceding torch-on reply and current on-state. Restore the missing `list_memories` read route. Record all 34 isolated registry contracts and 33 non-executing user-intent proposals separately from physical effects. Keep bare Wiki observation un-routed because evidence/provenance cannot be inferred, and require separate consent for destructive and network actions. USB disconnection prevents physical code162 acceptance; do not recast wireless visibility or test fixtures as phone success.
 
-The existing UI, harness, Laya and voice chapters remain the primary references for their subsystem-specific contracts. No public PixelKit hook, native module, API contract, glossary term or hardware diagram changes in this Delta-only increment; this chapter updates repeat and regeneration boundaries plus observed evidence, while existing prompt-continuity and trace-owner definitions remain applicable. The guide-site builder remains absent, so generated local site output has not been verified.
+The existing UI, harness, Laya and voice chapters remain the primary references for their subsystem-specific contracts. No public PixelKit hook, native module, API contract, glossary term or hardware diagram changes in this Delta-only increment; this chapter updates tool routing, torch failure boundaries, repeat/regeneration evidence, and the release gates. Existing prompt-continuity and trace-owner definitions remain applicable. The guide-site builder remains absent, so generated local site output has not been verified.
