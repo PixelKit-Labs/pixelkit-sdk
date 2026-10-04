@@ -63,6 +63,10 @@ scripts/hilight-daemon/*.jar
 packages/*/build/
 *.tgz
 
+# Private, local-only chat UI editor drafts (not design evidence)
+scripts/chat-ui-editor/saved-state.json
+scripts/chat-ui-editor/saved-state.json.tmp
+
 # Agent worktrees are scratch checkouts of this repo, never content
 .claude/worktrees/
 

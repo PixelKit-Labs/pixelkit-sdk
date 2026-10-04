@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta Chat UI — Live A/B Editor & Workbench</title>
+  <style>
+    :root {
+      --bg: #090909;
+      --surface: #141417;
+      --surface-elevated: #1A1A1F;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-specular: rgba(255, 255, 255, 0.16);
+      --pearl: #EEE9E3;
+      --pearl-glow: rgba(238, 233, 227, 0.25);
+      --emerald: #7DDCA0;
+      --emerald-bg: rgba(125, 220, 160, 0.12);
+      --amber: #E8BE71;
+      --amber-bg: rgba(232, 190, 113, 0.12);
+      --rose: #F29A9A;
+      --rose-bg: rgba(242, 154, 154, 0.12);
+      --violet: #9C7BAA;
+      --violet-bg: rgba(156, 123, 170, 0.15);
+      --text: #F3EBEF;
+      --text-muted: #8E8A90;
+      --text-dim: #5C5860;
+      --mono-font: "SF Mono", "Geist Mono", "Roboto Mono", monospace;
+      --sans-font: -apple-system, BlinkMacSystemFont, "Geist", "Segoe UI", Roboto, sans-serif;
+
+      /* Dynamic Editable Tokens */
+      --specular-opacity: 0.16;
+      --composer-radius: 26px;
+      --bubble-tail-radius: 6px;
+      --card-radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #050505;
+      color: var(--text);
+      font-family: var(--sans-font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Nav Bar */
+    header {
+      background: #0E0E11;
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag-live {
+      font-family: var(--mono-font);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--emerald-bg);
+      color: var(--emerald);
+      border: 1px solid rgba(125, 220, 160, 0.3);
+      font-weight: 600;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .segmented-tabs {
+      display: flex;
+      background: #000;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: var(--sans-font);
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      background: #222228;
+      color: var(--text);
+    }
+
+    .btn-action {
+      background: #18181D;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--sans-font);
+      transition: all 0.15s ease;
+    }
+
+    .btn-action:hover {
+      background: #25252D;
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .btn-action.primary {
+      background: var(--pearl);
+      color: #090909;
+      font-weight: 600;
+      border-color: transparent;
+    }
+
+    .btn-action.primary:hover {
+      background: #FAF6F8;
+      box-shadow: 0 0 12px var(--pearl-glow);
+    }
+
+    /* Main Workspace Layout */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      overflow: hidden;
+      height: calc(100vh - 61px);
+    }
+
+    .canvas-area {
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 32px;
+      background: radial-gradient(circle at 50% 20%, #111116 0%, #050505 80%);
+    }
+
+    .view-a-only .phone-wrapper.side-b-wrap { display: none; }
+    .view-b-only .phone-wrapper.side-a-wrap { display: none; }
+
+    /* Phone Preview Shells */
+    .phone-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 412px;
+      flex-shrink: 0;
+    }
+
+    .phone-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+    }
+
+    .badge-side {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .badge-side.side-a {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .badge-side.side-b {
+      background: rgba(238, 233, 227, 0.1);
+      color: var(--pearl);
+      border: 1px solid rgba(238, 233, 227, 0.25);
+    }
+
+    .phone-screen {
+      background: var(--bg);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 40px;
+      height: 780px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    /* System Status Bar */
+    .status-bar {
+      height: 42px;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    /* In-App Header */
+    .app-header {
+      padding: 8px 18px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .header-titles h2 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .header-meta {
+      font-size: 11px;
+      font-family: var(--mono-font);
+      color: var(--emerald);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chip-telemetry {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+    }
+
+    /* Chat Transcript */
+    .chat-transcript {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scrollbar-width: none;
+    }
+
+    /* Delta Orb Avatar */
+    .delta-orb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #F5F1EB 0%, #E2A0BE 45%, #9C7BAA 70%, #1A1420 100%);
+      box-shadow: 0 0 12px rgba(226, 160, 190, 0.35), inset 0 1px 2px rgba(255,255,255,0.8);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .delta-orb::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 6px;
+      width: 8px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.7);
+      filter: blur(0.5px);
+      transform: rotate(-20deg);
+    }
+
+    /* User Message */
+    .turn-user {
+      align-self: flex-end;
+      max-width: 86%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .side-a .user-bubble {
+      background: #18181D;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 12px 16px;
+      font-size: 15px;
+      line-height: 22px;
+    }
+
+    .side-b .user-bubble {
+      background: linear-gradient(180deg, #1C1C22 0%, #16161B 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--specular-opacity)), 0 4px 16px rgba(0,0,0,0.3);
+      border-radius: 20px 20px var(--bubble-tail-radius) 20px;
+      padding: 13px 17px;
+      font-size: 15px;
+      line-height: 22px;
+      color: #FAF6F8;
+      transition: border-radius 0.2s;
+    }
+
+    .bubble-actions {
+      display: flex;
+      gap: 6px;
+      padding-right: 4px;
+    }
+
+    .btn-icon-subtle {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0.6;
+      background: transparent;
+      border: none;
+    }
+    .btn-icon-subtle:hover { opacity: 1; color: var(--text); }
+    .btn-icon-subtle svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+    /* Assistant Turn */
+    .turn-assistant {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .assistant-identity {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .speaker-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .timestamp {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .header-spacer { flex: 1; }
+
+    /* Trigger Pills */
+    .side-a .tool-trigger-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .side-a .trigger-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+    }
+
+    .side-b .tool-trigger-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: #D6D2CC;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .side-b .tool-trigger-pill:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.16);
+      color: #FFFFFF;
+    }
+
+    /* Side A Tool Card */
+    .side-a .tool-card {
+      margin-left: 36px;
+      background: #141417;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .side-a .tool-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 8px;
+    }
+
+    .side-a .tool-title-row {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--pearl);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .side-a .raw-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      border-radius: 6px;
+    }
+
+    .side-a .grid-label {
+      font-family: var(--mono-font);
+      color: var(--text-dim);
+      font-size: 10px;
+    }
+
+    .side-a .grid-val {
+      font-family: var(--mono-font);
+      text-align: right;
+    }
+
+    .side-a .code-dump {
+      background: #090909;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      padding: 8px;
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: #A0C2E2;
+      white-space: pre-wrap;
+    }
+
+    /* Side B Tool Card — Direct Sleek Code Box with Segmented Tabs */
+    .side-b .tool-code-card {
+      margin-left: 36px;
+      margin-top: 4px;
+      background: #0C0C0F;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .side-b .recipe-tabs-row {
+      display: flex;
+      padding: 5px 8px 4px;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .side-b .tab-btn-mini {
+      background: transparent;
+      border: none;
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .side-b .tab-btn-mini:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+    .side-b .tab-btn-mini.active {
+      background: rgba(255, 255, 255, 0.09);
+      color: #FFF;
+      font-weight: 500;
+    }
+
+    .side-b .code-body-wrapper {
+      padding: 8px 12px;
+      position: relative;
+      display: flex;
+    }
+
+    .side-b .code-render {
+      font-family: var(--mono-font);
+      font-size: 12px;
+      line-height: 19px;
+      white-space: pre;
+      margin: 0;
+      padding: 0;
+      flex: 1;
+    }
+
+    .side-b .btn-copy-code {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      padding: 0;
+    }
+    .side-b .btn-copy-code:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+    .side-b .btn-copy-code.copied {
+      background: var(--emerald-bg);
+      border-color: var(--emerald);
+      color: var(--emerald);
+    }
+    .side-b .btn-copy-code svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+    .json-key { color: #EDEDED; }
+    .json-num { color: #4FC1FF; }
+    .json-str { color: #4FC1FF; }
+    .json-bool { color: #4FC1FF; }
+
+    .assistant-body {
+      margin-left: 36px;
+      font-size: 15px;
+      line-height: 23px;
+    }
+
+    /* Composer Area */
+    .composer-section {
+      padding: 0 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: linear-gradient(180deg, transparent 0%, #090909 50%);
+    }
+
+    /* Side A Composer */
+    .side-a .att-row {
+      display: flex;
+      justify-content: space-around;
+      background: rgba(22, 22, 26, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .side-a .att-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .side-a .att-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+    }
+    .side-a .att-icon-box svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+
+    .side-a .att-chip-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(22, 22, 26, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 6px 10px;
+    }
+
+    .side-a .att-chip-name {
+      flex: 1;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .side-a .composer-capsule {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      background: #141417;
+      border: 1.5px solid rgba(255, 255, 255, 0.08);
+      border-radius: 28px;
+      padding: 4px 6px;
+    }
+
+    .side-a .btn-plus {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .side-a .btn-plus svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+
+    .side-a .composer-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 20px;
+      padding: 10px 4px;
+      outline: none;
+      resize: none;
+      min-height: 40px;
+      max-height: 120px;
+      font-family: var(--sans-font);
+    }
+
+    .side-a .btn-action-round {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #141417;
+    }
+    .side-a .btn-action-round.send-ready {
+      background: var(--pearl);
+      color: #090909;
+      border-color: transparent;
+    }
+    .side-a .btn-action-round svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+
+    /* Side B Composer */
+    .side-b .frosted-sheet {
+      background: rgba(20, 20, 24, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      border-radius: 20px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .side-b .sheet-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 6px 2px;
+      border-radius: 12px;
+    }
+    .side-b .sheet-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+    .side-b .sheet-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    .side-b .sheet-circle svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
+
+    .side-b .sheet-title {
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .side-b .composer-capsule {
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, #18181D 0%, #121215 100%);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--specular-opacity)), 0 12px 30px rgba(0, 0, 0, 0.5);
+      border-radius: var(--composer-radius);
+      padding: 6px 8px;
+      transition: all 0.2s;
+    }
+
+    .side-b .composer-capsule:focus-within {
+      border-color: rgba(238, 233, 227, 0.35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 14px 36px rgba(0, 0, 0, 0.6);
+    }
+
+    .side-b .inline-dock {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 5px 8px;
+      margin: 2px 2px 6px;
+    }
+
+    .side-b .dock-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #25252D;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--pearl);
+    }
+    .side-b .dock-thumb svg { width: 15px; height: 15px; stroke: currentColor; fill: none; }
+
+    .side-b .dock-body { flex: 1; }
+    .side-b .dock-filename { font-size: 12px; font-weight: 500; }
+    .side-b .dock-desc { font-size: 10px; font-family: var(--mono-font); color: var(--text-muted); }
+
+    .side-b .dock-close {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .side-b .dock-close svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
+
+    .side-b .capsule-inputs-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .side-b .btn-plus-morph {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .side-b .btn-plus-morph svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+    .side-b .btn-plus-morph.open {
+      background: rgba(238, 233, 227, 0.15);
+      transform: rotate(45deg);
+    }
+
+    .side-b .composer-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 22px;
+      padding: 8px 6px;
+      outline: none;
+      resize: none;
+      min-height: 38px;
+      max-height: 120px;
+      font-family: var(--sans-font);
+    }
+
+    .side-b .btn-reactor {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .side-b .btn-reactor.idle {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .side-b .btn-reactor.listening {
+      background: rgba(242, 154, 154, 0.15);
+      border: 1px solid var(--rose);
+      box-shadow: 0 0 14px rgba(242, 154, 154, 0.4);
+    }
+    .side-b .btn-reactor.send-ready {
+      background: var(--pearl);
+      color: #090909;
+      box-shadow: 0 2px 10px var(--pearl-glow);
+      transform: scale(1.04);
+    }
+    .side-b .btn-reactor svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+
+    /* Live Editor Sidebar */
+    .editor-sidebar {
+      background: #0E0E12;
+      border-left: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .editor-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .editor-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .editor-header h3 svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
+
+    .editor-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--card-border);
+      background: #08080A;
+    }
+
+    .editor-tab-item {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .editor-tab-item.active {
+      color: var(--pearl);
+      border-bottom-color: var(--pearl);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .editor-content-body {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .field-input, .field-textarea {
+      background: #060608;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: var(--sans-font);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field-input:focus, .field-textarea:focus {
+      border-color: rgba(238, 233, 227, 0.35);
+    }
+    .field-textarea {
+      min-height: 70px;
+      resize: vertical;
+      line-height: 18px;
+    }
+
+    .field-slider-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .field-val-display {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--pearl);
+    }
+
+    .slider-input {
+      width: 100%;
+      accent-color: var(--pearl);
+      margin-top: 4px;
+      cursor: pointer;
+    }
+
+    .json-editor-area {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      line-height: 16px;
+      min-height: 120px;
+      background: #060608;
+      color: #A0C2E2;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px;
+      white-space: pre;
+    }
+
+    .save-banner {
+      padding: 12px 20px;
+      background: #08080A;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Global Header -->
+  <header>
+    <div class="brand-section">
+      <div class="delta-orb" style="width:24px;height:24px;"></div>
+      <div class="brand-title">
+        Delta Chat UI <span class="tag-live">LIVE WORKBENCH</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="segmented-tabs">
+        <button class="tab-btn active" onclick="setViewMode('split', this)">Split View</button>
+        <button class="tab-btn" onclick="setViewMode('a-only', this)">Side A (Current)</button>
+        <button class="tab-btn" onclick="setViewMode('b-only', this)">Side B (Proposed)</button>
+      </div>
+
+      <button class="btn-action" onclick="toggleToolFlow()">
+        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Toggle Tool Flow
+      </button>
+
+      <button class="btn-action" onclick="toggleAttachment()">
+        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Toggle Attachment
+      </button>
+
+      <button class="btn-action" onclick="toggleVoice()">
+        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        Toggle Voice
+      </button>
+
+      <button class="btn-action primary" onclick="saveEdits()">
+        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save State
+      </button>
+    </div>
+  </header>
+  <p role="note" style="padding:8px 20px;color:var(--text-muted);font-size:12px;">Illustrative A/B design fixtures only: prompts, device telemetry and tool outputs are sample content, not phone captures or verified readings. Side B is proposed and awaits user feedback.</p>
+
+  <!-- Main Canvas & Sidebar Split -->
+  <div class="workspace" id="workspaceRoot">
+
+    <!-- Canvas Preview Area -->
+    <div class="canvas-area" id="canvasArea">
+
+      <!-- ======================================================== -->
+      <!-- SIDE A: CURRENT ARCHITECTURE                             -->
+      <!-- ======================================================== -->
+      <div class="phone-wrapper side-a-wrap">
+        <div class="phone-label-row">
+          <span class="badge-side side-a">Side A &middot; Current Architecture</span>
+          <span style="font-size:11px;color:var(--text-muted);">Existing Baseline</span>
+        </div>
+
+        <div class="phone-screen side-a">
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="status-icons">
+              <span>5G</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <div class="app-header">
+            <div>
+              <h2>Delta Session</h2>
+              <div class="header-meta">
+                <svg style="width:10px;height:10px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                ON-DEVICE NANO
+              </div>
+            </div>
+            <div class="chip-telemetry">38&deg;C &middot; 4.2W</div>
+          </div>
+
+          <div class="chat-transcript">
+            <!-- User Turn -->
+            <div class="turn-user">
+              <div class="user-bubble" id="userBubbleTextA">
+                Can you check my battery status and discharge rate?
+              </div>
+              <div class="bubble-actions">
+                <button class="btn-icon-subtle" title="Copy">
+                  <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+                <button class="btn-icon-subtle" title="Edit">
+                  <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Assistant Turn -->
+            <div class="turn-assistant">
+              <div class="assistant-identity">
+                <div class="delta-orb"></div>
+                <div class="speaker-name">Delta</div>
+                <div class="timestamp">9:41 AM</div>
+                <div class="header-spacer"></div>
+                <!-- Tool Flow Trigger -->
+                <div class="tool-trigger-pill" onclick="toggleToolFlow()">
+                  <div class="trigger-dot"></div>
+                  <span id="triggerLabelA">Flow &middot; 1 tool</span>
+                  <svg id="chevronA" style="width:12px;height:12px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+
+              <!-- Boxy Tool Card -->
+              <div class="tool-card" id="toolCardA">
+                <div class="tool-head">
+                  <div class="tool-title-row">
+                    <svg style="width:14px;height:14px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
+                    TOOL FLOW &middot; <span id="toolDurationA">18</span> MS
+                  </div>
+                  <div style="font-family:var(--mono-font);font-size:10px;background:var(--emerald-bg);color:var(--emerald);padding:2px 6px;border-radius:4px;">COMPLETE</div>
+                </div>
+
+                <div class="raw-grid">
+                  <div><span class="grid-label">LAYA SUGGESTION</span></div>
+                  <div class="grid-val" id="layaSuggestionValA">get_battery</div>
+                  <div><span class="grid-label">MODEL SCORE</span></div>
+                  <div class="grid-val" id="layaScoreValA">96/100</div>
+                  <div><span class="grid-label">ROUTING RULE</span></div>
+                  <div class="grid-val">corroborated</div>
+                </div>
+
+                <div class="code-dump" id="jsonOutputDumpA">{
+  "toolName": "get_battery",
+  "level": 84,
+  "isCharging": false,
+  "currentNowMa": -412,
+  "temperatureC": 31.4
+}</div>
+              </div>
+
+              <!-- Assistant Body -->
+              <div class="assistant-body" id="assistantBodyA">
+                Your battery is currently at <strong>84%</strong> discharging at approximately <strong>412 mA</strong>. Thermal levels are optimal at 31.4&deg;C.
+              </div>
+            </div>
+          </div>
+
+          <!-- Side A Composer -->
+          <div class="composer-section side-a">
+            <!-- Attachment Menu Row (Current) -->
+            <div class="att-row" id="attMenuA" style="display:none;">
+              <div class="att-item" onclick="toggleAttachment()">
+                <div class="att-icon-box"><svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                <span>Files</span>
+              </div>
+              <div class="att-item" onclick="toggleAttachment()">
+                <div class="att-icon-box"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>
+                <span>Camera</span>
+              </div>
+              <div class="att-item" onclick="toggleAttachment()">
+                <div class="att-icon-box"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>
+                <span>Photos</span>
+              </div>
+              <div class="att-item" onclick="toggleAttachment()">
+                <div class="att-icon-box"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3" rx="1"/><line x1="10" x2="14" y1="12" y2="12"/></svg></div>
+                <span>Archives</span>
+              </div>
+            </div>
+
+            <!-- Attachment Preview Bar (Current) -->
+            <div class="att-chip-bar" id="attPreviewA" style="display:none;">
+              <div style="width:24px;height:24px;border-radius:4px;background:#25252b;display:flex;align-items:center;justify-content:center;">
+                <svg style="width:14px;height:14px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              </div>
+              <span class="att-chip-name" id="attNameDisplayA">battery_diagnostics.png</span>
+              <button class="btn-icon-subtle" onclick="toggleAttachment()" title="Remove">
+                <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+
+            <!-- Main Capsule -->
+            <div class="composer-capsule">
+              <div class="btn-plus" onclick="toggleAttMenuA()">
+                <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              </div>
+              <textarea class="composer-input" id="inputBoxA" placeholder="Message Delta" rows="1" oninput="handleTextSync(this, 'B')"></textarea>
+              <div class="btn-action-round" id="actionBtnA">
+                <div class="delta-orb" id="orbA" style="width:24px;height:24px;"></div>
+                <svg id="sendIconA" style="display:none;" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- SIDE B: PROPOSED REDESIGN                                -->
+      <!-- ======================================================== -->
+      <div class="phone-wrapper side-b-wrap">
+        <div class="phone-label-row">
+          <span class="badge-side side-b">Side B &middot; Proposed Redesign</span>
+          <span style="font-size:11px;color:var(--pearl);">Live Interactive</span>
+        </div>
+
+        <div class="phone-screen side-b">
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="status-icons">
+              <span>5G</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <div class="app-header">
+            <div>
+              <h2>Delta Session</h2>
+              <div class="header-meta">
+                <svg style="width:10px;height:10px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                ON-DEVICE NANO
+              </div>
+            </div>
+            <div class="chip-telemetry">38&deg;C &middot; 4.2W</div>
+          </div>
+
+          <div class="chat-transcript">
+            <!-- User Turn -->
+            <div class="turn-user">
+              <div class="user-bubble" id="userBubbleTextB">
+                Can you check my battery status and discharge rate?
+              </div>
+              <div class="bubble-actions">
+                <button class="btn-icon-subtle" title="Copy">
+                  <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+                <button class="btn-icon-subtle" title="Edit">
+                  <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Assistant Turn -->
+            <div class="turn-assistant">
+              <div class="assistant-identity">
+                <div class="delta-orb"></div>
+                <div class="speaker-name">Delta</div>
+                <div class="timestamp">9:41 AM</div>
+                <div class="header-spacer"></div>
+
+                <!-- Proposed Sleek Trigger -->
+                <div class="tool-trigger-pill" onclick="toggleToolFlow()">
+                  <span id="triggerLabelB">get_battery &middot; 18ms</span>
+                  <svg id="chevronB" style="width:12px;height:12px;stroke:currentColor;fill:none;transition:transform 0.2s;" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+
+              <!-- Proposed Direct Code Card with Segmented Tabs -->
+              <div class="tool-code-card" id="toolCardB">
+                <div class="recipe-tabs-row">
+                  <button class="tab-btn-mini active" onclick="switchRecipeTab(this, 'output')">Result Output</button>
+                  <button class="tab-btn-mini" onclick="switchRecipeTab(this, 'args')">Input Arguments</button>
+                  <button class="tab-btn-mini" onclick="switchRecipeTab(this, 'laya')">Laya Advisory</button>
+                </div>
+                <div class="code-body-wrapper">
+                  <pre class="code-render" id="recipeCodeRenderB">{
+  <span class="json-key">"toolName"</span>: <span class="json-str">"get_battery"</span>,
+  <span class="json-key">"level"</span>: <span class="json-num">84</span>,
+  <span class="json-key">"isCharging"</span>: <span class="json-bool">false</span>,
+  <span class="json-key">"currentNowMa"</span>: <span class="json-num">-412</span>,
+  <span class="json-key">"temperatureC"</span>: <span class="json-num">31.4</span>
+}</pre>
+                  <button class="btn-copy-code" onclick="copyRecipePayload(this)" title="Copy payload">
+                    <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Assistant Body -->
+              <div class="assistant-body" id="assistantBodyB">
+                Your battery is currently at <strong>84%</strong> discharging at approximately <strong>412 mA</strong>. Thermal levels are optimal at 31.4&deg;C.
+              </div>
+            </div>
+          </div>
+
+          <!-- Side B Composer -->
+          <div class="composer-section side-b">
+            <!-- Frosted Glass Quick Action Sheet -->
+            <div class="frosted-sheet" id="attSheetB" style="display:none;">
+              <div class="sheet-item" onclick="toggleAttachment()">
+                <div class="sheet-circle">
+                  <svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                </div>
+                <span class="sheet-title">Camera</span>
+              </div>
+              <div class="sheet-item" onclick="toggleAttachment()">
+                <div class="sheet-circle">
+                  <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                </div>
+                <span class="sheet-title">Photos</span>
+              </div>
+              <div class="sheet-item" onclick="toggleAttachment()">
+                <div class="sheet-circle">
+                  <svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <span class="sheet-title">Files</span>
+              </div>
+              <div class="sheet-item" onclick="toggleAttachment()">
+                <div class="sheet-circle">
+                  <svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3" rx="1"/><line x1="10" x2="14" y1="12" y2="12"/></svg>
+                </div>
+                <span class="sheet-title">Archives</span>
+              </div>
+            </div>
+
+            <!-- Unified Floating Capsule -->
+            <div class="composer-capsule">
+              <!-- Integrated Inline Attachment Dock -->
+              <div class="inline-dock" id="inlineDockB" style="display:none;">
+                <div class="dock-thumb">
+                  <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                </div>
+                <div class="dock-body">
+                  <div class="dock-filename" id="dockNameDisplayB">battery_diagnostics.png</div>
+                  <div class="dock-desc">420 KB &middot; Ready for Nano vision</div>
+                </div>
+                <button class="dock-close" onclick="toggleAttachment()" title="Remove">
+                  <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+
+              <!-- Main Input Row -->
+              <div class="capsule-inputs-row">
+                <div class="btn-plus-morph" id="plusMorphBtnB" onclick="toggleAttSheetB()">
+                  <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </div>
+                <textarea class="composer-input" id="inputBoxB" placeholder="Message Delta" rows="1" oninput="handleTextSync(this, 'A')"></textarea>
+                <div class="btn-reactor idle" id="actionBtnB" onclick="toggleVoice()">
+                  <div class="delta-orb" id="orbB" style="width:26px;height:26px;"></div>
+                  <svg id="sendIconB" style="display:none;" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live Edit Control Sidebar -->
+    <div class="editor-sidebar">
+      <div class="editor-header">
+        <h3>
+          <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Live UI Controls
+        </h3>
+        <span style="font-family:var(--mono-font);font-size:11px;color:var(--emerald);">ACTIVE</span>
+      </div>
+
+      <div class="editor-tabs">
+        <div class="editor-tab-item active" onclick="switchEditorTab(this, 'content')">Content</div>
+        <div class="editor-tab-item" onclick="switchEditorTab(this, 'tokens')">Tokens</div>
+        <div class="editor-tab-item" onclick="switchEditorTab(this, 'json')">JSON</div>
+      </div>
+
+      <!-- Tab 1: Content Editor -->
+      <div class="editor-content-body" id="tabContentEditor">
+        <div class="field-group">
+          <label class="field-label">User Prompt</label>
+          <textarea class="field-textarea" id="editUserPrompt" oninput="updateContent('userPrompt', this.value)">Can you check my battery status and discharge rate?</textarea>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Assistant Response</label>
+          <textarea class="field-textarea" id="editAssistantResponse" oninput="updateContent('assistantResponse', this.value)">Your battery is currently at 84% discharging at approximately 412 mA. Thermal levels are optimal at 31.4°C.</textarea>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Executed Tool Name</label>
+          <input class="field-input" id="editToolName" value="get_battery" oninput="updateContent('toolName', this.value)">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Execution Duration (ms)</label>
+          <input class="field-input" type="number" id="editToolDuration" value="18" oninput="updateContent('toolDuration', this.value)">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Attachment Filename</label>
+          <input class="field-input" id="editAttName" value="battery_diagnostics.png" oninput="updateContent('attName', this.value)">
+        </div>
+      </div>
+
+      <!-- Tab 2: Design Tokens & Geometry -->
+      <div class="editor-content-body" id="tabTokensEditor" style="display:none;">
+        <div class="field-group">
+          <div class="field-slider-row">
+            <label class="field-label">Top Specular Opacity</label>
+            <span class="field-val-display" id="valDisplaySpecular">16%</span>
+          </div>
+          <input type="range" class="slider-input" min="0" max="40" value="16" oninput="updateToken('specular', this.value)">
+        </div>
+
+        <div class="field-group">
+          <div class="field-slider-row">
+            <label class="field-label">Composer Corner Radius</label>
+            <span class="field-val-display" id="valDisplayComposerRadius">26px</span>
+          </div>
+          <input type="range" class="slider-input" min="16" max="36" value="26" oninput="updateToken('composerRadius', this.value)">
+        </div>
+
+        <div class="field-group">
+          <div class="field-slider-row">
+            <label class="field-label">Speech Bubble Tail Radius</label>
+            <span class="field-val-display" id="valDisplayTailRadius">6px</span>
+          </div>
+          <input type="range" class="slider-input" min="2" max="20" value="6" oninput="updateToken('tailRadius', this.value)">
+        </div>
+
+        <div class="field-group">
+          <div class="field-slider-row">
+            <label class="field-label">Tool Card Radius</label>
+            <span class="field-val-display" id="valDisplayCardRadius">14px</span>
+          </div>
+          <input type="range" class="slider-input" min="8" max="24" value="14" oninput="updateToken('cardRadius', this.value)">
+        </div>
+      </div>
+
+      <!-- Tab 3: JSON Payloads -->
+      <div class="editor-content-body" id="tabJsonEditor" style="display:none;">
+        <div class="field-group">
+          <label class="field-label">Tool Result Payload</label>
+          <textarea class="json-editor-area" id="editJsonResult" oninput="updateJsonResult(this.value)">{
+  "toolName": "get_battery",
+  "level": 84,
+  "isCharging": false,
+  "currentNowMa": -412,
+  "temperatureC": 31.4
+}</textarea>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Tool Arguments Payload</label>
+          <textarea class="json-editor-area" id="editJsonArgs" oninput="updateJsonArgs(this.value)">{
+  "includeBatteryHealth": true,
+  "sampleIntervalMs": 1000
+}</textarea>
+        </div>
+      </div>
+
+      <div class="save-banner">
+        <span style="font-size:11px;color:var(--text-muted);" id="saveStatusText">Preview updates live; save to retain edits after reload</span>
+        <button class="btn-action primary" onclick="saveEdits()">Save Edits</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let isToolFlowOpen = true;
+    let hasAttachment = false;
+    let isVoiceListening = false;
+    let isSheetBOpen = false;
+    let isAttMenuAOpen = false;
+    let currentTab = 'output';
+
+    let jsonResultData = {
+      toolName: "get_battery",
+      level: 84,
+      isCharging: false,
+      currentNowMa: -412,
+      temperatureC: 31.4
+    };
+
+    let jsonArgsData = {
+      includeBatteryHealth: true,
+      sampleIntervalMs: 1000
+    };
+
+    function setViewMode(mode, btn) {
+      document.querySelectorAll('.segmented-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const area = document.getElementById('canvasArea');
+      area.classList.remove('view-a-only', 'view-b-only');
+      if (mode === 'a-only') area.classList.add('view-a-only');
+      if (mode === 'b-only') area.classList.add('view-b-only');
+    }
+
+    function toggleToolFlow() {
+      isToolFlowOpen = !isToolFlowOpen;
+      const cardA = document.getElementById('toolCardA');
+      const cardB = document.getElementById('toolCardB');
+      cardA.style.display = isToolFlowOpen ? 'flex' : 'none';
+      cardB.style.display = isToolFlowOpen ? 'flex' : 'none';
+
+      document.getElementById('chevronA').style.transform = isToolFlowOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+      document.getElementById('chevronB').style.transform = isToolFlowOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+
+    function toggleAttachment() {
+      hasAttachment = !hasAttachment;
+      document.getElementById('attPreviewA').style.display = hasAttachment ? 'flex' : 'none';
+      document.getElementById('inlineDockB').style.display = hasAttachment ? 'flex' : 'none';
+      if (isSheetBOpen) toggleAttSheetB();
+      syncSendButtons();
+    }
+
+    function toggleAttMenuA() {
+      isAttMenuAOpen = !isAttMenuAOpen;
+      document.getElementById('attMenuA').style.display = isAttMenuAOpen ? 'flex' : 'none';
+    }
+
+    function toggleAttSheetB() {
+      isSheetBOpen = !isSheetBOpen;
+      document.getElementById('attSheetB').style.display = isSheetBOpen ? 'grid' : 'none';
+      document.getElementById('plusMorphBtnB').classList.toggle('open', isSheetBOpen);
+    }
+
+    function toggleVoice() {
+      isVoiceListening = !isVoiceListening;
+      const btnA = document.getElementById('actionBtnA');
+      const btnB = document.getElementById('actionBtnB');
+
+      if (isVoiceListening) {
+        btnB.className = 'btn-reactor listening';
+        btnA.style.borderColor = 'var(--rose)';
+      } else {
+        syncSendButtons();
+      }
+    }
+
+    function handleTextSync(source, targetSuffix) {
+      document.getElementById('inputBox' + targetSuffix).value = source.value;
+      syncSendButtons();
+    }
+
+    function syncSendButtons() {
+      const val = document.getElementById('inputBoxB').value.trim();
+      const hasContent = Boolean(val || hasAttachment);
+
+      const btnA = document.getElementById('actionBtnA');
+      const btnB = document.getElementById('actionBtnB');
+      const orbA = document.getElementById('orbA');
+      const sendA = document.getElementById('sendIconA');
+      const orbB = document.getElementById('orbB');
+      const sendB = document.getElementById('sendIconB');
+
+      if (hasContent) {
+        btnA.className = 'btn-action-round send-ready';
+        orbA.style.display = 'none';
+        sendA.style.display = 'block';
+
+        btnB.className = 'btn-reactor send-ready';
+        orbB.style.display = 'none';
+        sendB.style.display = 'block';
+      } else {
+        btnA.className = 'btn-action-round';
+        orbA.style.display = 'block';
+        sendA.style.display = 'none';
+
+        btnB.className = 'btn-reactor idle';
+        orbB.style.display = 'block';
+        sendB.style.display = 'none';
+      }
+    }
+
+    function switchRecipeTab(btn, tab) {
+      document.querySelectorAll('.recipe-tabs-row .tab-btn-mini').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTab = tab;
+      renderSyntaxCode();
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+    }
+
+    function renderSyntaxCode() {
+      const target = document.getElementById('recipeCodeRenderB');
+      if (currentTab === 'output' || currentTab === 'args') {
+        const data = currentTab === 'output' ? jsonResultData : jsonArgsData;
+        const lines = Object.entries(data).map(([key, value]) => {
+          const type = typeof value === 'number' ? 'json-num' : typeof value === 'boolean' ? 'json-bool' : 'json-str';
+          return `  <span class="json-key">${escapeHtml(JSON.stringify(key))}</span>: <span class="${type}">${escapeHtml(JSON.stringify(value))}</span>`;
+        });
+        target.innerHTML = `{\n${lines.join(',\n')}\n}`;
+      } else if (currentTab === 'laya') {
+        const toolName = escapeHtml(JSON.stringify(document.getElementById('editToolName').value));
+        target.innerHTML = `{\n  <span class="json-key">"suggestedTool"</span>: <span class="json-str">${toolName}</span>,\n  <span class="json-key">"confidence"</span>: <span class="json-num">0.96</span>,\n  <span class="json-key">"margin"</span>: <span class="json-num">0.82</span>,\n  <span class="json-key">"routingInfluence"</span>: <span class="json-str">"none (observed only)"</span>\n}`;
+      }
+    }
+
+    async function copyRecipePayload(btn) {
+      try {
+        await navigator.clipboard.writeText(document.getElementById('recipeCodeRenderB').textContent);
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+        }, 1600);
+      } catch {
+        document.getElementById('saveStatusText').textContent = 'Could not copy payload';
+      }
+    }
+
+    function switchEditorTab(el, tab) {
+      document.querySelectorAll('.editor-tabs .editor-tab-item').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+
+      document.getElementById('tabContentEditor').style.display = tab === 'content' ? 'flex' : 'none';
+      document.getElementById('tabTokensEditor').style.display = tab === 'tokens' ? 'flex' : 'none';
+      document.getElementById('tabJsonEditor').style.display = tab === 'json' ? 'flex' : 'none';
+    }
+
+    function updateContent(field, val) {
+      if (field === 'userPrompt') {
+        document.getElementById('userBubbleTextA').textContent = val;
+        document.getElementById('userBubbleTextB').textContent = val;
+      } else if (field === 'assistantResponse') {
+        document.getElementById('assistantBodyA').textContent = val;
+        document.getElementById('assistantBodyB').textContent = val;
+      } else if (field === 'toolName') {
+        document.getElementById('layaSuggestionValA').textContent = val;
+        document.getElementById('triggerLabelB').textContent = `${val} · ${document.getElementById('editToolDuration').value}ms`;
+        renderSyntaxCode();
+      } else if (field === 'toolDuration') {
+        document.getElementById('toolDurationA').textContent = val;
+        const toolName = document.getElementById('editToolName').value;
+        document.getElementById('triggerLabelB').textContent = `${toolName} · ${val}ms`;
+      } else if (field === 'attName') {
+        document.getElementById('attNameDisplayA').textContent = val;
+        document.getElementById('dockNameDisplayB').textContent = val;
+      }
+    }
+
+    function updateToken(token, val) {
+      const root = document.documentElement;
+      if (token === 'specular') {
+        root.style.setProperty('--specular-opacity', (val / 100).toString());
+        document.getElementById('valDisplaySpecular').textContent = val + '%';
+      } else if (token === 'composerRadius') {
+        root.style.setProperty('--composer-radius', val + 'px');
+        document.getElementById('valDisplayComposerRadius').textContent = val + 'px';
+      } else if (token === 'tailRadius') {
+        root.style.setProperty('--bubble-tail-radius', val + 'px');
+        document.getElementById('valDisplayTailRadius').textContent = val + 'px';
+      } else if (token === 'cardRadius') {
+        root.style.setProperty('--card-radius', val + 'px');
+        document.getElementById('valDisplayCardRadius').textContent = val + 'px';
+      }
+    }
+
+    function updateJsonResult(raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Expected JSON object');
+        jsonResultData = parsed;
+        document.getElementById('jsonOutputDumpA').textContent = JSON.stringify(jsonResultData, null, 2);
+        renderSyntaxCode();
+      } catch {
+        document.getElementById('saveStatusText').textContent = 'Result JSON invalid; preview retains last valid value';
+      }
+    }
+
+    function updateJsonArgs(raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Expected JSON object');
+        jsonArgsData = parsed;
+        renderSyntaxCode();
+      } catch {
+        document.getElementById('saveStatusText').textContent = 'Arguments JSON invalid; preview retains last valid value';
+      }
+    }
+    function validJsonEditor(id) {
+      try {
+        const value = JSON.parse(document.getElementById(id).value);
+        return value && typeof value === 'object' && !Array.isArray(value);
+      } catch {
+        return false;
+      }
+    }
+
+
+    async function saveEdits() {
+      const state = {
+        userPrompt: document.getElementById('editUserPrompt').value,
+        assistantResponse: document.getElementById('editAssistantResponse').value,
+        toolName: document.getElementById('editToolName').value,
+        toolDuration: document.getElementById('editToolDuration').value,
+        attName: document.getElementById('editAttName').value,
+        tokens: {
+          specular: document.getElementById('valDisplaySpecular').textContent,
+          composerRadius: document.getElementById('valDisplayComposerRadius').textContent,
+          tailRadius: document.getElementById('valDisplayTailRadius').textContent,
+          cardRadius: document.getElementById('valDisplayCardRadius').textContent,
+        },
+        jsonResult: jsonResultData,
+        jsonArgs: jsonArgsData,
+      };
+
+      const banner = document.getElementById('saveStatusText');
+      if (!validJsonEditor('editJsonResult') || !validJsonEditor('editJsonArgs')) {
+        banner.textContent = 'Not saved: fix invalid JSON payloads';
+        banner.style.color = 'var(--rose)';
+        return;
+      }
+      try {
+        const res = await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state),
+        });
+        const json = await res.json();
+        if (!res.ok || json.ok !== true) throw new Error(json.error || `Save failed: HTTP ${res.status}`);
+        banner.textContent = `Saved at ${new Date(json.savedAt).toLocaleTimeString()}`;
+        banner.style.color = 'var(--emerald)';
+      } catch (err) {
+        banner.textContent = `Not saved: ${err.message}`;
+        banner.style.color = 'var(--rose)';
+      }
+    }
+
+    async function restoreEdits() {
+      const banner = document.getElementById('saveStatusText');
+      try {
+        const res = await fetch('/api/state');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const state = await res.json();
+        if (state.empty) return;
+        for (const [field, id] of Object.entries({
+          userPrompt: 'editUserPrompt', assistantResponse: 'editAssistantResponse',
+          toolName: 'editToolName', toolDuration: 'editToolDuration', attName: 'editAttName',
+        })) {
+          if (typeof state[field] !== 'string') continue;
+          document.getElementById(id).value = state[field];
+          updateContent(field, state[field]);
+        }
+        for (const [token, display] of Object.entries({
+          specular: 'valDisplaySpecular', composerRadius: 'valDisplayComposerRadius',
+          tailRadius: 'valDisplayTailRadius', cardRadius: 'valDisplayCardRadius',
+        })) {
+          const val = Number.parseFloat(state.tokens?.[token]);
+          if (!Number.isFinite(val)) continue;
+          const slider = document.querySelector(`input[oninput="updateToken('${token}', this.value)"]`);
+          if (!slider) continue;
+          slider.value = String(Math.max(Number(slider.min), Math.min(Number(slider.max), val)));
+          updateToken(token, slider.value);
+        }
+        if (state.jsonResult && typeof state.jsonResult === 'object' && !Array.isArray(state.jsonResult)) {
+          document.getElementById('editJsonResult').value = JSON.stringify(state.jsonResult, null, 2);
+          updateJsonResult(document.getElementById('editJsonResult').value);
+        }
+        if (state.jsonArgs && typeof state.jsonArgs === 'object' && !Array.isArray(state.jsonArgs)) {
+          document.getElementById('editJsonArgs').value = JSON.stringify(state.jsonArgs, null, 2);
+          updateJsonArgs(document.getElementById('editJsonArgs').value);
+        }
+        banner.textContent = 'Saved draft restored locally';
+      } catch (err) {
+        banner.textContent = `Could not restore saved draft: ${err.message}`;
+        banner.style.color = 'var(--rose)';
+      }
+    }
+    void restoreEdits();
+  </script>
+</body>
+</html>

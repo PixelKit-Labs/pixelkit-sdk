@@ -4,6 +4,17 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.83] - 2026-10-04 (unreleased)
+
+### Documentation and tooling
+- Add an explicitly illustrative Side A/B conversation and tool-inspector comparison and a loopback-only live editor for reviewing content, design tokens and JSON fixtures. The editor restores a locally saved draft, escapes JSON preview markup, rejects oversized/non-JSON/cross-origin writes and does not label fixture telemetry as a device observation. Delta's actual conversation and inspector implementation belongs in the separate Delta Mobile source; this proposal is not accepted or device-verified.
+- Synchronize root, SDK, native and ML Kit patch identities and local OpenAPI to 1.6.83. No SDK hook contract, Android native module or registry package was released.
+
+### Verification
+- Browser smoke rendered the A/B comparison and local editor, exercised escaped hostile JSON with no inserted nodes or script execution, restored a saved draft after reload, repeated an atomic save, and observed 403 cross-origin, 403 non-JSON and 413 oversized write responses. The generated smoke draft was removed. The authorized phone was not used for this illustrative design review; native visual acceptance remains open.
+- `npm run verify` passed SDK TypeScript, 100/100 tests, OpenAPI/build and the remote 53-hook docs contract; pixelkit-docs `npm run check:api` and all three `npm pack --dry-run` workspaces passed. A separate GET smoke returned the saved fixture with HTTP 200 after reading it before response headers, then removed the fixture. The guide-site builder is absent, so generated-site output remains unverified; hardware/API, glossary and unrelated guide sections did not change.
+- Preserved two clearly labeled Delta 1.0.111/code167 **web** inspector screenshots in the canonical guide. They show a battery fixture from the browser runtime and an unavailable local Laya advisor, not a Pixel reading or native acceptance. The unsupported `hand_off` name regression was corrected in Delta Mobile and passed focused coverage; no SDK tool routing changed.
+
 ## [1.6.82] - 2026-10-03 (unreleased)
 
 ### Fixed

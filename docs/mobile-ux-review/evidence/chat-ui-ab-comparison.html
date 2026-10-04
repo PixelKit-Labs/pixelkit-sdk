@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta Chat UI — Side A (Current) vs Side B (Proposed) Comparison</title>
+  <style>
+    :root {
+      --bg: #090909;
+      --card-bg: #141417;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-specular: rgba(255, 255, 255, 0.16);
+      --pearl: #EEE9E3;
+      --pearl-glow: rgba(238, 233, 227, 0.25);
+      --emerald: #7DDCA0;
+      --emerald-bg: rgba(125, 220, 160, 0.12);
+      --amber: #E8BE71;
+      --amber-bg: rgba(232, 190, 113, 0.12);
+      --rose: #F29A9A;
+      --rose-bg: rgba(242, 154, 154, 0.12);
+      --violet: #9C7BAA;
+      --violet-bg: rgba(156, 123, 170, 0.15);
+      --pink: #E2A0BE;
+      --text: #F3EBEF;
+      --text-muted: #8E8A90;
+      --text-dim: #5C5860;
+      --mono-font: "SF Mono", "Geist Mono", "Roboto Mono", monospace;
+      --sans-font: -apple-system, BlinkMacSystemFont, "Geist", "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #050505;
+      color: var(--text);
+      font-family: var(--sans-font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* Top Control Hub */
+    .mock-header {
+      width: 100%;
+      max-width: 1200px;
+      margin-bottom: 24px;
+      background: #111114;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .mock-title-group h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mock-title-group h1 span {
+      font-size: 11px;
+      font-family: var(--mono-font);
+      background: var(--violet-bg);
+      color: var(--violet);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 500;
+      border: 1px solid rgba(156, 123, 170, 0.3);
+    }
+
+    .mock-title-group p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .segmented-control {
+      display: flex;
+      background: #090909;
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .segment-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--sans-font);
+    }
+
+    .segment-btn.active {
+      background: #202025;
+      color: var(--text);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    .preset-btn {
+      background: #18181D;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      background: #25252c;
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    /* Comparison Workspace */
+    .comparison-container {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      transition: all 0.3s ease;
+    }
+
+    .comparison-container.view-a-only {
+      grid-template-columns: 1fr;
+      max-width: 460px;
+    }
+    .comparison-container.view-a-only .side-b-wrapper { display: none; }
+
+    .comparison-container.view-b-only {
+      grid-template-columns: 1fr;
+      max-width: 460px;
+    }
+    .comparison-container.view-b-only .side-a-wrapper { display: none; }
+
+    .screen-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .side-label-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 8px;
+    }
+
+    .side-tag {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .side-tag.tag-a {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .side-tag.tag-b {
+      background: rgba(238, 233, 227, 0.1);
+      color: var(--pearl);
+      border: 1px solid rgba(238, 233, 227, 0.25);
+    }
+
+    .key-changes-chip {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Phone Shell */
+    .phone-viewport {
+      background: var(--bg);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 40px;
+      height: 820px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    /* System Status Bar */
+    .status-bar {
+      height: 44px;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      color: var(--text);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .status-bar-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    /* In-App App Bar */
+    .app-header {
+      padding: 8px 18px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .app-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .header-titles h2 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .header-titles .meta-sub {
+      font-size: 11px;
+      font-family: var(--mono-font);
+      color: var(--emerald);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: var(--mono-font);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Scrollable Conversation Stream */
+    .chat-transcript {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
+
+    /* Authentic Glossy Delta Orb */
+    .delta-orb-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #F5F1EB 0%, #E2A0BE 45%, #9C7BAA 70%, #1A1420 100%);
+      box-shadow: 0 0 12px rgba(226, 160, 190, 0.35), inset 0 1px 2px rgba(255,255,255,0.8);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .delta-orb-avatar::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 6px;
+      width: 8px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.7);
+      filter: blur(0.5px);
+      transform: rotate(-20deg);
+    }
+
+    /* User Message Bubble */
+    .turn-user {
+      align-self: flex-end;
+      max-width: 86%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    /* Side A User Bubble */
+    .side-a .user-bubble {
+      background: #18181D;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 12px 16px;
+      font-size: 15px;
+      line-height: 22px;
+      color: var(--text);
+    }
+
+    /* Side B User Bubble (Refined) */
+    .side-b .user-bubble {
+      background: linear-gradient(180deg, #1C1C22 0%, #16161B 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 16px rgba(0,0,0,0.3);
+      border-radius: 20px 20px 6px 20px;
+      padding: 13px 17px;
+      font-size: 15px;
+      line-height: 22px;
+      color: #FAF6F8;
+    }
+
+    .bubble-actions {
+      display: flex;
+      gap: 6px;
+      padding-right: 4px;
+    }
+
+    .action-icon-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+    .action-icon-btn:hover { opacity: 1; color: var(--text); }
+    .action-icon-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+    /* Assistant Turn Structure */
+    .turn-assistant {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .assistant-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .speaker-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .msg-timestamp {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .header-spacer { flex: 1; }
+
+    /* SIDE A Tool Inspector */
+    .side-a .tool-flow-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .side-a .tool-flow-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+    }
+
+    .side-a .tool-inspector-card {
+      margin-left: 36px;
+      background: #141417;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .side-a .inspector-overview-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 8px;
+    }
+
+    .side-a .overview-title {
+      font-family: var(--mono-font);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--pearl);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .side-a .status-chip-box {
+      font-family: var(--mono-font);
+      font-size: 10px;
+      background: var(--emerald-bg);
+      color: var(--emerald);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .side-a .raw-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px;
+      border-radius: 6px;
+    }
+
+    .side-a .grid-label {
+      font-family: var(--mono-font);
+      color: var(--text-dim);
+      font-size: 10px;
+    }
+
+    .side-a .grid-val {
+      font-family: var(--mono-font);
+      color: var(--text);
+      text-align: right;
+    }
+
+    .side-a .json-code-box {
+      background: #090909;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      padding: 8px;
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: #A0C2E2;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* SIDE B Tool Recipe Card */
+    .side-b .tool-flow-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: #D6D2CC;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .side-b .tool-flow-pill:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.16);
+      color: #FFFFFF;
+    }
+
+    /* Side B Tool Card — Direct Sleek Code Box with Segmented Tabs */
+    .side-b .tool-code-card {
+      margin-left: 36px;
+      margin-top: 4px;
+      background: #0C0C0F;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .side-b .recipe-tabs-row {
+      display: flex;
+      padding: 5px 8px 4px;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .side-b .tab-btn-mini {
+      background: transparent;
+      border: none;
+      font-family: var(--mono-font);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .side-b .tab-btn-mini:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+    .side-b .tab-btn-mini.active {
+      background: rgba(255, 255, 255, 0.09);
+      color: #FFF;
+      font-weight: 500;
+    }
+
+    .side-b .code-body-wrapper {
+      padding: 8px 12px;
+      position: relative;
+      display: flex;
+    }
+
+    .side-b .code-render {
+      font-family: var(--mono-font);
+      font-size: 12px;
+      line-height: 19px;
+      white-space: pre;
+      margin: 0;
+      padding: 0;
+      flex: 1;
+    }
+
+    .side-b .json-key { color: #EDEDED; }
+    .side-b .json-str { color: #4FC1FF; }
+    .side-b .json-num { color: #4FC1FF; }
+    .side-b .json-bool { color: #4FC1FF; }
+
+    .side-b .copy-action-btn {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      padding: 0;
+    }
+    .side-b .copy-action-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+    .side-b .copy-action-btn.copied {
+      background: var(--emerald-bg);
+      border-color: var(--emerald);
+      color: var(--emerald);
+    }
+    .side-b .copy-action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+    .assistant-body {
+      margin-left: 36px;
+      font-size: 15px;
+      line-height: 23px;
+      color: var(--text);
+    }
+
+    /* Composer Side A */
+    .side-a .composer-area {
+      padding: 0 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: linear-gradient(180deg, transparent 0%, #090909 50%);
+    }
+
+    .side-a .attachment-menu-row {
+      display: flex;
+      justify-content: space-around;
+      background: rgba(22, 22, 26, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .side-a .att-menu-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .side-a .att-menu-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .side-a .att-menu-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+
+    .side-a .attachment-preview-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(22, 22, 26, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 6px 10px;
+    }
+
+    .side-a .att-thumb {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      background: #25252b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .side-a .att-thumb svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
+
+    .side-a .att-name {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .side-a .att-remove {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+    }
+    .side-a .att-remove svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+
+    .side-a .composer-capsule {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      background: #141417;
+      border: 1.5px solid rgba(255, 255, 255, 0.08);
+      border-radius: 28px;
+      padding: 4px 6px;
+    }
+
+    .side-a .plus-circle-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .side-a .plus-circle-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+
+    .side-a .composer-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 20px;
+      padding: 10px 4px;
+      outline: none;
+      resize: none;
+      min-height: 40px;
+      max-height: 120px;
+      font-family: var(--sans-font);
+    }
+
+    .side-a .action-circle-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .side-a .action-circle-btn.voice-mode {
+      background: #141417;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .side-a .action-circle-btn.send-mode {
+      background: var(--pearl);
+      color: #090909;
+    }
+    .side-a .action-circle-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+
+    /* Composer Side B */
+    .side-b .composer-area {
+      padding: 0 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      background: linear-gradient(180deg, transparent 0%, #090909 40%);
+    }
+
+    .side-b .glass-actions-sheet {
+      background: rgba(20, 20, 24, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      border-radius: 20px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .side-b .sheet-action-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 6px 2px;
+      border-radius: 12px;
+      transition: background 0.2s;
+    }
+    .side-b .sheet-action-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .side-b .sheet-icon-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    .side-b .sheet-icon-circle svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
+
+    .side-b .sheet-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .side-b .composer-capsule {
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, #18181D 0%, #121215 100%);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 12px 30px rgba(0, 0, 0, 0.5);
+      border-radius: 26px;
+      padding: 6px 8px;
+      transition: all 0.2s;
+    }
+
+    .side-b .composer-capsule:focus-within {
+      border-color: rgba(238, 233, 227, 0.35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 14px 36px rgba(0, 0, 0, 0.6);
+    }
+
+    .side-b .inline-attachment-dock {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 5px 8px;
+      margin: 2px 2px 6px;
+    }
+
+    .side-b .dock-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #25252D;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .side-b .dock-thumb svg { width: 15px; height: 15px; stroke: currentColor; fill: none; }
+
+    .side-b .dock-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .side-b .dock-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .side-b .dock-meta {
+      font-size: 10px;
+      font-family: var(--mono-font);
+      color: var(--text-muted);
+    }
+
+    .side-b .dock-remove-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .side-b .dock-remove-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
+
+    .side-b .capsule-main-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .side-b .plus-toggle-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .side-b .plus-toggle-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+    .side-b .plus-toggle-btn.open {
+      background: rgba(238, 233, 227, 0.15);
+      transform: rotate(45deg);
+    }
+
+    .side-b .composer-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 22px;
+      padding: 8px 6px;
+      outline: none;
+      resize: none;
+      min-height: 38px;
+      max-height: 120px;
+      font-family: var(--sans-font);
+    }
+
+    .side-b .action-reactor-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.25s;
+    }
+
+    .side-b .action-reactor-btn.voice-idle {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .side-b .action-reactor-btn.voice-listening {
+      background: rgba(242, 154, 154, 0.15);
+      border: 1px solid var(--rose);
+      box-shadow: 0 0 14px rgba(242, 154, 154, 0.4);
+    }
+
+    .side-b .action-reactor-btn.send-ready {
+      background: var(--pearl);
+      color: #090909;
+      box-shadow: 0 2px 10px var(--pearl-glow);
+      transform: scale(1.04);
+    }
+
+    .side-b .action-reactor-btn svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Controls -->
+  <div class="mock-header">
+    <div class="mock-title-group">
+      <h1>Delta Mobile Chat UI <span>A/B Comparison</span></h1>
+      <p>Illustrative design fixtures only: both phone frames, prompts, telemetry, and tool values are sample content, not device captures or verified readings. Side B is proposed and awaits user feedback.</p>
+    </div>
+    <div class="controls-row">
+      <div class="segmented-control">
+        <button class="segment-btn active" onclick="setViewMode('split')">Side-by-Side (Split)</button>
+        <button class="segment-btn" onclick="setViewMode('a-only')">Side A (Current)</button>
+        <button class="segment-btn" onclick="setViewMode('b-only')">Side B (Proposed)</button>
+      </div>
+      <button class="preset-btn" onclick="toggleToolFlow()">
+        <svg style="width:13px;height:13px;stroke:var(--emerald);fill:none;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Toggle Tool Flow
+      </button>
+      <button class="preset-btn" onclick="toggleAttachment()">
+        <svg style="width:13px;height:13px;stroke:currentColor;fill:none;" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Toggle Attachment
+      </button>
+      <button class="preset-btn" onclick="toggleVoiceListening()">
+        <svg style="width:13px;height:13px;stroke:var(--rose);fill:none;" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        Toggle Voice
+      </button>
+    </div>
+  </div>
+
+  <!-- Comparison Workspace -->
+  <div class="comparison-container" id="comparisonContainer">
+
+    <!-- SIDE A: CURRENT -->
+    <div class="screen-wrapper side-a-wrapper">
+      <div class="side-label-bar">
+        <div class="side-tag tag-a">Side A &middot; Current</div>
+        <div class="key-changes-chip">Boxy tool card &middot; Floating attachment row</div>
+      </div>
+
+      <div class="phone-viewport side-a">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-bar-icons"><span>5G</span><span>100%</span></div>
+        </div>
+
+        <div class="app-header">
+          <div class="app-header-left">
+            <div class="back-btn">&lsaquo;</div>
+            <div class="header-titles">
+              <h2>Delta Session</h2>
+              <div class="meta-sub">ON-DEVICE NANO</div>
+            </div>
+          </div>
+          <div class="header-actions">
+            <div class="header-chip">38&deg;C &middot; 4.2W</div>
+          </div>
+        </div>
+
+        <div class="chat-transcript">
+          <div class="turn-user">
+            <div class="user-bubble">Can you check my battery status and discharge rate?</div>
+            <div class="bubble-actions">
+              <div class="action-icon-btn" title="Copy">
+                <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              </div>
+              <div class="action-icon-btn" title="Edit">
+                <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-assistant">
+            <div class="assistant-meta-row">
+              <div class="delta-orb-avatar"></div>
+              <div class="speaker-name">Delta</div>
+              <div class="msg-timestamp">9:41 AM</div>
+              <div class="header-spacer"></div>
+              <div class="tool-flow-pill" onclick="toggleToolFlow()">
+                <div class="dot"></div>
+                <span>Flow &middot; 1 tool</span>
+                <svg id="chevronA" style="width:12px;height:12px;stroke:currentColor;fill:none;transition:transform 0.2s;" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="tool-inspector-card" id="toolInspectorA" style="display: flex;">
+              <div class="inspector-overview-head">
+                <div class="overview-title">TOOL FLOW &middot; 18 MS</div>
+                <div class="status-chip-box">COMPLETE</div>
+              </div>
+              <div class="raw-grid">
+                <div><span class="grid-label">LAYA SUGGESTION</span></div>
+                <div class="grid-val">get_battery</div>
+                <div><span class="grid-label">MODEL SCORE</span></div>
+                <div class="grid-val">96/100</div>
+                <div><span class="grid-label">ROUTING RULE</span></div>
+                <div class="grid-val">corroborated</div>
+              </div>
+              <div class="json-code-box">{
+  "toolName": "get_battery",
+  "level": 84,
+  "isCharging": false,
+  "currentNowMa": -412,
+  "temperatureC": 31.4
+}</div>
+            </div>
+
+            <div class="assistant-body">
+              Your battery is currently at <strong>84%</strong> discharging at approximately <strong>412 mA</strong>. Thermal levels are optimal at 31.4&deg;C.
+            </div>
+          </div>
+        </div>
+
+        <div class="side-a composer-area">
+          <div class="attachment-menu-row" id="attachmentMenuA" style="display: none;">
+            <div class="att-menu-item">
+              <div class="att-menu-icon"><svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span>Files</span>
+            </div>
+            <div class="att-menu-item">
+              <div class="att-menu-icon"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>
+              <span>Camera</span>
+            </div>
+            <div class="att-menu-item">
+              <div class="att-menu-icon"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>
+              <span>Photos</span>
+            </div>
+            <div class="att-menu-item">
+              <div class="att-menu-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3" rx="1"/><line x1="10" x2="14" y1="12" y2="12"/></svg></div>
+              <span>Archives</span>
+            </div>
+          </div>
+
+          <div class="attachment-preview-bar" id="attachmentPreviewA" style="display: none;">
+            <div class="att-thumb">
+              <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            </div>
+            <span class="att-name">battery_diagnostics.png</span>
+            <button class="att-remove" onclick="toggleAttachment()" title="Remove">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+
+          <div class="composer-capsule">
+            <div class="plus-circle-btn" onclick="toggleAttachmentMenuA()">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </div>
+            <textarea class="composer-input" id="inputA" placeholder="Message Delta" rows="1" oninput="handleInputSync(this, 'B')"></textarea>
+            <div class="action-circle-btn voice-mode" id="actionBtnA" onclick="toggleVoiceListening()">
+              <div class="delta-orb-avatar" id="orbA" style="width:24px;height:24px;"></div>
+              <svg id="sendSvgA" style="display:none;" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- SIDE B: PROPOSED REDESIGN -->
+    <div class="screen-wrapper side-b-wrapper">
+      <div class="side-label-bar">
+        <div class="side-tag tag-b">Side B &middot; Proposed Redesign</div>
+        <div class="key-changes-chip">Sleek Recipe Card &middot; Specular Dock &middot; Clean I/O</div>
+      </div>
+
+      <div class="phone-viewport side-b">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-bar-icons"><span>5G</span><span>100%</span></div>
+        </div>
+
+        <div class="app-header">
+          <div class="app-header-left">
+            <div class="back-btn">&lsaquo;</div>
+            <div class="header-titles">
+              <h2>Delta Session</h2>
+              <div class="meta-sub">ON-DEVICE NANO</div>
+            </div>
+          </div>
+          <div class="header-actions">
+            <div class="header-chip">38&deg;C &middot; 4.2W</div>
+          </div>
+        </div>
+
+        <div class="chat-transcript">
+          <div class="turn-user">
+            <div class="user-bubble">Can you check my battery status and discharge rate?</div>
+            <div class="bubble-actions">
+              <div class="action-icon-btn" title="Copy">
+                <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              </div>
+              <div class="action-icon-btn" title="Edit">
+                <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="turn-assistant">
+            <div class="assistant-meta-row">
+              <div class="delta-orb-avatar"></div>
+              <div class="speaker-name">Delta</div>
+              <div class="msg-timestamp">9:41 AM</div>
+              <div class="header-spacer"></div>
+
+              <div class="tool-flow-pill" onclick="toggleToolFlow()">
+                <span>get_battery &middot; 18ms</span>
+                <svg id="chevronB" style="width:12px;height:12px;stroke:currentColor;fill:none;transition:transform 0.2s;" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <!-- Proposed Direct Code Card with Segmented Tabs -->
+            <div class="tool-code-card" id="toolInspectorB" style="display: flex;">
+              <div class="recipe-tabs-row">
+                <button class="tab-btn-mini active" onclick="switchRecipeTab(this, 'output')">Result Output</button>
+                <button class="tab-btn-mini" onclick="switchRecipeTab(this, 'args')">Input Arguments</button>
+                <button class="tab-btn-mini" onclick="switchRecipeTab(this, 'laya')">Laya Advisory</button>
+              </div>
+              <div class="code-body-wrapper">
+                <pre class="code-render" id="recipeCodeB">{
+  <span class="json-key">"toolName"</span>: <span class="json-str">"get_battery"</span>,
+  <span class="json-key">"level"</span>: <span class="json-num">84</span>,
+  <span class="json-key">"isCharging"</span>: <span class="json-bool">false</span>,
+  <span class="json-key">"currentNowMa"</span>: <span class="json-num">-412</span>,
+  <span class="json-key">"temperatureC"</span>: <span class="json-num">31.4</span>
+}</pre>
+                <button class="copy-action-btn" onclick="copyCode(this)" title="Copy">
+                  <svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="assistant-body">
+              Your battery is currently at <strong>84%</strong> discharging at approximately <strong>412 mA</strong>. Thermal levels are optimal at 31.4&deg;C.
+            </div>
+          </div>
+        </div>
+
+        <div class="side-b composer-area">
+          <div class="glass-actions-sheet" id="attachmentSheetB" style="display: none;">
+            <div class="sheet-action-item" onclick="toggleAttachment()">
+              <div class="sheet-icon-circle"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>
+              <span class="sheet-label">Camera</span>
+            </div>
+            <div class="sheet-action-item" onclick="toggleAttachment()">
+              <div class="sheet-icon-circle"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>
+              <span class="sheet-label">Gallery</span>
+            </div>
+            <div class="sheet-action-item" onclick="toggleAttachment()">
+              <div class="sheet-icon-circle"><svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span class="sheet-label">Files</span>
+            </div>
+            <div class="sheet-action-item" onclick="toggleAttachment()">
+              <div class="sheet-icon-circle"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3" rx="1"/><line x1="10" x2="14" y1="12" y2="12"/></svg></div>
+              <span class="sheet-label">Archives</span>
+            </div>
+          </div>
+
+          <div class="composer-capsule">
+            <div class="inline-attachment-dock" id="inlineDockB" style="display: none;">
+              <div class="dock-thumb">
+                <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              </div>
+              <div class="dock-info">
+                <span class="dock-name">battery_diagnostics.png</span>
+                <span class="dock-meta">420 KB &middot; Ready for Nano vision</span>
+              </div>
+              <button class="dock-remove-btn" onclick="toggleAttachment()" title="Remove">
+                <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+
+            <div class="capsule-main-row">
+              <div class="plus-toggle-btn" id="plusBtnB" onclick="toggleAttachmentSheetB()">
+                <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              </div>
+              <textarea class="composer-input" id="inputB" placeholder="Message Delta" rows="1" oninput="handleInputSync(this, 'A')"></textarea>
+              <div class="action-reactor-btn voice-idle" id="actionBtnB" onclick="toggleVoiceListening()">
+                <div class="delta-orb-avatar" id="orbGlyphB" style="width:26px;height:26px;"></div>
+                <svg id="sendSvgB" style="display:none;" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let isToolFlowOpen = true;
+    let hasAttachment = false;
+    let isVoiceListening = false;
+    let isSheetBOpen = false;
+
+    function setViewMode(mode) {
+      const container = document.getElementById('comparisonContainer');
+      document.querySelectorAll('.segment-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      container.classList.remove('view-a-only', 'view-b-only');
+      if (mode === 'a-only') container.classList.add('view-a-only');
+      if (mode === 'b-only') container.classList.add('view-b-only');
+    }
+
+    function toggleToolFlow() {
+      isToolFlowOpen = !isToolFlowOpen;
+      const inspectorA = document.getElementById('toolInspectorA');
+      const inspectorB = document.getElementById('toolInspectorB');
+      const chevA = document.getElementById('chevronA');
+      const chevB = document.getElementById('chevronB');
+
+      inspectorA.style.display = isToolFlowOpen ? 'flex' : 'none';
+      inspectorB.style.display = isToolFlowOpen ? 'flex' : 'none';
+      chevA.style.transform = isToolFlowOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+      chevB.style.transform = isToolFlowOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+
+    function toggleAttachment() {
+      hasAttachment = !hasAttachment;
+      document.getElementById('attachmentPreviewA').style.display = hasAttachment ? 'flex' : 'none';
+      document.getElementById('inlineDockB').style.display = hasAttachment ? 'flex' : 'none';
+      if (isSheetBOpen) toggleAttachmentSheetB();
+      syncActionButtons();
+    }
+
+    function toggleAttachmentMenuA() {
+      const menu = document.getElementById('attachmentMenuA');
+      menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function toggleAttachmentSheetB() {
+      isSheetBOpen = !isSheetBOpen;
+      const sheet = document.getElementById('attachmentSheetB');
+      const plusBtn = document.getElementById('plusBtnB');
+      sheet.style.display = isSheetBOpen ? 'grid' : 'none';
+      plusBtn.classList.toggle('open', isSheetBOpen);
+    }
+
+    function toggleVoiceListening() {
+      isVoiceListening = !isVoiceListening;
+      const btnA = document.getElementById('actionBtnA');
+      const btnB = document.getElementById('actionBtnB');
+
+      if (isVoiceListening) {
+        btnB.className = 'action-reactor-btn voice-listening';
+        btnA.style.borderColor = 'var(--rose)';
+      } else {
+        syncActionButtons();
+      }
+    }
+
+    function handleInputSync(source, targetIdSuffix) {
+      const target = document.getElementById('input' + targetIdSuffix);
+      target.value = source.value;
+      syncActionButtons();
+    }
+
+    function syncActionButtons() {
+      const val = document.getElementById('inputB').value.trim();
+      const hasContent = Boolean(val || hasAttachment);
+
+      const btnA = document.getElementById('actionBtnA');
+      const btnB = document.getElementById('actionBtnB');
+      const orbA = document.getElementById('orbA');
+      const sendSvgA = document.getElementById('sendSvgA');
+      const orbB = document.getElementById('orbGlyphB');
+      const sendSvgB = document.getElementById('sendSvgB');
+
+      if (hasContent) {
+        btnA.className = 'action-circle-btn send-mode';
+        orbA.style.display = 'none';
+        sendSvgA.style.display = 'block';
+
+        btnB.className = 'action-reactor-btn send-ready';
+        orbB.style.display = 'none';
+        sendSvgB.style.display = 'block';
+      } else {
+        btnA.className = 'action-circle-btn voice-mode';
+        orbA.style.display = 'block';
+        sendSvgA.style.display = 'none';
+
+        btnB.className = 'action-reactor-btn voice-idle';
+        orbB.style.display = 'block';
+        sendSvgB.style.display = 'none';
+      }
+    }
+
+    function switchRecipeTab(btn, tab) {
+      document.querySelectorAll('.tab-btn-mini').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const codePre = document.getElementById('recipeCodeB');
+      if (tab === 'output') {
+        codePre.innerHTML = `{\n  <span class="json-key">"toolName"</span>: <span class="json-str">"get_battery"</span>,\n  <span class="json-key">"level"</span>: <span class="json-num">84</span>,\n  <span class="json-key">"isCharging"</span>: <span class="json-bool">false</span>,\n  <span class="json-key">"currentNowMa"</span>: <span class="json-num">-412</span>,\n  <span class="json-key">"temperatureC"</span>: <span class="json-num">31.4</span>,\n  <span class="json-key">"source"</span>: <span class="json-str">"hardware"</span>\n}`;
+      } else if (tab === 'args') {
+        codePre.innerHTML = `{\n  <span class="json-key">"includeBatteryHealth"</span>: <span class="json-bool">true</span>,\n  <span class="json-key">"sampleIntervalMs"</span>: <span class="json-num">1000</span>\n}`;
+      } else if (tab === 'laya') {
+        codePre.innerHTML = `{\n  <span class="json-key">"suggestedTool"</span>: <span class="json-str">"get_battery"</span>,\n  <span class="json-key">"confidenceScore"</span>: <span class="json-num">0.96</span>,\n  <span class="json-key">"margin"</span>: <span class="json-num">0.82</span>,\n  <span class="json-key">"routingInfluence"</span>: <span class="json-str">"none (observed only)"</span>\n}`;
+      }
+    }
+
+    function copyCode(btn) {
+      btn.classList.add('copied');
+      btn.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = `<svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+      }, 1600);
+    }
+  </script>
+</body>
+</html>
