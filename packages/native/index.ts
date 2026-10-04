@@ -27,9 +27,13 @@ export type MemoryInfo = {
   memoryClassMB: number; largeMemoryClassMB: number;
 };
 
+export type CapacityHeadroomUnavailableReason = 'api_unavailable' | 'unsupported' | 'temporarily_unavailable' | 'read_failed';
 export type ThermalInfo = {
   thermalHeadroom: number | null; thermalStatus: number; thresholds: Record<string, number> | null;
+  /** Android SystemHealthManager capacity remaining, not thermal headroom or utilization. */
   cpuHeadroom: number | null; gpuHeadroom: number | null;
+  cpuHeadroomUnavailableReason: CapacityHeadroomUnavailableReason | null;
+  gpuHeadroomUnavailableReason: CapacityHeadroomUnavailableReason | null;
 };
 
 export type DisplayMode = { id: number; width: number; height: number; refreshRate: number };
@@ -175,7 +179,7 @@ export type BatteryTelemetry = {
   currentAvgMa: number | null;
   powerWatts: number | null;
   health: BatteryHealth;
-  plugged: PluggedSource;
+  plugged: PluggedSource | null;
   status: BatteryStatus;
   technology: string | null;
   cycleCount: number | null;

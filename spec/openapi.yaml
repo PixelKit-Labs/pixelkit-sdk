@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: PixelKit SDK API
-  version: 1.6.80
+  version: 1.6.82
   description: |
   OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).
 
@@ -73,7 +73,7 @@ paths:
       description: |
   Warns you before the phone gets hot enough to throttle. Check thermalHeadroom before starting sustained work such as camera capture or a long inference run, and back off as it climbs toward 1.
 
-  thermalHeadroom comes from PowerManager.getThermalHeadroom and is sampled every ten seconds, which is the cadence Google specifies; polling faster returns NaN. A live thermal-status listener reports the coarse state from NONE through SHUTDOWN. On Android 16 and above, SystemHealthManager can also report CPU and GPU headroom, which stays null when the device does not provide it. Frame figures pair the display mode refresh rate as a target with the Choreographer-measured rate as the actual.
+  thermalHeadroom comes from PowerManager.getThermalHeadroom and is sampled every ten seconds. A live thermal-status listener reports the coarse state from NONE through SHUTDOWN. Android 16+ SystemHealthManager CPU/GPU headroom estimates available compute capacity (0..1 after scaling its 0..100 result); it is not thermal headroom or utilization. Android can return NaN with insufficient workload or a transient server error, or throw if a device does not implement it. The unavailable-reason fields distinguish those outcomes, pending reads and API absence. Frame figures pair the display mode refresh rate as a target with the Choreographer-measured rate as the actual. Battery-pack temperature is available separately through useDevice; an FIR object thermometer reading cannot be substituted for it.
       operationId: get_useADPF
       tags:
         - silicon-compute
@@ -1315,7 +1315,7 @@ paths:
       description: |
   Facts about the phone, its hardware identity, and its real physical power state: battery level, fuel gauge thermistor temperature, instantaneous cell voltage and current flow, wattage draw/charging rate, health status, and lifetime charge cycles.
 
-  Identity comes from expo-device, live power state from expo-battery listeners, and deep physical battery telemetry from the native fuel gauge PMIC via PixelNative.getBatteryTelemetry(). batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give the cell terminal voltage and live current draw (negative discharging, positive charging); batteryPowerWatts computes real-time wattage (V × I). On Android 14+, batteryCycleCount reads lifetime charge cycles from the PMIC EEPROM. Nothing is simulated: unavailable readings are null.
+  Identity comes from expo-device, external-power state from native battery EXTRA_PLUGGED and expo-battery listeners, and deep physical battery telemetry from PixelNative.getBatteryTelemetry(). isCharging reports whether AC, USB, wireless, or dock power is attached, including Android NOT_CHARGING while a full battery or charge limit pauses current flow; null means unreadable. Inspect batteryTelemetry.status to distinguish CHARGING, FULL, and NOT_CHARGING. batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give cell voltage and live current; batteryPowerWatts computes wattage (V × |I|). On Android 14+, batteryCycleCount reads lifetime charge cycles. Unavailable readings are null.
       operationId: get_useDevice
       tags:
         - system-media
@@ -4178,11 +4178,11 @@ paths:
                 $ref: "#/components/schemas/useSpeechAI_setRecognitionMode_Response"
   /hooks/useTPU:
     get:
-      summary: Whether the on-device AI stack is installed and usable.
+      summary: Whether on-device AI host packages are visible and what the hook actually executed.
       description: |
-  Answers one question: can this phone run AI locally? It checks that the system services which host on-device models are present, and reports their versions. It does not run inference itself.
+  Checks which system services for on-device models are visible and reports their versions. It does not run inference or prove the TPU is active.
 
-  The Tensor TPU is only reachable through AICore (Gemini Nano, via ML Kit) or LiteRT, so this hook reports what is verifiably installed rather than guessing at hardware. AICore and Private Compute Services versions come from PackageManager, which needs a <queries> entry to see them at all. Inference timings deliberately stay null here; real measured latency lives in useGeminiNano. benchmarkTPU runs a genuine matrix multiplication on the JS thread and is labelled CPU fallback, because that is what it is.
+  AICore hosts Gemini Nano and the TPU is reached via AICore or LiteRT. The hook reports package visibility, not model readiness or hardware usage. Unreadable package state is null. Without a benchmark there is no active delegate, so activeDelegate is null rather than claiming NPU use. AICore and Private Compute Services versions come from PackageManager, which needs a <queries> entry. Inference timings stay null here; measured model latency lives in useGeminiNano. benchmarkTPU is a JavaScript matrix multiply explicitly labelled CPU fallback.
       operationId: get_useTPU
       tags:
         - silicon-compute
@@ -5279,7 +5279,7 @@ components:
       description: |
   How much thermal room is left before the phone slows itself down.
 
-  thermalHeadroom comes from PowerManager.getThermalHeadroom and is sampled every ten seconds, which is the cadence Google specifies; polling faster returns NaN. A live thermal-status listener reports the coarse state from NONE through SHUTDOWN. On Android 16 and above, SystemHealthManager can also report CPU and GPU headroom, which stays null when the device does not provide it. Frame figures pair the display mode refresh rate as a target with the Choreographer-measured rate as the actual.
+  thermalHeadroom comes from PowerManager.getThermalHeadroom and is sampled every ten seconds. A live thermal-status listener reports the coarse state from NONE through SHUTDOWN. Android 16+ SystemHealthManager CPU/GPU headroom estimates available compute capacity (0..1 after scaling its 0..100 result); it is not thermal headroom or utilization. Android can return NaN with insufficient workload or a transient server error, or throw if a device does not implement it. The unavailable-reason fields distinguish those outcomes, pending reads and API absence. Frame figures pair the display mode refresh rate as a target with the Choreographer-measured rate as the actual. Battery-pack temperature is available separately through useDevice; an FIR object thermometer reading cannot be substituted for it.
       properties:
         thermalHeadroom:
           anyOf:
@@ -5308,12 +5308,34 @@ components:
           anyOf:
             - type: number
             - type: null
-          description: Android 16+ remaining CPU capacity. Null when the device does not report it.
+          description: "Android 16+ available CPU capacity fraction (0..1), not thermal headroom or utilization; null when unmeasured."
         gpuHeadroom:
           anyOf:
             - type: number
             - type: null
-          description: Same for the GPU.
+          description: "Android 16+ available GPU capacity fraction (0..1), not GPU utilization; null when unmeasured."
+        cpuHeadroomUnavailableReason:
+          anyOf:
+            - type: string
+              enum:
+                - api_unavailable
+                - unsupported
+                - temporarily_unavailable
+                - read_failed
+                - not_sampled
+            - type: null
+          description: "Null with a measured CPU estimate; otherwise distinguishes missing API, unsupported device, temporary NaN (including insufficient workload), failed read or no sample yet."
+        gpuHeadroomUnavailableReason:
+          anyOf:
+            - type: string
+              enum:
+                - api_unavailable
+                - unsupported
+                - temporarily_unavailable
+                - read_failed
+                - not_sampled
+            - type: null
+          description: Null with a measured GPU estimate; otherwise the same availability categories as CPU.
         targetFps:
           anyOf:
             - type: number
@@ -7474,7 +7496,7 @@ components:
       description: |
   Device identity, battery level, thermistor temperature, voltage, current, and wattage.
 
-  Identity comes from expo-device, live power state from expo-battery listeners, and deep physical battery telemetry from the native fuel gauge PMIC via PixelNative.getBatteryTelemetry(). batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give the cell terminal voltage and live current draw (negative discharging, positive charging); batteryPowerWatts computes real-time wattage (V × I). On Android 14+, batteryCycleCount reads lifetime charge cycles from the PMIC EEPROM. Nothing is simulated: unavailable readings are null.
+  Identity comes from expo-device, external-power state from native battery EXTRA_PLUGGED and expo-battery listeners, and deep physical battery telemetry from PixelNative.getBatteryTelemetry(). isCharging reports whether AC, USB, wireless, or dock power is attached, including Android NOT_CHARGING while a full battery or charge limit pauses current flow; null means unreadable. Inspect batteryTelemetry.status to distinguish CHARGING, FULL, and NOT_CHARGING. batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give cell voltage and live current; batteryPowerWatts computes wattage (V × |I|). On Android 14+, batteryCycleCount reads lifetime charge cycles. Unavailable readings are null.
       properties:
         modelName:
           type: string
@@ -7491,8 +7513,10 @@ components:
             - type: null
           description: "Honest charge percentage, null until the platform answers."
         isCharging:
-          type: boolean
-          description: "Whether a charger is attached (AC, USB, wireless or dock)."
+          anyOf:
+            - type: boolean
+            - type: null
+          description: "External charger attached (AC, USB, wireless or dock), even when Android pauses charging at 100% or a charge limit. Null until observed; batteryTelemetry.status distinguishes active charging from paused/full."
         lowPowerMode:
           type: boolean
           description: Whether Battery Saver is active. Treat as a direct instruction to do less work.
@@ -7573,7 +7597,7 @@ components:
                 - DOCK
                 - NONE
             - type: null
-          description: Specific power supply source when charging.
+          description: "Observed AC, USB, wireless, dock or NONE power source; null if the battery broadcast was unreadable."
         batteryTelemetry:
           anyOf:
             - $ref: "#/components/schemas/BatteryTelemetry"
@@ -12175,13 +12199,15 @@ components:
     useTPUTelemetry:
       type: object
       description: |
-  Whether the on-device AI stack is installed and usable.
+  Whether on-device AI host packages are visible and what the hook actually executed.
 
-  The Tensor TPU is only reachable through AICore (Gemini Nano, via ML Kit) or LiteRT, so this hook reports what is verifiably installed rather than guessing at hardware. AICore and Private Compute Services versions come from PackageManager, which needs a <queries> entry to see them at all. Inference timings deliberately stay null here; real measured latency lives in useGeminiNano. benchmarkTPU runs a genuine matrix multiplication on the JS thread and is labelled CPU fallback, because that is what it is.
+  AICore hosts Gemini Nano and the TPU is reached via AICore or LiteRT. The hook reports package visibility, not model readiness or hardware usage. Unreadable package state is null. Without a benchmark there is no active delegate, so activeDelegate is null rather than claiming NPU use. AICore and Private Compute Services versions come from PackageManager, which needs a <queries> entry. Inference timings stay null here; measured model latency lives in useGeminiNano. benchmarkTPU is a JavaScript matrix multiply explicitly labelled CPU fallback.
       properties:
         aicoreInstalled:
-          type: boolean
-          description: "Whether AICore, the system service that hosts Gemini Nano, is present."
+          anyOf:
+            - type: boolean
+            - type: null
+          description: "Whether AICore is visible through PackageManager, or null before detection or when it fails; not proof of model availability."
         aicoreVersion:
           anyOf:
             - type: string
@@ -12198,13 +12224,12 @@ components:
             - type: null
           description: "Whether the device declares a neural processing unit feature. False on this Pixel, which does not declare it."
         activeDelegate:
-          type: string
-          enum:
-            - Tensor TPU
-            - NPU
-            - GPU
-            - CPU Fallback
-          description: "What last executed work from this hook. Only ever CPU fallback, because the benchmark is JS."
+          anyOf:
+            - type: string
+              enum:
+                - CPU Fallback
+            - type: null
+          description: "Null until the CPU-only benchmark runs, then CPU Fallback. Never a claim of current TPU activity."
         isHardwareAccelerated:
           type: boolean
           description: Always false here. This hook runs nothing on the TPU.
@@ -12221,6 +12246,11 @@ components:
         isBenchmarking:
           type: boolean
           description: True while the fallback benchmark runs.
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: "Latest package or feature detection failure, if any."
         source:
           type: string
           enum:

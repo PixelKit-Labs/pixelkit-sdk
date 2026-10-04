@@ -30,6 +30,7 @@ import * as Network from 'expo-network';
 import PixelNative, { type BatteryTelemetry } from '@pixelkit-labs/native';
 import { logEvent, logError, recordMetric, tracedSafe, type TelemetrySource } from '../core/observability';
 import { DeviceTelemetry } from '../core/types';
+import { connectedToExternalPower } from './powerState';
 
 const MODULE = 'useDevice';
 
@@ -43,7 +44,7 @@ export function useDevice() {
   }));
 
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
-  const [isCharging, setIsCharging] = useState<boolean>(false);
+  const [isCharging, setIsCharging] = useState<boolean | null>(null);
   const [lowPowerMode, setLowPowerMode] = useState<boolean>(false);
   const [networkType, setNetworkType] = useState<string>('UNKNOWN');
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -71,15 +72,18 @@ export function useDevice() {
       setBatteryLevel(pct);
       recordMetric(MODULE, 'batteryPercent', pct, 'hardware');
     }
-    if (state != null) {
-      setIsCharging(state === Battery.BatteryState.CHARGING || state === Battery.BatteryState.FULL);
-    }
+    // Android NOT_CHARGING means power is attached but charging is paused (often
+    // at 100% or a charge limit). It is not the same as UNPLUGGED.
+    const expoPower = state == null || state === Battery.BatteryState.UNKNOWN
+      ? null : state !== Battery.BatteryState.UNPLUGGED;
+    const externalPower = connectedToExternalPower(nativeBatt?.plugged ?? null, expoPower);
+    setIsCharging(externalPower);
     setLowPowerMode(!!lowPower);
     setNetworkType(net?.type ?? 'UNKNOWN');
     setIsConnected(!!net?.isConnected && net?.isInternetReachable !== false);
 
+    setBattery(nativeBatt);
     if (nativeBatt) {
-      setBattery(nativeBatt);
       if (nativeBatt.temperatureC != null) {
         recordMetric(MODULE, 'batteryTempC', nativeBatt.temperatureC, 'hardware');
       }
@@ -102,7 +106,7 @@ export function useDevice() {
       setError(null);
       logEvent(MODULE, 'state', {
         batteryPercent: level == null ? null : Math.round(level * 100),
-        charging: state === Battery.BatteryState.CHARGING || state === Battery.BatteryState.FULL,
+        charging: externalPower,
         lowPowerMode: !!lowPower,
         networkType: net?.type ?? 'UNKNOWN',
         batteryTempC: nativeBatt?.temperatureC ?? null,
@@ -128,10 +132,8 @@ export function useDevice() {
           setBatteryLevel(pct);
           recordMetric(MODULE, 'batteryPercent', pct, 'hardware');
         });
-        stateSub = Battery.addBatteryStateListener(({ batteryState }) => {
-          const charging = batteryState === Battery.BatteryState.CHARGING || batteryState === Battery.BatteryState.FULL;
-          setIsCharging(charging);
-          logEvent(MODULE, 'charging changed', { charging });
+        stateSub = Battery.addBatteryStateListener(() => {
+          // A fresh native plugged-source read wins over an ambiguous Expo state.
           void refresh();
         });
         logEvent(MODULE, 'battery listeners attached');

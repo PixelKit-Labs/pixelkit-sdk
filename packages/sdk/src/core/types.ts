@@ -68,8 +68,8 @@ export interface DeviceTelemetry {
   osVersion: string;
   /** Battery percentage 0 to 100, or null when it has not been read yet. */
   batteryPercent: number | null;
-  /** Whether the device is plugged into AC, USB, or Qi wireless charging */
-  isCharging: boolean;
+  /** Whether external power is attached, even when charging is paused; null until observed. */
+  isCharging: boolean | null;
   /** Whether Android Battery Saver mode is currently active */
   lowPowerMode: boolean;
   /** Active network interface type ('WIFI', 'CELLULAR', 'UNKNOWN') */
@@ -106,10 +106,14 @@ export interface DeviceTelemetry {
  * Android Dynamic Performance Framework (ADPF) real-time compute telemetry.
  */
 export interface PerformanceHeadroom {
-  /** Android 16+ SystemHealthManager CPU headroom (0.0 to 1.0), null when the device does not report it */
+  /** Android 16+ SystemHealthManager CPU available-capacity fraction (0..1), null when not measured; not thermal headroom or utilization. */
   cpuHeadroom: number | null;
-  /** Android 16+ SystemHealthManager GPU headroom (0.0 to 1.0), null when unsupported */
+  /** Android 16+ SystemHealthManager GPU available-capacity fraction (0..1), null when not measured. */
   gpuHeadroom: number | null;
+  /** Why the optional CPU capacity estimate is null; null when an estimate was measured. */
+  cpuHeadroomUnavailableReason: 'api_unavailable' | 'unsupported' | 'temporarily_unavailable' | 'read_failed' | 'not_sampled' | null;
+  /** Why the optional GPU capacity estimate is null; null when an estimate was measured. */
+  gpuHeadroomUnavailableReason: 'api_unavailable' | 'unsupported' | 'temporarily_unavailable' | 'read_failed' | 'not_sampled' | null;
   /** PowerManager thermal headroom: 0.0 cool → 1.0 severe throttling, null if unsupported */
   thermalHeadroom?: number | null;
   /** Kernel thermal state indicating throttling level (PowerManager.THERMAL_STATUS_*) */

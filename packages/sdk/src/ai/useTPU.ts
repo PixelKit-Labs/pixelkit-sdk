@@ -24,7 +24,7 @@ export function useTPU() {
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
   const [cpuFallbackLatencyMs, setCpuFallbackLatencyMs] = useState<number | null>(null);
 
-  const source: TelemetrySource = PixelNative ? 'hardware' : 'unavailable';
+  const source: TelemetrySource = aicore != null ? 'hardware' : 'unavailable';
 
   useEffect(() => {
     if (!PixelNative) { logEvent(MODULE, 'native module absent; AI stack detection unavailable', undefined, 'warn'); return; }
@@ -66,13 +66,13 @@ export function useTPU() {
 
   return {
     /** AICore (Gemini Nano host) installed and version */
-    aicoreInstalled: aicore?.installed ?? false,
+    aicoreInstalled: aicore?.installed ?? null,
     aicoreVersion: aicore?.versionName ?? null,
     privateComputeServicesVersion: pcs?.versionName ?? null,
     /** Android 17 NPU feature flag as declared by the device */
     hasNpuFeature,
-    /** This hook runs nothing on the TPU; on-device inference is `useGeminiNano`. */
-    activeDelegate: (cpuFallbackLatencyMs != null ? 'CPU Fallback' : 'NPU') as TPUAcceleration['activeDelegate'],
+    /** No delegate is active before this hook's CPU-only benchmark runs. */
+    activeDelegate: cpuFallbackLatencyMs != null ? 'CPU Fallback' as const : null,
     isHardwareAccelerated: false,
     /** Always null here; see `useGeminiNano.lastLatencyMs` for measured Gemini Nano latency */
     lastInferenceLatencyMs: null as number | null,

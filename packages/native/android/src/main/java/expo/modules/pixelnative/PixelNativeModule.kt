@@ -34,6 +34,7 @@ import android.os.Debug
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.health.SystemHealthManager
 import android.os.Process
 import android.os.SystemClock
 import android.os.VibrationEffect
@@ -67,8 +68,8 @@ class PixelNativeModule : Module() {
 
   private val mainHandler = Handler(Looper.getMainLooper())
   private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
-  // Unsupported headroom is a device capability, not a transient sampling failure.
   private val unavailableHeadroomKinds = mutableSetOf<String>()
+  private data class CapacityHeadroom(val value: Double?, val unavailableReason: String?)
   private var lastThermalSampleAt: Long? = null
   private var lastThermalSample: Double? = null
   private val deniedSysPaths = mutableSetOf<String>()
@@ -179,12 +180,16 @@ class PixelNativeModule : Module() {
       val thresholds: Map<String, Float>? = if (Build.VERSION.SDK_INT >= 35) {
         try { pm.thermalHeadroomThresholds.entries.associate { it.key.toString() to it.value } } catch (e: Throwable) { null }
       } else null
+      val cpu = capacityHeadroom("Cpu")
+      val gpu = capacityHeadroom("Gpu")
       mapOf(
         "thermalHeadroom" to headroom,
         "thermalStatus" to pm.currentThermalStatus,
         "thresholds" to thresholds,
-        "cpuHeadroom" to healthHeadroom("Cpu"),
-        "gpuHeadroom" to healthHeadroom("Gpu"),
+        "cpuHeadroom" to cpu.value,
+        "gpuHeadroom" to gpu.value,
+        "cpuHeadroomUnavailableReason" to cpu.unavailableReason,
+        "gpuHeadroomUnavailableReason" to gpu.unavailableReason,
       )
     }
 
@@ -1705,13 +1710,14 @@ class PixelNativeModule : Module() {
       else -> "UNKNOWN"
     }
 
-    val pluggedCode = try { bIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0 } catch (_: Throwable) { 0 }
+    val pluggedCode = try { bIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) } catch (_: Throwable) { null }
     val pluggedStr = when (pluggedCode) {
       BatteryManager.BATTERY_PLUGGED_AC -> "AC"
       BatteryManager.BATTERY_PLUGGED_USB -> "USB"
       BatteryManager.BATTERY_PLUGGED_WIRELESS -> "WIRELESS"
       BatteryManager.BATTERY_PLUGGED_DOCK -> "DOCK"
-      else -> "NONE"
+      0 -> "NONE"
+      else -> null
     }
 
     val statusCode = try { bIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN) ?: BatteryManager.BATTERY_STATUS_UNKNOWN } catch (_: Throwable) { BatteryManager.BATTERY_STATUS_UNKNOWN }
@@ -1788,7 +1794,7 @@ class PixelNativeModule : Module() {
       "currentAvgMa" to null,
       "powerWatts" to null,
       "health" to "UNKNOWN",
-      "plugged" to "NONE",
+      "plugged" to null,
       "status" to "UNKNOWN",
       "technology" to null,
       "cycleCount" to null,
@@ -1821,27 +1827,28 @@ class PixelNativeModule : Module() {
     return zones
   }
 
-  /** Android returns CPU/GPU capacity percentages (0..100); expose fractions (0..1). */
+  /** Android capacity headroom is not thermal headroom or a utilization percentage. */
   @Synchronized
-  private fun healthHeadroom(kind: String): Double? {
-    if (Build.VERSION.SDK_INT < 36 || kind in unavailableHeadroomKinds) return null
+  private fun capacityHeadroom(kind: String): CapacityHeadroom {
+    if (Build.VERSION.SDK_INT < 36) return CapacityHeadroom(null, "api_unavailable")
+    if (kind in unavailableHeadroomKinds) return CapacityHeadroom(null, "unsupported")
+    val manager = context.getSystemService(Context.SYSTEM_HEALTH_SERVICE) as? SystemHealthManager
+      ?: return CapacityHeadroom(null, "api_unavailable")
     return try {
-      val shm = context.getSystemService("systemhealth") ?: return null
-      val paramsClass = Class.forName("android.os.${kind}HeadroomParams")
-      // Null selects device defaults. A hard-coded calculation window need not be supported.
-      val result = shm.javaClass.getMethod("get${kind}Headroom", paramsClass).invoke(shm, null)
-      val percent = (result as? Number)?.toDouble() ?: return null
-      if (percent.isFinite() && percent in 0.0..100.0) percent / 100.0 else null
-    } catch (e: Exception) {
-      val cause = if (e is java.lang.reflect.InvocationTargetException) e.targetException else e
-      when (cause) {
-        is UnsupportedOperationException, is ClassNotFoundException, is NoSuchMethodException -> {
-          unavailableHeadroomKinds.add(kind)
-          android.util.Log.i("PixelKit", "healthHeadroom($kind) unavailable: ${cause.javaClass.simpleName}; further probes disabled for this module")
-        }
-        else -> android.util.Log.w("PixelKit", "healthHeadroom($kind) failed: ${cause.javaClass.name}: ${cause.message}")
+      val percent = if (kind == "Cpu") manager.getCpuHeadroom(null) else manager.getGpuHeadroom(null)
+      if (percent.isFinite() && percent in 0.0f..100.0f) {
+        CapacityHeadroom(percent.toDouble() / 100.0, null)
+      } else {
+        // Android returns NaN for a temporary server failure or insufficient workload.
+        CapacityHeadroom(null, "temporarily_unavailable")
       }
-      null
+    } catch (e: UnsupportedOperationException) {
+      unavailableHeadroomKinds.add(kind)
+      android.util.Log.i("PixelKit", "capacityHeadroom($kind) unsupported by device")
+      CapacityHeadroom(null, "unsupported")
+    } catch (e: Exception) {
+      android.util.Log.w("PixelKit", "capacityHeadroom($kind) failed: ${e.javaClass.name}: ${e.message}")
+      CapacityHeadroom(null, "read_failed")
     }
   }
 
