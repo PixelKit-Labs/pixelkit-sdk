@@ -121,9 +121,9 @@ export interface HardwareContext {
   altimeter?: { altitudeM: number | null; pressureHpa: number | null; verticalVelocityMps: number | null; trend: string | null; calibrateSeaLevel: (hpa: number) => void };
   /** `setBatteryShare` resolves true only when the sysfs write succeeded; `refresh` re-reads the node and returns what it read, or null. */
   batteryShare?: { isSupported: boolean; isActive: boolean; transmittedWatts: number | null; setBatteryShare: (enabled: boolean) => Promise<boolean>; refresh?: () => { isActive: boolean } | null };
-  thermometer?: { isSupported: boolean; surfaceTemperatureC: number | null; surfaceTemperatureF: number | null; ambientTemperatureC: number | null; mode: string };
+  thermometer?: { isSupported: boolean; surfaceTemperatureC: number | null; surfaceTemperatureF: number | null; ambientTemperatureC: number | null };
   charging?: { stateOfHealthPercent: number | null; cycleCount: number | null; chargingTier: string | null; chargingWattage: number | null; chargeLimitAvailable: boolean | null };
-  wifi7?: { isSupported: boolean; isMloActive: boolean; aggregateSpeedMbps: number | null; links: Array<{ band: string; rssi: number; rxLinkSpeedMbps: number; txLinkSpeedMbps: number }> };
+  wifi7?: { isSupported: boolean; isMloActive: boolean; aggregateSpeedMbps: number | null; links: Array<{ band: string | null; channel: number; rssi: number | null; rxLinkSpeedMbps: number | null; txLinkSpeedMbps: number | null; state: string }> };
 }
 
 export const DEFAULT_AGENT_MODEL = 'gemini-3.8-flash';
@@ -683,8 +683,8 @@ const barometerOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
 }, required: ['altitudeM', 'pressureHpa', 'verticalVelocityMps', 'trend'] };
 const thermometerOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   surfaceTemperatureC: { type: 'NUMBER', nullable: true }, surfaceTemperatureF: { type: 'NUMBER', nullable: true },
-  ambientTemperatureC: { type: 'NUMBER', nullable: true }, mode: { type: 'STRING' },
-}, required: ['surfaceTemperatureC', 'surfaceTemperatureF', 'ambientTemperatureC', 'mode'] };
+  ambientTemperatureC: { type: 'NUMBER', nullable: true },
+}, required: ['surfaceTemperatureC', 'surfaceTemperatureF', 'ambientTemperatureC'] };
 const batteryShareOutput: ToolPropertySchema = { type: 'OBJECT', properties: { isSupported: { type: 'BOOLEAN' }, written: { type: 'BOOLEAN' }, isActive: { type: 'BOOLEAN', nullable: true } }, required: ['isSupported', 'written', 'isActive'] };
 const batteryOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   stateOfHealthPercent: { type: 'NUMBER', nullable: true }, cycleCount: { type: 'INTEGER', nullable: true },
@@ -694,8 +694,9 @@ const batteryOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
 const wifiOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   isSupported: { type: 'BOOLEAN' }, isMloActive: { type: 'BOOLEAN' }, aggregateSpeedMbps: { type: 'NUMBER', nullable: true },
   links: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
-    band: { type: 'STRING' }, rssi: { type: 'NUMBER' }, rxLinkSpeedMbps: { type: 'NUMBER' }, txLinkSpeedMbps: { type: 'NUMBER' },
-  }, required: ['band', 'rssi', 'rxLinkSpeedMbps', 'txLinkSpeedMbps'] } },
+    band: { type: 'STRING', nullable: true }, channel: { type: 'INTEGER' }, rssi: { type: 'NUMBER', nullable: true },
+    rxLinkSpeedMbps: { type: 'NUMBER', nullable: true }, txLinkSpeedMbps: { type: 'NUMBER', nullable: true }, state: { type: 'STRING' },
+  }, required: ['band', 'channel', 'rssi', 'rxLinkSpeedMbps', 'txLinkSpeedMbps', 'state'] } },
 }, required: ['isSupported', 'isMloActive', 'aggregateSpeedMbps', 'links'] };
 const available = (): CapabilityAvailability => ({ available: true });
 const unavailable = (reason: string): CapabilityAvailability => ({ available: false, reason });
@@ -760,7 +761,7 @@ export function createHardwareCapabilityAdapter(
       name: 'get_thermometer', description: 'Read non-contact infrared surface and ambient temperature.',
       inputSchema: { type: 'OBJECT', properties: {} }, outputSchema: thermometerOutput, effect: 'read', risk: 'low', onDevice: true,
       availability: () => hardware.thermometer?.isSupported ? available() : unavailable('fir_thermometer_unsupported'),
-      execute: () => ({ surfaceTemperatureC: hardware.thermometer!.surfaceTemperatureC, surfaceTemperatureF: hardware.thermometer!.surfaceTemperatureF, ambientTemperatureC: hardware.thermometer!.ambientTemperatureC, mode: hardware.thermometer!.mode }),
+      execute: () => ({ surfaceTemperatureC: hardware.thermometer!.surfaceTemperatureC, surfaceTemperatureF: hardware.thermometer!.surfaceTemperatureF, ambientTemperatureC: hardware.thermometer!.ambientTemperatureC }),
     },
     {
       name: 'set_battery_share', description: 'Enable or disable reverse wireless power sharing.',

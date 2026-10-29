@@ -4,6 +4,15 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.86] - 2026-10-29
+
+### Fixed
+- `createHardwareCapabilityAdapter`: the `get_thermometer` tool still required a `mode` field that `useThermometer` stopped providing in 1.6.85, so the capability could not produce valid output from the hook. `HardwareContext.thermometer` and the tool output no longer have `mode`.
+- `HardwareContext.wifi7` links and the `get_wifi7_status` output now match `useWifi7MLO`: `band`, `rssi` and the link speeds are nullable, and `channel` and `state` are reported. Previously a null RSSI from the platform could not be passed through.
+
+### Verification
+- `npm run typecheck`, `npm test` (adds thermometer and Wi-Fi 7 adapter cases), build with OpenAPI export and the documentation contract passed locally. Not exercised on a device.
+
 ## [1.6.85] - 2026-10-29
 
 Removes the remaining fabricated readings and state-only controls found by auditing every hook against its native call or data source. Several of these are breaking; see Breaking. Maintainer note: this is a patch bump by the repository rule, but its type changes warrant a minor bump if you prefer.

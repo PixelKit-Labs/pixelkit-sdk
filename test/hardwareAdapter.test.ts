@@ -107,4 +107,21 @@ describe('hardware capability adapter reports what the hook returned', () => {
       stateOfHealthPercent: null, cycleCount: 112, chargingTier: null, chargingWattage: null, chargeLimitAvailable: null,
     });
   });
+
+  test('get_thermometer returns what the hook read; the hook has no mode to supply', async () => {
+    const result = await run({
+      thermometer: { isSupported: true, surfaceTemperatureC: null, surfaceTemperatureF: null, ambientTemperatureC: 21.5 },
+    }, 'get_thermometer', {});
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.result, { surfaceTemperatureC: null, surfaceTemperatureF: null, ambientTemperatureC: 21.5 });
+  });
+
+  test('get_wifi7_status passes unread link fields through as null', async () => {
+    const links = [{ band: null, channel: 149, rssi: null, rxLinkSpeedMbps: 1201, txLinkSpeedMbps: null, state: 'active' }];
+    const result = await run({
+      wifi7: { isSupported: true, isMloActive: false, aggregateSpeedMbps: null, links },
+    }, 'get_wifi7_status', {});
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.result, { isSupported: true, isMloActive: false, aggregateSpeedMbps: null, links });
+  });
 });
