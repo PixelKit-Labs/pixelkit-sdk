@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.87] - 2026-10-29
+
+### Fixed
+- `scripts/system-metrics-daemon`: GPU utilization was `null` whenever tracefs `tracing_on` was `0`, which is the state on a freshly booted Pixel 11 Pro, because the daemon only reported it. The shell user can write `tracing_on`, so the daemon now turns it on, records its original value in the state file, and restores it on exit, including through the crash watchdog. If another tracer switches it off, the daemon re-enables it and withholds that window's GPU value with the reason.
+
+### Verification
+- On a Pixel 11 Pro: with `tracing_on` at 0, GPU utilization read 6.6% and 0.7% in consecutive windows with the busiest uid reported; after `pkill`, `gpu_work_period`, `gpu_frequency` and `tracing_on` returned to their pre-start values (1, 0, 0). No package code changed in this release.
+
 ## [1.6.86] - 2026-10-29
 
 ### Fixed

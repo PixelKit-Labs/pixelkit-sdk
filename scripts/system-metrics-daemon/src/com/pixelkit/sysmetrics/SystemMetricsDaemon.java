@@ -322,11 +322,13 @@ public class SystemMetricsDaemon {
     static final class TraceEnables {
         private String originalWorkPeriod;
         private String originalFrequency;
+        private String originalTracingOn;
         private boolean enabledByUs = false;
 
         synchronized void enable() {
             originalWorkPeriod = readEnable(EN_WORK_PERIOD);
             originalFrequency = readEnable(EN_FREQUENCY);
+            originalTracingOn = readEnable(TRACING_ON);
             File state = new File(STATE_FILE);
             if (state.exists()) {
                 // A previous instance was killed without restoring (SIGKILL): trust its record
@@ -336,6 +338,7 @@ public class SystemMetricsDaemon {
                     for (String line : lines) {
                         if (line.startsWith("gpu_work_period=")) originalWorkPeriod = line.substring(16).trim();
                         if (line.startsWith("gpu_frequency=")) originalFrequency = line.substring(14).trim();
+                        if (line.startsWith("tracing_on=")) originalTracingOn = line.substring(11).trim();
                     }
                     System.out.println("[PixelKit SystemMetricsDaemon] Recovered original tracefs state from " + STATE_FILE);
                 } catch (IOException e) {
@@ -343,7 +346,8 @@ public class SystemMetricsDaemon {
                 }
             } else {
                 try {
-                    writeFile(STATE_FILE, "gpu_work_period=" + originalWorkPeriod + "\ngpu_frequency=" + originalFrequency + "\n");
+                    writeFile(STATE_FILE, "gpu_work_period=" + originalWorkPeriod + "\ngpu_frequency=" + originalFrequency
+                            + "\ntracing_on=" + originalTracingOn + "\n");
                 } catch (IOException e) {
                     System.err.println("[PixelKit SystemMetricsDaemon] cannot write " + STATE_FILE + ": " + e.getMessage());
                 }
@@ -353,6 +357,7 @@ public class SystemMetricsDaemon {
             try {
                 writeFile(EN_WORK_PERIOD, "1");
                 writeFile(EN_FREQUENCY, "1");
+                if (!"1".equals(readEnable(TRACING_ON))) writeFile(TRACING_ON, "1");
             } catch (IOException e) {
                 System.err.println("[PixelKit SystemMetricsDaemon] cannot enable gpu trace events: " + e.getMessage());
             }
@@ -378,7 +383,12 @@ public class SystemMetricsDaemon {
             }
             String on = readEnable(TRACING_ON);
             if (!"1".equals(on)) {
-                problem = "tracefs tracing_on is '" + on + "'; gpu events are not being recorded";
+                try {
+                    writeFile(TRACING_ON, "1");
+                    problem = "tracefs tracing_on was '" + on + "'; re-enabled, GPU utilization withheld for this window";
+                } catch (IOException e) {
+                    problem = "tracefs tracing_on is '" + on + "' and cannot be enabled: " + e.getMessage();
+                }
             }
             return problem;
         }
@@ -392,7 +402,7 @@ public class SystemMetricsDaemon {
             String script = "exec </dev/null >/dev/null 2>&1; while kill -0 " + android.os.Process.myPid()
                     + "; do sleep 2; done; if [ -e " + STATE_FILE + " ]; then echo " + sanitize(originalWorkPeriod)
                     + " > " + EN_WORK_PERIOD + "; echo " + sanitize(originalFrequency) + " > " + EN_FREQUENCY
-                    + "; rm -f " + STATE_FILE + "; fi";
+                    + "; echo " + sanitize(originalTracingOn) + " > " + TRACING_ON + "; rm -f " + STATE_FILE + "; fi";
             try {
                 new ProcessBuilder("/system/bin/sh", "-c", script).start();
             } catch (IOException e) {
@@ -419,6 +429,12 @@ public class SystemMetricsDaemon {
             } catch (IOException e) {
                 ok = false;
                 System.err.println("[PixelKit SystemMetricsDaemon] cannot restore gpu_frequency: " + e.getMessage());
+            }
+            try {
+                if (originalTracingOn != null) writeFile(TRACING_ON, originalTracingOn);
+            } catch (IOException e) {
+                ok = false;
+                System.err.println("[PixelKit SystemMetricsDaemon] cannot restore tracing_on: " + e.getMessage());
             }
             if (ok) new File(STATE_FILE).delete();
             enabledByUs = false;
