@@ -59,6 +59,10 @@ packages/**/build/
 scripts/hilight-daemon/build/
 scripts/hilight-daemon/*.jar
 
+# System metrics daemon build output (run.ps1 rebuilds the jar when it is missing)
+scripts/system-metrics-daemon/build/
+scripts/system-metrics-daemon/*.jar
+
 # Workspace package build output
 packages/*/build/
 *.tgz

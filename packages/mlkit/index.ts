@@ -119,14 +119,31 @@ declare class PixelNanoModule extends NativeModule<Events> {
   suggestReplies(history: Array<{ text: string; timestamp?: number; isLocalUser?: boolean; sender?: string }>): Promise<SmartReplyResult>;
   extractEntities(text: string): Promise<EntityExtractionResult>;
   isEmbeddingModelAvailable(): boolean;
+  getEmbeddingStatus(): EmbeddingStatus;
   generateEmbedding(text: string): Promise<EmbeddingResult>;
   close(): void;
 }
 
+/**
+ * State of the MediaPipe TextEmbedder. `available` is true only when
+ * `filesDir/models/text_embedder.tflite` exists, loaded, and produced a vector for a probe input.
+ */
+export type EmbeddingStatus = {
+  available: boolean;
+  /** Why the embedder is unavailable (missing file, load error); null when available. */
+  reason: string | null;
+  modelPath: string;
+  /** The model's real output length, known after a successful load; null otherwise. */
+  dimension: number | null;
+};
+
 export type EmbeddingResult = {
+  /** L2-normalised float vector produced by the model. Never empty. */
   embedding: number[];
+  /** Length of the model's real output vector (equals `embedding.length`). */
   dimension: number;
   latencyMs: number;
+  /** 'hardware' because the TFLite model actually ran on-device (CPU/XNNPACK by default). */
   source: 'hardware';
 };
 

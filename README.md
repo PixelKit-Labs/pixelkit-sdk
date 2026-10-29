@@ -24,7 +24,7 @@
 ## Highlights
 
 - **Tensor Silicon & Thermals**: Live CPU core frequencies, GPU clock/load, ADPF thermal headroom hints, and Perfetto system tracing.
-- **On-Device Edge AI**: Run Gemini Nano locally via AICore TPU, generate 512/768-dim text embeddings, perform offline translation (58 languages), and run ML Kit vision tasks with zero server dependencies.
+- **On-Device Edge AI**: Run Gemini Nano locally via AICore, generate on-device text embeddings from a TFLite embedder model you supply (MediaPipe TextEmbedder on CPU; unavailable until the model file is present), perform offline translation (58 languages), and run ML Kit vision tasks with zero server dependencies.
 - **Cloud AI & Gemini Live Duplex**: Stream bidirectional voice and text over WebSockets in real time (`useGeminiLive`), query autonomous hardware diagnostic agents, and deploy ADK multi-agent triage teams.
 - **Modern Sensors & Acoustics**: Directional 3-microphone beamforming arrays, non-contact MLX90632 FIR thermometer, and ICAO barometric altimeter with climb rates.
 - **Next-Gen Radios & Security**: Wi-Fi 7 Multi-Link Operation (MLO), 802.11mc/az Wi-Fi RTT sub-meter indoor ranging, Satellite NTN states, Android 15 Private Space isolation, and Titan M2 StrongBox ECDH key agreement.
@@ -82,7 +82,7 @@ export function HardwareTelemetryScreen() {
 Every hook is typed, observed, and tested across real hardware:
 
 ### Silicon & System
-`useCPU` &middot; `useGPU` &middot; `useTPU` &middot; `useMemory` &middot; `useADPF` &middot; `useADPFHintSession` &middot; `useBatteryShare` &middot; `useChargingIntelligence` &middot; `usePerfetto` &middot; `useDevice` &middot; `useDisplay` &middot; `useNetwork` &middot; `useCellular` &middot; `useCapabilities`
+`useCPU` &middot; `useGPU` &middot; `useSystemLoad` &middot; `useTPU` &middot; `useMemory` &middot; `useADPF` &middot; `useADPFHintSession` &middot; `useBatteryShare` &middot; `useChargingIntelligence` &middot; `usePerfetto` &middot; `useDevice` &middot; `useDisplay` &middot; `useNetwork` &middot; `useCellular` &middot; `useCapabilities`
 
 ### Sensors & Capture
 `useSensors` &middot; `useAltimeter` &middot; `useThermometer` &middot; `useLocation` &middot; `useCamera` &middot; `useCameraExtensions` &middot; `useVideo` &middot; `useMediaLibrary` &middot; `useAudio` &middot; `useMicrophoneArray` &middot; `useSpatialAudio` &middot; `useHealthConnect`
@@ -140,7 +140,7 @@ npx @pixelkit-labs/cli doctor
 
 ## Ecosystem Repositories
 
-- **[pixelkit-template](https://github.com/PixelKit-Labs/pixelkit-template)**: Complete four-tab demo app demonstrating all 53 hooks, live AI lab, and camera/sensor visualizers.
+- **[pixelkit-template](https://github.com/PixelKit-Labs/pixelkit-template)**: Complete four-tab demo app demonstrating the hooks, live AI lab, and camera/sensor visualizers.
 - **[pixelkit-docs](https://github.com/PixelKit-Labs/pixelkit-docs)**: Full API reference, contracts, and interactive documentation site.
 - **[pixelkit-cli](https://github.com/PixelKit-Labs/pixelkit-cli)**: Command-line diagnostics (`pixelkit doctor`) and autonomous hardware triage agent (`pixelkit agent`).
 

@@ -134,12 +134,39 @@ export type HardwareAttestationResult = {
   timestamp: number;
 };
 
+export type PerfettoBackend = 'profiling_manager' | 'perfetto_binary';
+
 export type PerfettoInfo = {
+  /** True when a system trace backend can be started: ProfilingManager (API 35+) or an executable perfetto binary. */
   isSupported: boolean;
+  /** Parsed from `perfetto --version`; null when the app cannot execute the binary (see `perfettoVersionReason`). */
   perfettoVersion: string | null;
+  /** Why `perfettoVersion` is null; null when the version was read. */
+  perfettoVersionReason: string | null;
+  /** atrace categories the perfetto binary accepts; empty for the ProfilingManager backend, which picks its own. */
   availableCategories: string[];
   isTracing: boolean;
+  backend: PerfettoBackend | null;
   error?: string | null;
+};
+
+export type PerfettoStartResult = {
+  started: boolean;
+  backend: PerfettoBackend | null;
+  /** Categories the backend was configured with; empty when it ignores the request. */
+  activeCategories: string[];
+  /** False for ProfilingManager, whose data sources are chosen by the platform. */
+  categoriesApplied: boolean;
+  error: string | null;
+};
+
+export type PerfettoStopResult = {
+  /** A session existed and the platform delivered a result for it. */
+  stopped: boolean;
+  /** Absolute path, set only when the file exists with a non-zero length. */
+  path: string | null;
+  sizeBytes: number | null;
+  error: string | null;
 };
 
 export type HealthConnectInfo = {
@@ -241,6 +268,14 @@ export type AppFunctionInfo = {
   enabled: boolean;
 };
 
+/** Result of `executeAppFunction`; function-specific fields accompany `status`. */
+export type AppFunctionExecution = {
+  status: 'success' | 'error';
+  /** Present when `status` is 'error'. */
+  message?: string;
+  [key: string]: unknown;
+};
+
 export type DiscoveredBleDevice = {
   name: string;
   address: string;
@@ -250,14 +285,92 @@ export type DiscoveredBleDevice = {
   serviceUuids: string[];
 };
 
-export type UwbRangingResult = {
-  success: boolean;
+/** Peer parameters for one UWB ranging session; all must match what the peer was given. */
+export type UwbRangingConfig = {
+  /** FiRa session id agreed with the peer. */
   sessionId: number;
-  technology: string;
+  role: 'initiator' | 'responder';
+  /** This device's UWB address as hex bytes (2-byte short or 8-byte extended). */
+  localAddress: string;
+  /** The peer's UWB address as hex bytes. */
+  peerAddress: string;
+  /** UwbRangingParams CONFIG_* id 1..6; default 1 (unicast DS-TWR). */
+  configId?: number;
+  /** UWB channel; must be supplied together with `preambleIndex`. */
+  channel?: number;
+  preambleIndex?: number;
+  /** Hex session key info, required by the provisioned config ids. */
+  sessionKeyInfo?: string;
+  updateRate?: 'normal' | 'infrequent' | 'frequent';
+  slotDurationMs?: 1 | 2;
+  /** Ask the platform for azimuth/elevation. */
+  angleOfArrival?: boolean;
+};
+
+export type UwbRangingStatus =
+  | 'opened'
+  | 'needs_peer_configuration'
+  | 'uwb_unsupported'
+  | 'ranging_api_unavailable'
+  | 'uwb_disabled'
+  | 'permission_denied'
+  | 'session_active'
+  | 'invalid_parameters'
+  | 'open_failed';
+
+export type UwbRangingResult = {
+  /** True only when the platform reported `RangingSession.Callback.onOpened`. */
+  success: boolean;
+  status: UwbRangingStatus;
+  /** Reason text for every status other than 'opened'. */
+  error: string | null;
+  sessionId: number | null;
+  technology: 'UWB';
   serviceAvailable: boolean;
-  serviceName: string;
+  serviceName: 'RangingManager' | null;
   rangingFeature: boolean;
-  status: string;
+  timestampMs: number;
+};
+
+export type UwbStopResult = {
+  /** A session (or a pending open) existed when stop was called. */
+  wasActive: boolean;
+  /** stop() and close() raised no error. */
+  closed: boolean;
+  sessionId: number | null;
+  error: string | null;
+  timestampMs: number;
+};
+
+export type UwbRangingState = {
+  active: boolean;
+  opened: boolean;
+  sessionId: number | null;
+};
+
+export type UwbConfidence = 'low' | 'medium' | 'high';
+
+/** One `android.ranging.RangingData` sample. Distance is meters, angles are degrees; null when the platform omitted it. */
+export type UwbMeasurementEvent = {
+  sessionId: number;
+  deviceId: string;
+  distanceMeters: number | null;
+  distanceConfidence: UwbConfidence | null;
+  azimuthDegrees: number | null;
+  azimuthConfidence: UwbConfidence | null;
+  elevationDegrees: number | null;
+  elevationConfidence: UwbConfidence | null;
+  rssi: number | null;
+  technology: 'UWB';
+  timestampMs: number;
+};
+
+export type UwbSessionEvent = {
+  sessionId: number;
+  state: 'opened' | 'started' | 'stopped' | 'closed' | 'open_failed';
+  deviceId: string | null;
+  /** RangingSession.Callback reason name (local_request, remote_request, system_policy, no_peers_found, unsupported, unknown). */
+  reason: string | null;
   timestampMs: number;
 };
 
@@ -368,12 +481,29 @@ export type Wifi7MloResult = {
   error?: string | null;
 };
 
+/** One access point measured by `WifiRttManager.startRanging`. */
 export type WifiRttResult = {
   bssid: string;
-  distanceMm: number;
-  distanceStdDevMm: number;
-  rssi: number;
+  /** `RangingResult.getStatus()`: 0 success, 1 fail, 2 responder without 802.11mc. */
   status: number;
+  statusName: 'success' | 'fail' | 'responder_no_80211mc' | 'unknown';
+  /** Distance, standard deviation, RSSI and counters are null unless `status` is 0 (the platform throws otherwise). */
+  distanceMm: number | null;
+  distanceStdDevMm: number | null;
+  rssi: number | null;
+  numAttemptedMeasurements: number | null;
+  numSuccessfulMeasurements: number | null;
+  timestampMs: number | null;
+};
+
+export type WifiRttUnresolvedBssid = {
+  bssid: string;
+  /**
+   * Why this BSSID produced no measurement: invalid_bssid, not_in_scan_results, not_80211mc_responder,
+   * exceeds_max_peers_N, permission_denied, rtt_unavailable, ranging_timeout, ranging_failed or
+   * no_result_returned.
+   */
+  reason: string;
 };
 
 export type WifiRttStatusResult = {
@@ -381,6 +511,10 @@ export type WifiRttStatusResult = {
   isAvailable: boolean;
   isRanging: boolean;
   rangingResults: WifiRttResult[];
+  /** Requested BSSIDs that were not ranged; present on `startWifiRttRanging` results. */
+  unresolvedBssids?: WifiRttUnresolvedBssid[];
+  /** `RangingResultCallback.onRangingFailure` code when the whole request failed. */
+  failureCode?: number | null;
   error?: string | null;
 };
 
@@ -551,6 +685,8 @@ type Events = {
   onBleDeviceFound(e: DiscoveredBleDevice): void;
   onNfcTag(e: NfcTagEvent): void;
   onNfcError(e: { id: string; message: string }): void;
+  onUwbRangingResult(e: UwbMeasurementEvent): void;
+  onUwbRangingState(e: UwbSessionEvent): void;
 };
 
 declare class PixelNativeModule extends NativeModule<Events> {
@@ -580,8 +716,10 @@ declare class PixelNativeModule extends NativeModule<Events> {
   beginTraceSection(name: string): boolean;
   endTraceSection(): boolean;
   setTraceCounter(name: string, value: number): boolean;
-  startPerfettoTrace(categories?: string[], bufferSizeKb?: number): Promise<boolean>;
-  stopPerfettoTrace(): Promise<string | null>;
+  /** Starts a real system trace; `started` is false with `error` when no backend could start one. */
+  startPerfettoTrace(categories?: string[], bufferSizeKb?: number): Promise<PerfettoStartResult>;
+  /** `path` is set only when the trace file exists with a non-zero length. */
+  stopPerfettoTrace(): Promise<PerfettoStopResult>;
   getHealthConnectInfo(): HealthConnectInfo;
   getHapticsInfo(): HapticsInfo;
   playEnvelope(points: EnvelopePoint[], initialSharpness?: number | null): boolean;
@@ -599,8 +737,15 @@ declare class PixelNativeModule extends NativeModule<Events> {
   /** Queues a text record written to the next tag that enters the field. */
   writeNdefText(text: string): Promise<{ success: boolean; queuedBytes?: number; error?: string }>;
   isNfcReaderActive(): boolean;
-  startUwbRanging(sessionId?: number): Promise<UwbRangingResult>;
-  stopUwbRanging(): boolean;
+  /**
+   * Opens a real android.ranging UWB session with the peer described by `config` (Android 16+, needs
+   * android.permission.RANGING). Resolves with a `status` explaining refusals; measurements arrive as
+   * `onUwbRangingResult` events.
+   */
+  startUwbRanging(config: UwbRangingConfig): Promise<UwbRangingResult>;
+  /** Closes the running session. `wasActive` is false when nothing was running. */
+  stopUwbRanging(): UwbStopResult;
+  getUwbRangingState(): UwbRangingState;
   isOfflineSpeechAvailable(): boolean;
   /** Resolves true on service readiness; rejects startup failure, timeout, cancellation or busy state. */
   startSpeechRecognition(requestId: string, onDevice: boolean): Promise<boolean>;
@@ -616,8 +761,10 @@ declare class PixelNativeModule extends NativeModule<Events> {
   getSpeechEngineStatus(): SpeechEngineStatus;
   stopSpeechEngine(): boolean;
   isSpeechEngineSpeaking(): boolean;
+  /** Only functions that `executeAppFunction` really performs are listed. */
   getAppFunctions(): AppFunctionInfo[];
-  executeAppFunction(functionId: string, params?: Record<string, any>): Promise<any>;
+  /** Rejects with E_APP_FUNCTION_UNKNOWN for an id that `getAppFunctions` does not list. */
+  executeAppFunction(functionId: string, params?: Record<string, any>): Promise<AppFunctionExecution>;
 
   // Phase 1: Sensors & Acoustics
   getMicrophoneArray(): MicrophoneArrayResult;
@@ -636,6 +783,11 @@ declare class PixelNativeModule extends NativeModule<Events> {
   // Phase 3: Radios & Mesh
   getWifi7MloInfo(): Wifi7MloResult;
   getWifiRttStatus(): WifiRttStatusResult;
+  /**
+   * Runs one real `WifiRttManager.startRanging` round. BSSIDs must be 802.11mc responders present in
+   * the latest Wi-Fi scan results; the rest come back in `unresolvedBssids` with the reason.
+   * Needs ACCESS_FINE_LOCATION (and NEARBY_WIFI_DEVICES on Android 13+) granted by the app.
+   */
   startWifiRttRanging(bssids: string[]): Promise<WifiRttStatusResult>;
   getSatelliteStatus(): SatelliteStatusResult;
 

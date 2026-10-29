@@ -246,7 +246,7 @@ export interface GPUTelemetry {
   frameRenderTimeMs: number | null;
   /** Cumulative jank frames (interval > 1.5× the display's expected frame time) */
   droppedFrameCount: number;
-  /** Not exposed by Android to apps; always null */
+  /** Always null here: not readable by an app. `useSystemLoad().gpuMemoryUsedMB` is the daemon-sourced value */
   gpuMemoryUsageMB: number | null;
 }
 

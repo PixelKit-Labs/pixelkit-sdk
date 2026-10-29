@@ -82,6 +82,10 @@ class PixelNativeModule : Module() {
   private val explicitSpeechEngine by lazy {
     ExplicitSpeechEngine(context, mainHandler) { event -> sendEvent("onSpeechEngineEvent", event) }
   }
+  private val uwbController by lazy {
+    UwbRangingController(context, mainHandler) { name, payload -> sendEvent(name, payload) }
+  }
+  private val perfettoController by lazy { PerfettoTraceController(context) }
   private var bleScanCallback: ScanCallback? = null
   /** Active NFC reader-mode callback; non-null only while the reader is running. */
   private var nfcReaderCallback: NfcAdapter.ReaderCallback? = null
@@ -107,7 +111,9 @@ class PixelNativeModule : Module() {
       "onSpeechEngineEvent",
       "onBleDeviceFound",
       "onNfcTag",
-      "onNfcError"
+      "onNfcError",
+      "onUwbRangingResult",
+      "onUwbRangingState"
     )
 
     // ───────────────────────── SoC / build identity ─────────────────────────
@@ -331,7 +337,7 @@ class PixelNativeModule : Module() {
 
     // ───────────────────────── Perfetto System Tracing ─────────────────────────
     Function("getPerfettoInfo") {
-      perfettoInfo()
+      perfettoController.info()
     }
 
     Function("beginTraceSection") { name: String ->
@@ -347,16 +353,20 @@ class PixelNativeModule : Module() {
     Function("setTraceCounter") { name: String, value: Double ->
       if (Build.VERSION.SDK_INT >= 29) {
         android.os.Trace.setCounter(name.take(127), value.toLong())
+        true
+      } else {
+        false
       }
-      true
     }
 
+    /** Starts a real system trace; resolves `started: false` with the reason when none can be started. */
     AsyncFunction("startPerfettoTrace") { categories: List<String>?, bufferSizeKb: Int? ->
-      startPerfettoTrace(categories, bufferSizeKb)
+      perfettoController.start(categories, bufferSizeKb)
     }
 
+    /** Ends the trace and reports the file only when it exists on disk with a non-zero length. */
     AsyncFunction("stopPerfettoTrace") {
-      stopPerfettoTrace()
+      perfettoController.stop()
     }
 
     // ───────────────────────── Health Connect & Vitals ─────────────────────────
@@ -712,65 +722,35 @@ class PixelNativeModule : Module() {
       }
     }
 
-    // ───────────────────────── UWB Ranging ─────────────────────────
-    AsyncFunction("startUwbRanging") { sessionId: Long? ->
-      val sid = sessionId ?: 1001L
-      val pm = context.packageManager
-      val uwbSupported = pm.hasSystemFeature("android.hardware.uwb")
-      var serviceAvailable = false
-      var serviceName = "none"
-
-      if (Build.VERSION.SDK_INT >= 35) {
-        try {
-          val rangingService = context.getSystemService("ranging")
-          if (rangingService != null) {
-            serviceAvailable = true
-            serviceName = "RangingManager"
-          }
-        } catch (_: Throwable) {}
-      }
-
-      if (!serviceAvailable && Build.VERSION.SDK_INT >= 31) {
-        try {
-          val uwbService = context.getSystemService("uwb")
-          if (uwbService != null) {
-            serviceAvailable = true
-            serviceName = "UwbManager"
-          }
-        } catch (_: Throwable) {}
-      }
-
-      mapOf(
-        "success" to uwbSupported,
-        "sessionId" to sid,
-        "technology" to "UWB",
-        "serviceAvailable" to serviceAvailable,
-        "serviceName" to serviceName,
-        "rangingFeature" to pm.hasSystemFeature("android.hardware.ranging"),
-        "status" to if (uwbSupported) "ACTIVE_SESSION" else "UNSUPPORTED",
-        "timestampMs" to System.currentTimeMillis()
-      )
+    // ───────────────────────── UWB Ranging (android.ranging, Android 16+) ─────────────────────────
+    /**
+     * Opens a real RAW UWB ranging session with a peer. The config carries the peer parameters
+     * agreed out of band (see UwbRequestParser). Resolves with `status: 'opened'` once the platform
+     * reports onOpened, otherwise with a precise status such as `needs_peer_configuration`,
+     * `uwb_unsupported`, `permission_denied` or `open_failed`. Measurements arrive as
+     * `onUwbRangingResult` events.
+     */
+    AsyncFunction("startUwbRanging") { config: Map<String, Any?>?, promise: expo.modules.kotlin.Promise ->
+      uwbController.start(config, promise)
     }
 
+    /** Stops and closes the running session; reports `wasActive: false` when none was running. */
     Function("stopUwbRanging") {
-      true
+      uwbController.stop()
+    }
+
+    Function("getUwbRangingState") {
+      uwbController.state()
     }
 
     // ───────────────────────── AppFunctions Registry & Execution ─────────────────────────
+    // Only functions that executeAppFunction really performs are listed here.
     Function("getAppFunctions") {
       listOf(
         mapOf(
-          "id" to "triggerHiLightPulse",
-          "name" to "Pulse HiLight Ring",
-          "description" to "Flashes or pulses the Pixel 11 Pro rear camera notification ring (HiLight)",
-          "category" to "actuator",
-          "target" to "hardware",
-          "enabled" to true
-        ),
-        mapOf(
           "id" to "triggerHapticEffect",
           "name" to "Play Haptic Primitive",
-          "description" to "Triggers low-latency CS40L26 haptic motor feedback (click, thud, spin)",
+          "description" to "Plays one VibrationEffect composition primitive (click, thud, spin, quick_fall) when the vibrator supports it",
           "category" to "actuator",
           "target" to "hardware",
           "enabled" to true
@@ -778,82 +758,37 @@ class PixelNativeModule : Module() {
         mapOf(
           "id" to "setTorchLevel",
           "name" to "Set Torch Brightness",
-          "description" to "Controls rear LED torch intensity level via CameraManager (1–21)",
+          "description" to "Turns the rear flash on at a strength level through CameraManager (level clamped to 1-21)",
           "category" to "actuator",
           "target" to "hardware",
           "enabled" to true
         ),
         mapOf(
           "id" to "getSiliconStatus",
-          "name" to "Get Silicon Telemetry",
-          "description" to "Reads real-time Tensor G6 CPU load, thermals, and memory headroom",
+          "name" to "Get Thermal and Memory Status",
+          "description" to "Reads thermal headroom from PowerManager and available memory from ActivityManager",
           "category" to "telemetry",
           "target" to "hardware",
           "enabled" to true
         ),
         mapOf(
           "id" to "scanNearbyRadios",
-          "name" to "Scan Nearby Radios",
-          "description" to "Active Bluetooth LE peripheral discovery and UWB transceiver status",
+          "name" to "Radio Status",
+          "description" to "Reports whether Bluetooth is enabled, the bonded device count and whether the device declares UWB hardware",
           "category" to "telemetry",
-          "target" to "hardware",
-          "enabled" to true
-        ),
-        mapOf(
-          "id" to "recognizeTextOCR",
-          "name" to "Extract Document / Scene Text",
-          "description" to "On-device ML Kit OCR v2 text recognition without network",
-          "category" to "intelligence",
-          "target" to "tpu_aicore",
-          "enabled" to true
-        ),
-        mapOf(
-          "id" to "scanBarcode",
-          "name" to "Decode Barcode / QR",
-          "description" to "On-device ML Kit barcode scanner (QR, Aztec, DataMatrix, PDF417)",
-          "category" to "intelligence",
-          "target" to "tpu_aicore",
-          "enabled" to true
-        ),
-        mapOf(
-          "id" to "summarizeText",
-          "name" to "Summarize Content",
-          "description" to "On-device ML Kit GenAI summarization into 1–3 bullet points",
-          "category" to "intelligence",
-          "target" to "tpu_aicore",
-          "enabled" to true
-        ),
-        mapOf(
-          "id" to "translateText",
-          "name" to "Neural Translation",
-          "description" to "On-device 58-language neural translation via ML Kit local models",
-          "category" to "intelligence",
-          "target" to "tpu_aicore",
-          "enabled" to true
-        ),
-        mapOf(
-          "id" to "speakText",
-          "name" to "Text-to-Speech Announcement",
-          "description" to "Platform speech synthesis with system voices and rate/pitch control",
-          "category" to "intelligence",
           "target" to "hardware",
           "enabled" to true
         )
       )
     }
 
+    /**
+     * Runs a function listed by getAppFunctions. Expected failures return `status: 'error'` with a
+     * message; an id that is not in the registry rejects with E_APP_FUNCTION_UNKNOWN.
+     */
     AsyncFunction("executeAppFunction") { functionId: String, params: Map<String, Any?>? ->
       val p = params ?: emptyMap()
       when (functionId) {
-        "triggerHiLightPulse" -> {
-          val v = vibrator()
-          if (Build.VERSION.SDK_INT >= 30) {
-            val comp = VibrationEffect.startComposition()
-            comp.addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f, 0)
-            v.vibrate(comp.compose())
-          }
-          mapOf("status" to "success", "message" to "HiLight pulse signaled to actuator bus")
-        }
         "triggerHapticEffect" -> {
           val prim = (p["primitive"] as? String) ?: "click"
           val effectId = when (prim.lowercase()) {
@@ -863,12 +798,16 @@ class PixelNativeModule : Module() {
             else -> VibrationEffect.Composition.PRIMITIVE_CLICK
           }
           val v = vibrator()
-          if (Build.VERSION.SDK_INT >= 30) {
+          if (Build.VERSION.SDK_INT < 30) {
+            mapOf("status" to "error", "message" to "Composition primitives need Android 11 (API 30)", "primitive" to prim, "executed" to false)
+          } else if (!v.arePrimitivesSupported(effectId)[0]) {
+            mapOf("status" to "error", "message" to "This vibrator does not support primitive '$prim'", "primitive" to prim, "executed" to false)
+          } else {
             val comp = VibrationEffect.startComposition()
             comp.addPrimitive(effectId, 1.0f, 0)
             v.vibrate(comp.compose())
+            mapOf("status" to "success", "primitive" to prim, "executed" to true)
           }
-          mapOf("status" to "success", "primitive" to prim, "executed" to true)
         }
         "setTorchLevel" -> {
           val level = (p["level"] as? Number)?.toInt() ?: 10
@@ -911,9 +850,11 @@ class PixelNativeModule : Module() {
             "uwbHardwareSupported" to uwbSupported
           )
         }
-        else -> {
-          mapOf("status" to "dispatched", "functionId" to functionId, "params" to p)
-        }
+        else -> throw CodedException(
+          "E_APP_FUNCTION_UNKNOWN",
+          "Unknown AppFunction id '$functionId'; call getAppFunctions() for the registered ids",
+          null
+        )
       }
     }
 
@@ -1021,6 +962,8 @@ class PixelNativeModule : Module() {
         } catch (_: Throwable) {}
       }
       explicitSpeechEngine.shutdown()
+      try { uwbController.stop() } catch (_: Throwable) {}
+      try { perfettoController.release() } catch (_: Throwable) {}
     }
   }
 
@@ -1437,77 +1380,6 @@ class PixelNativeModule : Module() {
     } catch (e: Throwable) {
       throw CodedException("E_KEY_ATTESTATION_FAILED", "Hardware key attestation failed: ${e.message}", e)
     }
-  }
-
-  private var traceProcess: java.lang.Process? = null
-  private var currentTraceFile: File? = null
-  private var traceStartMs: Long = 0L
-
-  private fun perfettoInfo(): Map<String, Any?> {
-    val hasPerfetto = File("/system/bin/perfetto").exists()
-    val isSupported = hasPerfetto || Build.VERSION.SDK_INT >= 29
-    val categories = listOf("sched", "freq", "idle", "gfx", "view", "am", "wm", "camera", "hal", "power", "thermal", "aidl")
-
-    return mapOf(
-      "isSupported" to isSupported,
-      "perfettoVersion" to if (hasPerfetto) "v54.0" else null,
-      "availableCategories" to categories,
-      "isTracing" to (traceProcess != null && traceProcess?.isAlive == true),
-      "error" to if (!isSupported) "Perfetto system tracing is not available on this platform" else null
-    )
-  }
-
-  private fun startPerfettoTrace(categories: List<String>?, bufferSizeKb: Int?): Boolean {
-    if (traceProcess != null && traceProcess?.isAlive == true) {
-      return true
-    }
-    val traceDir = File(context.cacheDir, "traces").apply { mkdirs() }
-    val traceFile = File(traceDir, "pixelkit_trace_${System.currentTimeMillis()}.perfetto-trace")
-    currentTraceFile = traceFile
-    traceStartMs = System.currentTimeMillis()
-
-    val catList = categories ?: listOf("sched", "freq", "idle", "gfx", "view", "am", "wm", "power", "thermal")
-    val bufKb = bufferSizeKb ?: 16384
-
-    val cmd = mutableListOf(
-      "/system/bin/perfetto",
-      "-o", traceFile.absolutePath,
-      "-b", "${bufKb}kb",
-      "--background"
-    )
-    for (cat in catList) {
-      cmd.add(cat)
-    }
-
-    try {
-      val pb = ProcessBuilder(cmd)
-      traceProcess = pb.start()
-      return true
-    } catch (e: Throwable) {
-      android.os.Trace.beginSection("pixelkit_session")
-      return true
-    }
-  }
-
-  private fun stopPerfettoTrace(): String? {
-    try {
-      traceProcess?.let {
-        if (it.isAlive) {
-          it.destroy()
-          it.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)
-        }
-      }
-    } catch (e: Throwable) {
-      // ignore
-    } finally {
-      traceProcess = null
-    }
-
-    try {
-      android.os.Trace.endSection()
-    } catch (e: Throwable) {}
-
-    return currentTraceFile?.absolutePath
   }
 
   private fun healthConnectInfo(): Map<String, Any?> {

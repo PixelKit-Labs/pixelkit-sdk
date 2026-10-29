@@ -3,8 +3,9 @@
  * @description GPU identity and real frame pacing. Renderer/vendor/GL version are read through an
  * offscreen EGL context; the Vulkan version comes from the `android.hardware.vulkan.version` feature.
  * Frame timing is measured on the UI thread with `Choreographer` (1 s windows: fps, average and max
- * frame interval, jank frames above 1.5× the display's expected interval). GPU memory usage is not
- * exposed by Android to apps, so it is reported as null rather than invented.
+ * frame interval, jank frames above 1.5× the display's expected interval). GPU utilisation and GPU
+ * memory are not readable by an app, so memory is reported as null rather than invented; `useSystemLoad`
+ * reads both through the ADB daemon. This hook does not use the daemon.
  */
 
 import { useEffect, useState } from 'react';
@@ -65,7 +66,7 @@ export function useGPU() {
     /** Frame budget for the current display mode (8.33 ms at 120 Hz, 16.67 ms at 60 Hz) */
     targetBudgetMs: Number(expected.toFixed(2)),
     isStuttering: stats ? stats.avgFrameMs > expected * 1.5 : false,
-    /** Not exposed by Android to apps */
+    /** Always null here: not readable by an app. `useSystemLoad().gpuMemoryUsedMB` is the daemon-sourced value. */
     gpuMemoryUsageMB: null as number | null,
     /** Latest failure message, or null. Failures are also logged and counted. */
     error,

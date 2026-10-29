@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PixelNative, { type AppFunctionsInfo } from '@pixelkit-labs/native';
 import { logEvent, recordMetric, type TelemetrySource } from '../core/observability';
+import { nativeAppFunctionError } from '../core/appFunctionResult';
 
 const MODULE = 'useAppFunctions';
 
@@ -210,12 +211,16 @@ export function useAppFunctions(): AppFunctionsState {
           gpuVendor: gpu.vendor,
         };
       } else {
-        return {
-          success: false,
-          functionId,
-          error: `Unknown AppFunction ID: ${functionId}`,
-          executionTimeMs: Date.now() - start,
-        };
+        // Ids listed by PixelNative.getAppFunctions(). The module rejects any other id with
+        // E_APP_FUNCTION_UNKNOWN, which the catch below returns as the error.
+        const nativeResult = await PixelNative.executeAppFunction(functionId, params);
+        const nativeError = nativeAppFunctionError(functionId, nativeResult);
+        if (nativeError) {
+          setError(nativeError);
+          logEvent(MODULE, `native function failed: ${functionId}`, { error: nativeError }, 'error');
+          return { success: false, functionId, data: nativeResult, error: nativeError, executionTimeMs: Date.now() - start };
+        }
+        resultData = nativeResult;
       }
 
       const duration = Date.now() - start;

@@ -1,88 +1,116 @@
 /**
  * @file useEmbeddings.ts
- * @description On-device text vector embeddings and semantic cosine similarity scoring
- * executed on the Google Tensor EdgeTPU via ML Kit / LiteRT.
+ * @description On-device text vector embeddings and cosine similarity scoring.
  *
- * Adheres to the Zero-Simulation Principle: returns empty vectors and source: 'unavailable'
- * if the local model weights are absent or unsupported.
+ * Inference runs the MediaPipe Tasks TextEmbedder (TFLite) on the CPU (XNNPACK, no delegate
+ * configured), not on the Tensor TPU. It needs a `.tflite` embedder model with TFLite metadata at
+ * `<app filesDir>/models/text_embedder.tflite`; the library does not bundle or download one.
+ *
+ * Zero-simulation: when the file is absent or fails to load, `isAvailable` is false,
+ * `source` is 'unavailable' and `unavailableReason` carries the native reason. `embed` rejects
+ * (and sets `error`) instead of returning an empty vector. `vectorDimension` is the model's real
+ * output length and stays null until the native side reports it.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import PixelNano, { isPixelNanoAvailable } from '@pixelkit-labs/mlkit';
-import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/observability';
+import { logEvent, logError, recordMetric, traced, type TelemetrySource } from '../core/observability';
+import { computeCosineSimilarity, assertRealEmbedding } from '../core/embeddingsMath';
 
 const MODULE = 'useEmbeddings';
-export const EMBEDDING_DIMENSION = 512;
 
 export interface EmbeddingsTelemetry {
-  /** Whether the on-device text embedding model is installed and ready for inference. */
+  /** True only when the model file exists, loaded, and produced a vector for a probe input. */
   isAvailable: boolean;
-  /** Whether an embedding inference operation is actively running on the NPU/TPU. */
+  /** Whether an embedding inference is currently running. */
   isLoading: boolean;
-  /** Dimension size of the output embedding vector (512 or 768). */
-  vectorDimension: number;
+  /** Real output length of the model's embedding vector; null until a load or an embed reported it. */
+  vectorDimension: number | null;
+  /** Reason the embedder is unavailable (missing model file, load failure); null when available. */
+  unavailableReason: string | null;
   /** Error message if embedding generation failed. */
   error: string | null;
-  /** Provenance of the data: 'hardware' or 'unavailable'. */
+  /** 'hardware' when the model is available and the last embed did not fail; otherwise 'unavailable'. */
   source: TelemetrySource;
-  /** Computes a normalized float vector embedding for the provided text. */
+  /** Computes an L2-normalised float vector for the text. Rejects if the model is unavailable or returns no vector. */
   embed: (text: string) => Promise<number[]>;
   /** Computes cosine similarity between two float vectors (-1.0 to 1.0). */
   cosineSimilarity: (vecA: number[], vecB: number[]) => number;
 }
 
-import { computeCosineSimilarity } from '../core/embeddingsMath';
 export { computeCosineSimilarity };
 
 export function useEmbeddings(): EmbeddingsTelemetry {
   const [isAvailable, setIsAvailable] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [vectorDimension, setVectorDimension] = useState<number | null>(null);
+  const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
+  const [lastEmbedFailed, setLastEmbedFailed] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const source: TelemetrySource = isPixelNanoAvailable && isAvailable ? 'hardware' : 'unavailable';
+  const source: TelemetrySource =
+    isPixelNanoAvailable && isAvailable && !lastEmbedFailed ? 'hardware' : 'unavailable';
 
   useEffect(() => {
     if (!PixelNano) {
       setIsAvailable(false);
+      setUnavailableReason('PixelNano native module is not installed in this build');
       return;
     }
 
-    try {
-      const avail = PixelNano.isEmbeddingModelAvailable();
-      setIsAvailable(avail);
-      recordMetric(MODULE, 'isEmbeddingModelAvailable', avail, 'hardware');
-      logEvent(MODULE, 'checked embedding model availability', { available: avail });
-    } catch (e: any) {
-      logError(MODULE, 'check embedding availability failed', e);
-      setIsAvailable(false);
-    }
+    traced(MODULE, 'getEmbeddingStatus', () => PixelNano!.getEmbeddingStatus())
+      .then((status) => {
+        setIsAvailable(status.available);
+        setUnavailableReason(status.available ? null : status.reason ?? 'unknown');
+        setVectorDimension(status.dimension ?? null);
+        recordMetric(MODULE, 'isEmbeddingModelAvailable', status.available, 'hardware');
+        logEvent(MODULE, 'checked embedding model availability', {
+          available: status.available,
+          reason: status.reason,
+          dimension: status.dimension,
+        });
+      })
+      .catch((e: unknown) => {
+        const err = logError(MODULE, 'check embedding availability failed', e);
+        setIsAvailable(false);
+        setUnavailableReason(err.message);
+      });
   }, []);
 
   const embed = useCallback(async (text: string): Promise<number[]> => {
+    setError(null);
     if (!PixelNano) {
-      setError('PixelNano module unavailable');
-      return [];
+      const message = 'PixelNano module unavailable';
+      setError(message);
+      throw new Error(message);
     }
     if (!text || text.trim().length === 0) {
-      return [];
+      const message = 'Input text must not be empty';
+      setError(message);
+      throw new Error(message);
     }
 
     setIsLoading(true);
-    setError(null);
     try {
-      const res = await PixelNano.generateEmbedding(text);
-      setIsLoading(false);
+      const res = await traced(MODULE, 'generateEmbedding', () => PixelNano!.generateEmbedding(text));
+      const vector = assertRealEmbedding(res);
+      setVectorDimension(vector.length);
+      setLastEmbedFailed(false);
+      setIsAvailable(true);
+      setUnavailableReason(null);
       recordMetric(MODULE, 'embeddingLatencyMs', res.latencyMs, 'hardware');
       logEvent(MODULE, 'generated embedding', {
-        dim: res.dimension,
+        dim: vector.length,
         latencyMs: res.latencyMs,
       });
-      return res.embedding ?? [];
-    } catch (e: any) {
-      setIsLoading(false);
+      return vector;
+    } catch (e: unknown) {
       const err = logError(MODULE, 'generateEmbedding failed', e);
+      setLastEmbedFailed(true);
       setError(err.message);
-      return [];
+      throw e;
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -93,7 +121,8 @@ export function useEmbeddings(): EmbeddingsTelemetry {
   return {
     isAvailable,
     isLoading,
-    vectorDimension: EMBEDDING_DIMENSION,
+    vectorDimension,
+    unavailableReason,
     error,
     source,
     embed,

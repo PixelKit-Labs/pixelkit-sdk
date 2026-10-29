@@ -4,7 +4,7 @@
  * `/proc/cpuinfo`, current/max frequencies from cpufreq sysfs, the active governor, and two load
  * signals: this app's own CPU share (`Process.getElapsedCpuTime`) and cluster frequency utilisation
  * (current/max frequency averaged across cores). Android does not expose whole-system `/proc/stat`
- * to apps, so there is no fabricated "system load" here.
+ * to apps, so there is no fabricated "system load" here; `useSystemLoad` reads it through the ADB daemon.
  */
 
 import { useCallback, useEffect, useState } from 'react';

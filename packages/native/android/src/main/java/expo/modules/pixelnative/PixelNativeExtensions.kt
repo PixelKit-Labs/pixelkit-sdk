@@ -445,26 +445,161 @@ internal fun PixelNativeModule.wifiRttStatus(): Map<String, Any?> {
   }
 }
 
+private const val WIFI_RTT_TIMEOUT_MS = 15_000L
+private val BSSID_PATTERN = Regex("^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
+
+private fun wifiRttStatusName(status: Int): String = when (status) {
+  android.net.wifi.rtt.RangingResult.STATUS_SUCCESS -> "success"
+  android.net.wifi.rtt.RangingResult.STATUS_FAIL -> "fail"
+  android.net.wifi.rtt.RangingResult.STATUS_RESPONDER_DOES_NOT_SUPPORT_IEEE80211MC -> "responder_no_80211mc"
+  else -> "unknown"
+}
+
+private fun wifiRttFailureName(code: Int): String = when (code) {
+  android.net.wifi.rtt.RangingResultCallback.STATUS_CODE_FAIL -> "STATUS_CODE_FAIL"
+  android.net.wifi.rtt.RangingResultCallback.STATUS_CODE_FAIL_RTT_NOT_AVAILABLE -> "STATUS_CODE_FAIL_RTT_NOT_AVAILABLE"
+  else -> "STATUS_CODE_$code"
+}
+
+/**
+ * Runs one real `WifiRttManager.startRanging` round against the requested access points and blocks
+ * until `onRangingResults` / `onRangingFailure` (or a timeout). Each BSSID must match an entry in
+ * the latest `WifiManager.getScanResults()` that is an 802.11mc responder; every BSSID that cannot
+ * be ranged is returned in `unresolvedBssids` with the reason, and nothing is invented for it.
+ * Distances, standard deviations and RSSI come from `RangingResult` and are null unless the
+ * per-AP status is `success`.
+ */
 internal fun PixelNativeModule.startWifiRttRangingInternal(bssids: List<String>): Map<String, Any?> {
+  fun outcome(
+    supported: Boolean,
+    available: Boolean,
+    results: List<Map<String, Any?>>,
+    unresolved: List<Map<String, Any?>>,
+    failureCode: Int?,
+    error: String?,
+  ): Map<String, Any?> = mapOf(
+    "isSupported" to supported,
+    "isAvailable" to available,
+    "isRanging" to false,
+    "rangingResults" to results,
+    "unresolvedBssids" to unresolved,
+    "failureCode" to failureCode,
+    "error" to error,
+  )
+  fun unresolvedEntry(bssid: String, reason: String): Map<String, Any?> = mapOf("bssid" to bssid, "reason" to reason)
+
   val hasFeature = context.packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)
   if (!hasFeature || Build.VERSION.SDK_INT < 28) {
-    return mapOf(
-      "isSupported" to false,
-      "isAvailable" to false,
-      "isRanging" to false,
-      "rangingResults" to emptyList<Map<String, Any?>>(),
-      "error" to "Wi-Fi RTT unsupported"
+    return outcome(false, false, emptyList(), emptyList(), null, "Wi-Fi RTT unsupported")
+  }
+
+  val requested = bssids.map { it.trim().uppercase() }.distinct()
+  if (requested.isEmpty()) {
+    return outcome(true, false, emptyList(), emptyList(), null, "No BSSIDs supplied; pass the BSSIDs of 802.11mc access points from a Wi-Fi scan")
+  }
+
+  val missingPermissions = mutableListOf<String>()
+  if (context.checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") != PackageManager.PERMISSION_GRANTED) {
+    missingPermissions += "android.permission.ACCESS_FINE_LOCATION"
+  }
+  if (Build.VERSION.SDK_INT >= 33 &&
+    context.checkSelfPermission("android.permission.NEARBY_WIFI_DEVICES") != PackageManager.PERMISSION_GRANTED
+  ) {
+    missingPermissions += "android.permission.NEARBY_WIFI_DEVICES"
+  }
+  if (missingPermissions.isNotEmpty()) {
+    return outcome(
+      true, false, emptyList(), requested.map { unresolvedEntry(it, "permission_denied") }, null,
+      "permission_denied: ${missingPermissions.joinToString()} not granted; the app must declare and request them at runtime"
     )
   }
 
-  // Zero-simulation: returns real ranging results or empty list with status
-  return mapOf(
-    "isSupported" to true,
-    "isAvailable" to true,
-    "isRanging" to false,
-    "rangingResults" to emptyList<Map<String, Any?>>(),
-    "error" to null
-  )
+  return try {
+    val rttManager = context.getSystemService(Context.WIFI_RTT_RANGING_SERVICE) as? WifiRttManager
+      ?: return outcome(true, false, emptyList(), emptyList(), null, "WifiRttManager service is not available")
+    if (!rttManager.isAvailable) {
+      return outcome(true, false, emptyList(), requested.map { unresolvedEntry(it, "rtt_unavailable") }, null,
+        "Wi-Fi RTT is not available right now (Wi-Fi or location is off, or the radio is busy)")
+    }
+
+    val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    val scanByBssid = HashMap<String, android.net.wifi.ScanResult>()
+    for (scan in wifiManager.scanResults) {
+      val key = scan.BSSID?.uppercase() ?: continue
+      scanByBssid[key] = scan
+    }
+
+    val unresolved = mutableListOf<Map<String, Any?>>()
+    val accessPoints = mutableListOf<android.net.wifi.ScanResult>()
+    val maxPeers = android.net.wifi.rtt.RangingRequest.getMaxPeers()
+    for (bssid in requested) {
+      val scan = scanByBssid[bssid]
+      when {
+        !BSSID_PATTERN.matches(bssid) -> unresolved += unresolvedEntry(bssid, "invalid_bssid")
+        scan == null -> unresolved += unresolvedEntry(bssid, "not_in_scan_results")
+        !scan.is80211mcResponder() -> unresolved += unresolvedEntry(bssid, "not_80211mc_responder")
+        accessPoints.size >= maxPeers -> unresolved += unresolvedEntry(bssid, "exceeds_max_peers_$maxPeers")
+        else -> accessPoints += scan
+      }
+    }
+    if (accessPoints.isEmpty()) {
+      return outcome(true, true, emptyList(), unresolved, null,
+        "None of the requested BSSIDs is an 802.11mc responder in the latest Wi-Fi scan results")
+    }
+
+    val request = android.net.wifi.rtt.RangingRequest.Builder().addAccessPoints(accessPoints).build()
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val rangingResults = java.util.concurrent.atomic.AtomicReference<List<android.net.wifi.rtt.RangingResult>?>(null)
+    val failure = java.util.concurrent.atomic.AtomicReference<Int?>(null)
+    rttManager.startRanging(request, context.mainExecutor, object : android.net.wifi.rtt.RangingResultCallback() {
+      override fun onRangingFailure(code: Int) {
+        failure.set(code)
+        latch.countDown()
+      }
+
+      override fun onRangingResults(results: MutableList<android.net.wifi.rtt.RangingResult>) {
+        rangingResults.set(results.toList())
+        latch.countDown()
+      }
+    })
+    if (!latch.await(WIFI_RTT_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+      for (ap in accessPoints) unresolved += unresolvedEntry(ap.BSSID.uppercase(), "ranging_timeout")
+      return outcome(true, true, emptyList(), unresolved, null, "Wi-Fi RTT ranging produced no callback within $WIFI_RTT_TIMEOUT_MS ms")
+    }
+    val failureCode = failure.get()
+    if (failureCode != null) {
+      for (ap in accessPoints) unresolved += unresolvedEntry(ap.BSSID.uppercase(), "ranging_failed")
+      return outcome(true, failureCode != android.net.wifi.rtt.RangingResultCallback.STATUS_CODE_FAIL_RTT_NOT_AVAILABLE,
+        emptyList(), unresolved, failureCode, "Wi-Fi RTT onRangingFailure: ${wifiRttFailureName(failureCode)}")
+    }
+
+    val results = rangingResults.get().orEmpty()
+    val mapped = results.mapNotNull { r ->
+      val mac = r.macAddress?.toString()?.uppercase() ?: return@mapNotNull null
+      val ok = r.status == android.net.wifi.rtt.RangingResult.STATUS_SUCCESS
+      mapOf<String, Any?>(
+        "bssid" to mac,
+        "status" to r.status,
+        "statusName" to wifiRttStatusName(r.status),
+        "distanceMm" to (if (ok) r.distanceMm else null),
+        "distanceStdDevMm" to (if (ok) r.distanceStdDevMm else null),
+        "rssi" to (if (ok) r.rssi else null),
+        "numAttemptedMeasurements" to (if (ok) r.numAttemptedMeasurements else null),
+        "numSuccessfulMeasurements" to (if (ok) r.numSuccessfulMeasurements else null),
+        "timestampMs" to (if (ok) r.rangingTimestampMillis else null),
+      )
+    }
+    val answered = mapped.map { it["bssid"] as String }.toSet()
+    for (ap in accessPoints) {
+      val bssid = ap.BSSID.uppercase()
+      if (bssid !in answered) unresolved += unresolvedEntry(bssid, "no_result_returned")
+    }
+    outcome(true, true, mapped, unresolved, null, null)
+  } catch (e: SecurityException) {
+    outcome(true, false, emptyList(), requested.map { unresolvedEntry(it, "permission_denied") }, null, "permission_denied: ${e.message}")
+  } catch (e: Throwable) {
+    outcome(true, false, emptyList(), requested.map { unresolvedEntry(it, "ranging_failed") }, null, e.message ?: "Wi-Fi RTT ranging failed")
+  }
 }
 
 // ───────────────────────── Phase 3: Satellite NTN (Non-Terrestrial Network) ─────────────────────────

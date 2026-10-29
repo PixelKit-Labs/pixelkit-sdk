@@ -42,11 +42,11 @@ export function HardwareScreen() {
 
 ---
 
-## Hooks Overview (53 Total)
+## Hooks Overview (54 Total)
 
 | Category | Hooks |
 | :--- | :--- |
-| **Silicon & System** | `useCPU`, `useGPU`, `useTPU`, `useMemory`, `useADPF`, `useADPFHintSession`, `useBatteryShare`, `useChargingIntelligence`, `usePerfetto`, `useDevice`, `useDisplay`, `useNetwork`, `useCellular`, `useCapabilities` |
+| **Silicon & System** | `useCPU`, `useGPU`, `useSystemLoad`, `useTPU`, `useMemory`, `useADPF`, `useADPFHintSession`, `useBatteryShare`, `useChargingIntelligence`, `usePerfetto`, `useDevice`, `useDisplay`, `useNetwork`, `useCellular`, `useCapabilities` |
 | **Sensors & Capture** | `useSensors`, `useAltimeter`, `useThermometer`, `useLocation`, `useCamera`, `useCameraExtensions`, `useVideo`, `useMediaLibrary`, `useAudio`, `useMicrophoneArray`, `useSpatialAudio`, `useHealthConnect` |
 | **Actuators** | `useHaptics`, `useTorch`, `useHiLight` |
 | **Radios & Wireless** | `useBLE`, `useChannelSounding`, `useNFC`, `useUWB`, `useRadios`, `useWifi7MLO`, `useWifiRTT`, `useSatelliteNTN` |
@@ -59,7 +59,7 @@ export function HardwareScreen() {
 ## Key Capabilities
 
 - **Tensor G6 Silicon**: Real-time per-core cpufreq, GPU clock/load, memory bandwidth, and ADPF thermal headroom.
-- **Edge AI on AICore**: Run Gemini Nano locally without network latency or cloud costs, plus local 512/768-dim text embeddings and ML Kit vision pipelines.
+- **Edge AI on AICore**: Run Gemini Nano locally without network latency or cloud costs, plus on-device text embeddings (MediaPipe TextEmbedder on CPU, from a TFLite embedder model you place at `filesDir/models/text_embedder.tflite`; reported unavailable with a reason otherwise) and ML Kit vision pipelines.
 - **Real-Time Gemini Live Duplex**: Stream bidirectional voice and text over WebSockets (`useGeminiLive`) with real-time function calling.
 - **Acoustic Beamforming & Sensors**: Directional microphone array control (`useMicrophoneArray`), non-contact MLX90632 FIR thermometer (`useThermometer`), and ICAO barometric altimeter (`useAltimeter`).
 - **Next-Gen Radios**: Wi-Fi 7 Multi-Link Operation (MLO), 802.11mc/az Wi-Fi RTT ranging, and Satellite NTN emergency states.

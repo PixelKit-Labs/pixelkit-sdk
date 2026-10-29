@@ -56,7 +56,7 @@ const CATEGORY_META = {
   },
   'neural-ai': {
     name: 'Neural & AI',
-    description: 'Gemini Nano on-device AICore, ML Kit vision and NLP, speech recognition/synthesis, and EdgeTPU embeddings.',
+    description: 'Gemini Nano on-device AICore, ML Kit vision and NLP, speech recognition/synthesis, and on-device text embeddings (MediaPipe TextEmbedder, CPU).',
   },
   'sensors-actuators': {
     name: 'Sensors & Actuators',
@@ -317,13 +317,17 @@ Covers all ${hooks.length} typed hardware and AI hooks, low-overhead native tele
         },
         WifiRttResult: {
           type: 'object',
-          description: 'Wi-Fi RTT 802.11mc/802.11az ranging measurement.',
+          description: 'One access point measured by WifiRttManager.startRanging. Distance, standard deviation, RSSI and counters are null unless status is 0 (success).',
           properties: {
             bssid: { type: 'string' },
             distanceMm: { anyOf: [{ type: 'number' }, { type: 'null' }] },
             distanceStdDevMm: { anyOf: [{ type: 'number' }, { type: 'null' }] },
             rssi: { anyOf: [{ type: 'number' }, { type: 'null' }] },
-            status: { type: 'string' },
+            numAttemptedMeasurements: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+            numSuccessfulMeasurements: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+            timestampMs: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+            status: { type: 'number', description: 'RangingResult status: 0 success, 1 fail, 2 responder without 802.11mc.' },
+            statusName: { type: 'string', enum: ['success', 'fail', 'responder_no_80211mc', 'unknown'] },
           },
         },
         BlePeripheral: {

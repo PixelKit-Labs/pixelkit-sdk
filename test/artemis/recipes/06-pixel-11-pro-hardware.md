@@ -22,17 +22,17 @@ Verify all Pixel 11 Pro (Tensor G6, grizzly) and Android 17 hardware extensions:
 ### 2. Android Perfetto Silicon Tracing (`usePerfetto`)
 - Navigate to **Silicon** tab -> **Trace** section.
 - Locate the **Silicon Tracing** subsection:
-  - Verify card displays `PERFETTO` badge and Perfetto daemon version (e.g. `v54.0`).
+  - Verify card displays the trace backend (`profiling_manager` or `perfetto_binary`). The Perfetto version is shown only when `perfettoVersion` is non-null; when the app cannot execute the binary, verify the card shows the unavailable reason, not a version.
   - Verify source indicates `hardware`.
 - Tap **Capture 5s silicon trace**:
-  - Verify state transitions to `TRACING`.
-  - After 5 seconds, verify trace file URI is populated.
+  - Verify state transitions to `TRACING`, or that an error with the reason is shown and the state stays idle.
+  - After 5 seconds, verify a trace file path and size in bytes are populated only when the file exists (`adb shell run-as <package> ls -l <path>` shows a non-empty file); otherwise verify an error is shown instead of a path.
 
 ### 3. Android 17 AppFunctions System Agent Bridge (`useAppFunctions`)
 - Navigate to **AI Lab** tab -> **Agents** section.
 - Verify **Android 17 AppFunctions** header and card:
   - Status shows `REGISTRY ACTIVE` on Android 16/17 dev builds.
-  - Lists registered agent tools (`check_phone_thermals`, `pulse_hilight`, etc.).
+  - Lists registered agent tools (`check_phone_thermals`, `purge_memory_cache`, `get_device_silicon_info`, etc.). `pulse_hilight` / `triggerHiLightPulse` is not an AppFunction; the HiLight ring is driven by `useHiLight`.
 - Tap **Run it** on any tool card:
   - Verify feedback banner displays `Executed [tool] ... (X ms)`.
   - Verify zero native exceptions in Logcat.

@@ -39,6 +39,10 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -845,50 +849,127 @@ class PixelNanoModule : Module() {
 
     // ───────────────────────── Vector Embeddings ─────────────────────────
     Function("isEmbeddingModelAvailable") {
-      isEmbeddingAvailable()
+      embeddingStatus()["available"] as Boolean
+    }
+
+    Function("getEmbeddingStatus") {
+      embeddingStatus()
     }
 
     AsyncFunction("generateEmbedding") Coroutine { text: String ->
-      computeEmbedding(text)
+      withContext(Dispatchers.Default) { computeEmbedding(text) }
     }
 
     Function("close") {
       model?.close()
       model = null
+      closeEmbedder()
     }
 
     OnDestroy {
       model?.close()
       model = null
+      closeEmbedder()
     }
   }
 
-  private fun isEmbeddingAvailable(): Boolean {
+  // MediaPipe Tasks TextEmbedder (TFLite, CPU/XNNPACK by default; no delegate is configured).
+  // The model file must be a .tflite with TFLite metadata, placed at filesDir/models/text_embedder.tflite.
+  private val embedderLock = Any()
+  private var embedder: TextEmbedder? = null
+  private var embedderDimension: Int? = null
+  /** Reason the last initialisation attempt failed, with the file signature it failed for (retried when the file changes). */
+  private var embedderFailure: String? = null
+  private var embedderFailedSignature: String? = null
+
+  private fun embeddingModelFile(): java.io.File = java.io.File(context.filesDir, "models/text_embedder.tflite")
+
+  private fun closeEmbedder() {
+    synchronized(embedderLock) {
+      runCatching { embedder?.close() }
+      embedder = null
+      embedderDimension = null
+      embedderFailure = null
+      embedderFailedSignature = null
+    }
+  }
+
+  /**
+   * Returns the cached embedder, creating it on first use. Initialisation runs one real inference
+   * ("probe") so a model that loads but cannot produce a float vector is reported unavailable and the
+   * dimension is the model's actual output length.
+   */
+  private fun ensureEmbedder(): TextEmbedder = synchronized(embedderLock) {
+    embedder?.let { return@synchronized it }
+    val file = embeddingModelFile()
+    if (!file.isFile) {
+      throw NanoException("NOT_AVAILABLE", "Embedding model not found at ${file.absolutePath}", null)
+    }
+    val signature = "${file.length()}:${file.lastModified()}"
+    if (embedderFailure != null && embedderFailedSignature == signature) {
+      throw NanoException("MODEL_LOAD_FAILED", embedderFailure!!, null)
+    }
+    var created: TextEmbedder? = null
+    try {
+      val options = TextEmbedder.TextEmbedderOptions.builder()
+        .setBaseOptions(BaseOptions.builder().setModelAssetPath(file.absolutePath).build())
+        // L2-normalised float vectors (unit length); no int8 quantisation, so floatEmbedding() is populated.
+        .setL2Normalize(true)
+        .setQuantize(false)
+        .build()
+      val fresh: TextEmbedder = TextEmbedder.createFromOptions(context, options)
+      created = fresh
+      val probe = fresh.embed("a").embeddingResult().embeddings().firstOrNull()?.floatEmbedding()
+      if (probe == null || probe.isEmpty()) {
+        throw NanoException("EMPTY_EMBEDDING", "Model ${file.name} produced no float embedding for a probe input", null)
+      }
+      embedder = fresh
+      embedderDimension = probe.size
+      embedderFailure = null
+      embedderFailedSignature = null
+      fresh
+    } catch (e: Throwable) {
+      runCatching { created?.close() }
+      val reason = e.message ?: e.javaClass.simpleName
+      embedderFailure = reason
+      embedderFailedSignature = signature
+      if (e is NanoException) throw e
+      throw NanoException("MODEL_LOAD_FAILED", reason, e)
+    }
+  }
+
+  /** `available` is true only when the file exists and the embedder initialised and produced a vector. */
+  private fun embeddingStatus(): Map<String, Any?> {
+    val file = embeddingModelFile()
     return try {
-      val f = java.io.File(context.filesDir, "models/text_embedder.tflite")
-      f.exists()
-    } catch (_: Throwable) {
-      false
+      ensureEmbedder()
+      mapOf("available" to true, "reason" to null, "modelPath" to file.absolutePath, "dimension" to embedderDimension)
+    } catch (e: NanoException) {
+      mapOf("available" to false, "reason" to e.message, "modelPath" to file.absolutePath, "dimension" to null)
     }
   }
 
-  private fun computeEmbedding(text: String): Map<String, Any?> {
-    val t0 = SystemClock.elapsedRealtime()
+  private suspend fun computeEmbedding(text: String): Map<String, Any?> {
     if (text.isBlank()) {
       throw NanoException("EMPTY_INPUT", "Input text must not be empty", null)
     }
-
-    if (!isEmbeddingAvailable()) {
-      throw NanoException("NOT_AVAILABLE", "Local embedding model not downloaded or unsupported", null)
+    val t0 = SystemClock.elapsedRealtime()
+    val e = ensureEmbedder()
+    val vector = try {
+      // TextEmbedder.embed is not documented as thread-safe; serialise on the same lock.
+      synchronized(embedderLock) {
+        e.embed(text).embeddingResult().embeddings().firstOrNull()?.floatEmbedding()
+      }
+    } catch (ex: Throwable) {
+      throw NanoException("INFERENCE_FAILED", ex.message ?: ex.javaClass.simpleName, ex)
     }
-
-    // Zero-simulation principle: When real model file is present, load model output
-    val modelFile = java.io.File(context.filesDir, "models/text_embedder.tflite")
-    val dimension = 512
+    if (vector == null || vector.isEmpty()) {
+      throw NanoException("EMPTY_EMBEDDING", "Embedding model returned no float vector", null)
+    }
     val latency = SystemClock.elapsedRealtime() - t0
     return mapOf(
-      "embedding" to emptyList<Double>(),
-      "dimension" to dimension,
+      "embedding" to vector.map { it.toDouble() },
+      "dimension" to vector.size,
       "latencyMs" to latency,
       "source" to "hardware"
     )

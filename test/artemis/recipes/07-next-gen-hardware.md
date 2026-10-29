@@ -13,7 +13,7 @@ Verify all 12 next-generation PixelKit capabilities across Sensors, Acoustics, S
 9. `useSatelliteNTN` (3GPP Rel-17 NTN Satellite SOS)
 10. `usePrivateSpace` (Android 15+ UserManager Profile Isolation)
 11. `useKeyAgreement` (Titan M2 StrongBox ECDH Key Agreement)
-12. `useEmbeddings` (EdgeTPU Vector Embeddings & Cosine Similarity)
+12. `useEmbeddings` (MediaPipe TextEmbedder Vector Embeddings & Cosine Similarity)
 
 ## Target Application
 - App Name: `PixelKit` or `PixelKit Template`
@@ -127,15 +127,15 @@ Verify all 12 next-generation PixelKit capabilities across Sensors, Acoustics, S
     - Executes ECDH key agreement via `javax.crypto.KeyAgreement` inside the hardware enclave.
     - Confirms shared secret is derived with zero keystore corruption.
 
-### 12. On-Device EdgeTPU Vector Embeddings (`useEmbeddings`)
+### 12. On-Device Vector Embeddings (`useEmbeddings`)
 - Navigate to **AI Lab** tab -> **Tasks** or **Vision** section.
-- Locate **EdgeTPU Vector Embeddings**:
-  - Verify `isAvailable` status for local embedding model.
-  - Enter test prompt: `"PixelKit hardware telemetry on Tensor G6"` and tap **Generate Embedding**:
-    - Generates 512 or 768-dimensional float vector on-device.
-    - Verifies vector normalization and dimension integrity.
+- Locate the embeddings card (the template app's visible label may still read **EdgeTPU Vector Embeddings**; inference is MediaPipe TextEmbedder on CPU):
+  - Verify `isAvailable` for the local embedding model. If `filesDir/models/text_embedder.tflite` is not installed, the expected result is unavailable with `unavailableReason` shown, not a vector.
+  - With the model installed, enter test prompt: `"PixelKit hardware telemetry on Tensor G6"` and tap **Generate Embedding**:
+    - Generates a float vector on-device whose length equals `vectorDimension` (the model's real output size).
+    - Verifies the vector is non-empty and unit-length (L2-normalised).
   - Test **Cosine Similarity**:
-    - Compares two test texts and verifies similarity score (0.0 to 1.0).
+    - Compares two test texts and verifies the similarity score is within -1.0 to 1.0.
 
 ---
 

@@ -7,7 +7,7 @@ Expo module (Kotlin) for the on-device Google ML Kit surface:
 | GenAI | Gemini Nano through the Prompt API on AICore, plus summarization, proofreading, rewriting |
 | Vision | barcode, face, face mesh, text recognition, image labeling, object detection, digital ink, pose, selfie and subject segmentation, document scanner |
 | Natural language | language identification, translation, smart reply, entity extraction |
-| Embeddings | on-device float vector generation (512/768-dim) and cosine similarity running locally |
+| Embeddings | on-device text embeddings through the MediaPipe Tasks TextEmbedder (TFLite, CPU) from a model file you supply at `filesDir/models/text_embedder.tflite` (must carry TFLite metadata; not bundled, not downloaded), plus cosine similarity. Reports unavailable with a reason when the file is missing or fails to load |
 
 **This is the expensive one.** It pulls in 19 ML Kit artifacts, compiles with
 `-Xskip-metadata-version-check`, and pins every `kotlin-stdlib` in the consuming build, because

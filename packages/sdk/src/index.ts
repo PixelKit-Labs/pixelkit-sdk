@@ -42,9 +42,20 @@ export { useCapabilities } from './hardware/useCapabilities';
 // Compute & Silicon Hardware Hooks
 export { useCPU } from './hardware/useCPU';
 export { useGPU } from './hardware/useGPU';
+export {
+  useSystemLoad,
+  parseSystemMetrics,
+  SystemMetricsParseError,
+  type SystemLoadState,
+  type SystemMetrics,
+  type CpuMetrics,
+  type GpuMetrics,
+  type GpuProcessLoad,
+  type TpuMetrics,
+} from './hardware/useSystemLoad';
 export { useMemory } from './hardware/useMemory';
 export { useADPF } from './hardware/useADPF';
-export { usePerfetto, type PerfettoInfo, type PerfettoState } from './hardware/usePerfetto';
+export { usePerfetto, type PerfettoInfo, type PerfettoState, type PerfettoBackend } from './hardware/usePerfetto';
 export { useDevice } from './hardware/useDevice';
 export { useDisplay } from './hardware/useDisplay';
 export { useSecurity } from './hardware/useSecurity';
@@ -78,12 +89,12 @@ export { useChannelSounding, type ChannelSoundingInfo, type ChannelSoundingTarge
 export { useNFC } from './hardware/useNFC';
 export { useRadios, type RadioTelemetry } from './hardware/useRadios';
 export { useWifi7MLO, type Wifi7MloTelemetry, type MloLinkInfo } from './hardware/useWifi7MLO';
-export { useWifiRTT, type WifiRTTTelemetry, type WifiRttResult } from './hardware/useWifiRTT';
+export { useWifiRTT, type WifiRTTTelemetry, type WifiRttResult, type WifiRttUnresolvedBssid } from './hardware/useWifiRTT';
 export { useSatelliteNTN, type SatelliteNTNTechTelemetry, type SatelliteConnectionState, type SatelliteGuidance } from './hardware/useSatelliteNTN';
 
 // Pixel Pro Exclusive Hardware Hooks
 export { useHiLight, type HiLightMode, type HiLightState } from './hardware/useHiLight';
-export { useUWB } from './hardware/useUWB';
+export { useUWB, type UwbMeasurementEvent, type UwbRangingConfig, type UwbRangingResult, type UwbStopResult } from './hardware/useUWB';
 
 // AI, Voice & Tensor TPU Hooks
 export { useTPU } from './ai/useTPU';

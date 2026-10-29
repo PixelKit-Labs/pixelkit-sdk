@@ -4,6 +4,32 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.84] - 2026-10-29
+
+First registry release since 1.6.68; 1.6.69 to 1.6.83 were local patch bumps that were never tagged or published, so their changes ship here.
+
+### Added
+- `useSystemLoad()` (`@pixelkit-labs/sdk`): whole-system CPU (`/proc/stat`), GPU (`power/gpu_work_period`, clock, `dumpsys gpu` memory, busiest uids) and TPU load from the PixelKit system-metrics daemon on 127.0.0.1:11081, polled every 2 s. Values are null with a stated reason when the daemon is absent, a section is unreadable or the sample is older than 10 s. TPU is reported only when real edgetpu command events are decoded; on a Pixel 11 Pro the shell uid cannot read them, so TPU is `unavailable` with the observed reason. Exports `parseSystemMetrics` and `SystemMetricsParseError`, which name the offending field.
+- `scripts/system-metrics-daemon/`: zero-dependency shell-uid daemon (`com.pixelkit.sysmetrics.SystemMetricsDaemon`, loopback `GET /ping`, `GET /metrics`) with `build.ps1` and `run.ps1` modeled on the HiLight daemon. It restores the tracefs enables it sets through a state file and a watchdog shell.
+- `@pixelkit-labs/mlkit`: real on-device text embeddings through MediaPipe Tasks `TextEmbedder` (`com.google.mediapipe:tasks-text:0.10.35`) from `filesDir/models/text_embedder.tflite`. `dimension` is the model's real output length. New `getEmbeddingStatus()`; `useEmbeddings` returns `unavailableReason`.
+- `startUwbRanging(config)` opens a real `android.ranging` UWB session (Android 16+) with a caller-supplied peer and streams `onUwbRangingResult` / `onUwbRangingState`; `useUWB().measurements` exposes live state.
+- `startWifiRttRanging` runs a real `WifiRttManager.startRanging` round and returns per-AP `status`, `distanceMm`, `distanceStdDevMm`, `rssi`, plus `unresolvedBssids` with reasons.
+- `usePerfetto` reports `backend`, `perfettoVersionReason` and `lastTraceSizeBytes`; traces use `ProfilingManager` (Android 15+) or the perfetto binary where the app may run it.
+
+### Fixed
+- `useEmbeddings` no longer returns an empty vector marked `hardware` with a hardcoded dimension of 512. `embed()` rejects instead of returning `[]`; `vectorDimension` is `number | null`. The EdgeTPU claim is removed because inference runs on CPU.
+- `executeAppFunction` no longer returns `status: 'dispatched'` for unknown ids; it rejects with `E_APP_FUNCTION_UNKNOWN`. `triggerHiLightPulse` (which vibrated and claimed an LED pulse) and five ML Kit entries that were never implemented are removed from `getAppFunctions`.
+- `startUwbRanging` no longer reports `ACTIVE_SESSION` without a session; `stopUwbRanging` reports whether a session was closed. `useUWB.activeTargets` (never populated) is replaced by `measurements`.
+- `startWifiRttRanging` no longer returns `isAvailable: true` with empty results.
+- `startPerfettoTrace` no longer returns true after falling back to `Trace.beginSection`; `perfettoVersion` is read from `perfetto --version`; `stopPerfettoTrace` returns a path only when the trace file exists with non-zero length.
+- `useGPU`, `useCPU` and docs point to `useSystemLoad` for whole-system load; `useGPU.gpuMemoryUsageMB` remains null.
+
+### Breaking
+- `useUWB().startRanging()` now requires a peer configuration. `useEmbeddings().embed()` rejects when no embedder is available instead of returning an empty vector. `triggerHiLightPulse` is no longer an app function.
+
+### Verification
+- `npm run typecheck`, 149/149 tests, build with OpenAPI export, `check-openapi`, `check-docs-contract` (54 hooks) and `:pixelkit-labs-native:compileDebugKotlin` / `:pixelkit-labs-mlkit:compileDebugKotlin` passed. On a Pixel 11 Pro, daemon CPU 44.0% (`/proc/stat` delta) vs 41.5-45.5% (daemon windows); GPU 2747 ms (daemon) vs 2740 ms (perfetto + trace_processor); `gpu.memoryUsedBytes` equals the `dumpsys gpu` Global total. Not exercised on a device: UWB, Wi-Fi RTT, Perfetto and embedding paths, the Kotlin JUnit test, and the daemon alongside an app. Live TPU activity was not observed.
+
 ## [1.6.83] - 2026-10-04 (unreleased)
 
 ### Documentation and tooling
