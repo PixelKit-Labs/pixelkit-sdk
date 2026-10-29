@@ -1,9 +1,10 @@
 /**
  * @file usePrivateSpace.ts
- * @description Android 15+ (API 35+) Private Space vault isolation detection and auto-lock policy telemetry.
+ * @description Android 15+ (API 35+) Private Space detection for the running process.
  *
- * Adheres to the Zero-Simulation Principle: isInsidePrivateSpace: false,
- * and source: 'unavailable' on Android 14 or earlier.
+ * Android hides the Private Space profile from third-party apps and exposes no auto-lock setting, so
+ * `isPrivateSpaceConfigured` is true only when the app itself runs inside the profile and is
+ * otherwise null; `reason` states what could not be read.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,43 +13,34 @@ import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/
 
 const MODULE = 'usePrivateSpace';
 
-export type PrivateSpaceAutoLockPolicy = 'immediate' | 'screen_off' | 'device_reboot' | 'unknown';
-
 export interface PrivateSpaceTelemetry {
-  /** Whether the current application process is executing inside the isolated Private Space profile. */
-  isInsidePrivateSpace: boolean;
-  /** Whether the device currently has a Private Space secure profile configured. */
-  isPrivateSpaceConfigured: boolean;
-  /** Configured auto-lock timeout policy for the private space vault. */
-  autoLockPolicy: PrivateSpaceAutoLockPolicy;
+  /**
+   * Whether the current application process runs inside the Private Space profile. False below
+   * Android 15 and outside any profile; null when it runs in a profile whose type cannot be read.
+   */
+  isInsidePrivateSpace: boolean | null;
+  /** True when the app runs inside the Private Space; null otherwise because Android hides the profile from apps. */
+  isPrivateSpaceConfigured: boolean | null;
+  /** Why unreadable values are null, or null before the first read. */
+  reason: string | null;
   /** Error message if private profile querying failed. */
   error: string | null;
-  /** Provenance of the data: 'hardware' or 'unavailable'. */
+  /** 'hardware' once a read returned `isInsidePrivateSpace`, 'unavailable' otherwise. */
   source: TelemetrySource;
-  /** Queries user profile isolation state. */
+  /** Re-reads the user profile type. */
   refresh: () => void;
 }
 
 export function usePrivateSpace(): PrivateSpaceTelemetry {
-  const [data, setData] = useState<PrivateSpaceInfo>({
-    isInsidePrivateSpace: false,
-    isPrivateSpaceConfigured: false,
-    autoLockPolicy: 'unknown',
-    error: null,
-  });
-
+  const [data, setData] = useState<PrivateSpaceInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const source: TelemetrySource = PixelNative ? 'hardware' : 'unavailable';
+  const source: TelemetrySource =
+    PixelNative && data && data.isInsidePrivateSpace !== null ? 'hardware' : 'unavailable';
 
   const refresh = useCallback(() => {
     if (!PixelNative) {
-      setData({
-        isInsidePrivateSpace: false,
-        isPrivateSpaceConfigured: false,
-        autoLockPolicy: 'unknown',
-        error: 'PixelNative module unavailable',
-      });
+      setData(null);
       setError('PixelNative module unavailable');
       return;
     }
@@ -57,12 +49,14 @@ export function usePrivateSpace(): PrivateSpaceTelemetry {
       const res = PixelNative.getPrivateSpaceInfo();
       setData(res);
       setError(res.error ?? null);
-      recordMetric(MODULE, 'isInsidePrivateSpace', res.isInsidePrivateSpace, 'hardware');
+      if (res.isInsidePrivateSpace !== null) {
+        recordMetric(MODULE, 'isInsidePrivateSpace', res.isInsidePrivateSpace, 'hardware');
+      }
       logEvent(MODULE, 'queried private space status', {
         inside: res.isInsidePrivateSpace,
         configured: res.isPrivateSpaceConfigured,
       });
-    } catch (e: any) {
+    } catch (e) {
       const err = logError(MODULE, 'getPrivateSpaceInfo failed', e);
       setError(err.message);
     }
@@ -73,9 +67,9 @@ export function usePrivateSpace(): PrivateSpaceTelemetry {
   }, [refresh]);
 
   return {
-    isInsidePrivateSpace: data.isInsidePrivateSpace,
-    isPrivateSpaceConfigured: data.isPrivateSpaceConfigured,
-    autoLockPolicy: data.autoLockPolicy as PrivateSpaceAutoLockPolicy,
+    isInsidePrivateSpace: data ? data.isInsidePrivateSpace : null,
+    isPrivateSpaceConfigured: data ? data.isPrivateSpaceConfigured : null,
+    reason: data ? data.reason : null,
     error,
     source,
     refresh,

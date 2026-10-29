@@ -1,13 +1,12 @@
 ﻿/**
  * @file useGenAITasks.ts
- * @description Dedicated on-device GenAI task clients powered by ML Kit and AICore.
- * Provides specialized, low-latency task modules:
- * - Summarization: distill articles and conversation transcripts into concise bullet points.
- * - Proofreading: polish grammar, punctuation, and wording on-device.
- * - Rewriting: transform text tone (elaborate, emojify, shorten, friendly, professional, rephrase).
- * - Image Description: generate fast contextual descriptions and labels on-device.
+ * @description On-device text and image tasks through the PixelNano native module.
+ * - Summarization, proofreading, rewriting: the ML Kit GenAI task model is used when it is available;
+ *   when it is not (or it throws) the module falls back to a Gemini Nano prompt. Each result's
+ *   `engine` field says which path produced it.
+ * - Image description: a Gemini Nano multimodal prompt; `engine` is reported on the result.
  *
- * All operations execute directly on the Tensor G6 TPU via AICore with full hardware observability.
+ * AICore decides where inference runs; this hook does not select or report the processor.
  */
 
 import { useState, useCallback } from 'react';
@@ -33,7 +32,12 @@ export function useGenAITasks() {
   const [rewriteResult, setRewriteResult] = useState<RewriteResult | null>(null);
   const [imageDescriptionResult, setImageDescriptionResult] = useState<ImageDescriptionResult | null>(null);
 
-  const source: TelemetrySource = PixelNano ? 'hardware' : 'unavailable';
+  // 'hardware' only after a task has produced a result; the native module being linked says nothing
+  // about whether AICore can serve the tasks.
+  const source: TelemetrySource =
+    PixelNano && (summaryResult != null || proofreadResult != null || rewriteResult != null || imageDescriptionResult != null)
+      ? 'hardware'
+      : 'unavailable';
 
   /**
    * Summarizes an article or chat transcript on-device using AICore.

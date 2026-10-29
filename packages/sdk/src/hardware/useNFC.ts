@@ -67,7 +67,7 @@ export function useNFC() {
       const tag: ScannedTag = {
         id: e.id,
         payload: summarisePayload(e.records),
-        tech: (e.techs.includes('Ndef') ? 'Ndef' : e.techs.includes('IsoDep') ? 'IsoDep' : 'NfcA') as NFCTag['tech'],
+        tech: e.techs.includes('Ndef') ? 'Ndef' : (e.techs[0] ?? null),
         timestamp: e.timestamp,
         techs: e.techs,
         records: e.records,
@@ -148,7 +148,8 @@ export function useNFC() {
 
   const stopReader = useCallback(async (): Promise<void> => {
     try {
-      await PixelNative?.stopNfcReader?.();
+      const res = await PixelNative?.stopNfcReader?.();
+      if (res && !res.success) setError(res.error ?? 'Could not stop the reader');
     } catch (e) {
       logError(MODULE, 'stopReader failed', e);
     } finally {

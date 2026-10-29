@@ -1,9 +1,10 @@
 /**
  * @file useKeyAgreement.ts
- * @description Hardware-isolated Elliptic Curve Diffie-Hellman (ECDH) session key agreement
- * executed inside the Google Titan M2 security chip (StrongBox Keymaster).
- *
- * Adheres to the Zero-Simulation Principle: private keys never leave the hardware enclave.
+ * @description ECDH key agreement with a private key generated in the Android Keystore
+ * (PURPOSE_AGREE_KEY). The StrongBox flag is requested when the device declares
+ * `android.hardware.strongbox_keystore`; the level the key really got is read back from
+ * `KeyInfo.getSecurityLevel()` (API 31+) and is null when it cannot be read.
+ * The private key stays in the Keystore and is not exported by this API.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,15 +18,15 @@ const MODULE = 'useKeyAgreement';
 export { type KeyAgreementKeyPairResult, type SharedSecretResult };
 
 export interface KeyAgreementTelemetry {
-  /** Whether the hardware features a dedicated StrongBox security module (Titan M2). */
+  /** Whether the device declares the `android.hardware.strongbox_keystore` feature. */
   isStrongBoxSupported: boolean;
   /** Latest error message if keypair generation or secret derivation failed. */
   error: string | null;
   /** Provenance of the data: 'hardware' or 'unavailable'. */
   source: TelemetrySource;
-  /** Generates an EC keypair inside the hardware enclave with PURPOSE_AGREE_KEY. */
+  /** Generates an EC keypair in the Android Keystore with PURPOSE_AGREE_KEY; `securityLevel` is read from `KeyInfo`. */
   generateKeyPair: (alias: string, preferStrongBox?: boolean) => Promise<KeyAgreementKeyPairResult>;
-  /** Computes an ECDH shared secret using the hardware private key and peer's public key. */
+  /** Computes an ECDH shared secret with the Keystore private key and the peer's public key. */
   deriveSharedSecret: (alias: string, peerPublicKeyBase64: string) => Promise<SharedSecretResult>;
 }
 
@@ -47,7 +48,7 @@ export function useKeyAgreement(): KeyAgreementTelemetry {
       setIsStrongBoxSupported(hasStrongBox);
       recordMetric(MODULE, 'isStrongBoxSupported', hasStrongBox, 'hardware');
       logEvent(MODULE, 'checked strongbox support', { supported: hasStrongBox });
-    } catch (e: any) {
+    } catch (e) {
       logError(MODULE, 'check strongbox support failed', e);
     }
   }, []);
@@ -58,7 +59,7 @@ export function useKeyAgreement(): KeyAgreementTelemetry {
         return {
           alias,
           publicKeyBase64: null,
-          securityLevel: 'TRUSTED_ENVIRONMENT',
+          securityLevel: null,
           isStrongBoxSupported: false,
           error: 'PixelNative module unavailable',
         };
@@ -72,13 +73,13 @@ export function useKeyAgreement(): KeyAgreementTelemetry {
           level: res.securityLevel,
         });
         return res;
-      } catch (e: any) {
+      } catch (e) {
         const err = logError(MODULE, 'generateKeyAgreementKeyPair failed', e);
         setError(err.message);
         return {
           alias,
           publicKeyBase64: null,
-          securityLevel: 'TRUSTED_ENVIRONMENT',
+          securityLevel: null,
           isStrongBoxSupported,
           error: err.message,
         };
@@ -105,7 +106,7 @@ export function useKeyAgreement(): KeyAgreementTelemetry {
           recordMetric(MODULE, 'derivedSecretBytes', res.secretLengthBytes, 'hardware');
         }
         return res;
-      } catch (e: any) {
+      } catch (e) {
         const err = logError(MODULE, 'deriveSharedSecret failed', e);
         setError(err.message);
         return {

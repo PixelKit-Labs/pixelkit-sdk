@@ -1,10 +1,10 @@
 /**
  * @file usePlayIntegrity.ts
- * @description Titan M2 Hardware Key Attestation & Google Play Integrity integration.
- * Verified on Pixel 11 Pro: `feature:android.hardware.strongbox_keystore` (version 400),
- * `feature:android.hardware.hardware_keystore` (version 500), `feature:android.hardware.keystore.app_attest_key`,
- * and Google Play Services 26.32+ on Android 17.
- * Nothing is simulated: queries actual device hardware security module (HSM) and KeyStore attestation.
+ * @description Hardware security feature report and Android Keystore key attestation.
+ * Reads the `strongbox_keystore`, `hardware_keystore` and `keystore.app_attest_key` system features,
+ * the `android.hardware.security.model.compatible` feature and whether Google Play Services is
+ * installed. `requestAttestation` generates an attested EC key and returns the real certificate chain.
+ * No Play Integrity API call is made and no integrity verdict is produced here.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -19,13 +19,13 @@ const MODULE = 'usePlayIntegrity';
 export { type PlayIntegrityInfo, type HardwareAttestationResult };
 
 export interface PlayIntegrityState {
-  /** Whether hardware attestation and Play Integrity are supported on device */
+  /** True when the device declares StrongBox or hardware keystore, or Google Play Services is installed */
   isSupported: boolean;
-  /** Whether Titan M2 hardware StrongBox security chip is present */
+  /** Whether the device declares the StrongBox keystore feature */
   hasStrongBox: boolean;
-  /** StrongBox KeyMint version (400 on Pixel 11 Pro) */
+  /** StrongBox keystore feature version (`FeatureInfo.version`), or null when not declared */
   strongBoxVersion: number | null;
-  /** Hardware KeyStore version (500 on Android 17 / Pixel 11 Pro) */
+  /** Hardware keystore feature version (`FeatureInfo.version`), or null when not declared */
   hardwareKeystoreVersion: number | null;
   /** Whether device supports individual key attestation (android.hardware.keystore.app_attest_key) */
   hasAppAttestKey: boolean;
@@ -35,33 +35,31 @@ export interface PlayIntegrityState {
   playServicesAvailable: boolean;
   /** Google Play Services version string */
   playServicesVersion: string | null;
-  /** Hardware integrity tier verdict */
-  deviceIntegrity: 'MEETS_STRONG_INTEGRITY' | 'MEETS_DEVICE_INTEGRITY' | 'MEETS_BASIC_INTEGRITY' | 'UNVERIFIED';
   /** Whether a cryptographic attestation operation is running */
   isAttesting: boolean;
-  /** Result of last hardware key attestation */
+  /** Result of last key attestation */
   lastAttestation: HardwareAttestationResult | null;
   /** Latest error if attestation failed */
   error: string | null;
   /** Telemetry provenance */
   source: TelemetrySource;
-  /** Request hardware-backed key attestation from Titan M2 StrongBox KeyStore */
+  /** Generates an attested EC key in the Android Keystore (StrongBox when available) and returns its certificate chain */
   requestAttestation: (challenge?: string) => Promise<HardwareAttestationResult | null>;
-  /** Re-probe device security features and Play Integrity status */
+  /** Re-read the device security features */
   refresh: () => PlayIntegrityInfo | null;
 }
 
 /**
- * Hook to inspect Titan M2 hardware security attributes, evaluate Play Integrity verdicts,
- * and execute hardware-backed cryptographic key attestation on Google Pixel devices.
+ * Hook to read device security features and run Android Keystore key attestation.
+ * The returned certificate chain is not verified by this hook; verify it server-side against the challenge.
  *
  * @example
  * ```typescript
- * const { isSupported, hasStrongBox, deviceIntegrity, requestAttestation } = usePlayIntegrity();
+ * const { isSupported, hasStrongBox, requestAttestation } = usePlayIntegrity();
  *
- * const onVerifyHardware = async () => {
+ * const onAttest = async () => {
  *   const attestation = await requestAttestation("app_session_nonce_123");
- *   console.log("Titan M2 Key Attested:", attestation?.securityLevel);
+ *   console.log("Key security level:", attestation?.securityLevel);
  * };
  * ```
  */
@@ -86,17 +84,19 @@ export function usePlayIntegrity(): PlayIntegrityState {
       }
       recordMetric(MODULE, 'isSupported', info.isSupported ? 1 : 0, info.isSupported ? 'hardware' : 'unavailable');
       recordMetric(MODULE, 'hasStrongBox', info.hasStrongBox ? 1 : 0, info.hasStrongBox ? 'hardware' : 'unavailable');
-      recordMetric(MODULE, 'strongBoxVersion', info.strongBoxVersion ?? 0, info.hasStrongBox ? 'hardware' : 'unavailable');
+      if (info.strongBoxVersion !== null) {
+        recordMetric(MODULE, 'strongBoxVersion', info.strongBoxVersion, 'hardware');
+      }
       logEvent(MODULE, 'play integrity queried', {
         isSupported: info.isSupported,
         hasStrongBox: info.hasStrongBox,
         strongBoxVersion: info.strongBoxVersion,
         hardwareKeystoreVersion: info.hardwareKeystoreVersion,
-        deviceIntegrity: info.deviceIntegrity,
+        playServicesAvailable: info.playServicesAvailable,
       });
       return info;
-    } catch (e: any) {
-      const msg = e?.message ?? 'getPlayIntegrityInfo failed';
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'getPlayIntegrityInfo failed';
       setError(msg);
       logEvent(MODULE, 'getPlayIntegrityInfo error', { error: msg }, 'error');
       return null;
@@ -124,8 +124,8 @@ export function usePlayIntegrity(): PlayIntegrityState {
           durationMs,
         });
         return result;
-      } catch (e: any) {
-        const msg = e?.message ?? 'Key attestation failed';
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Key attestation failed';
         setError(msg);
         logEvent(MODULE, 'key attestation error', { error: msg }, 'error');
         return null;
@@ -151,7 +151,6 @@ export function usePlayIntegrity(): PlayIntegrityState {
     securityModelCompatible: data?.securityModelCompatible ?? false,
     playServicesAvailable: data?.playServicesAvailable ?? false,
     playServicesVersion: data?.playServicesVersion ?? null,
-    deviceIntegrity: data?.deviceIntegrity ?? 'UNVERIFIED',
     isAttesting,
     lastAttestation,
     error,

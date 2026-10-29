@@ -52,12 +52,21 @@ export interface PixelKitDevToolsProps {
 
 declare const __DEV__: boolean;
 
+/**
+ * Outer gate. The hooks live in `DevToolsHud` so toggling `enabled` mounts or unmounts them
+ * instead of changing the number of hooks a single component calls.
+ */
 export function PixelKitDevTools({
   enabled = typeof __DEV__ !== 'undefined' ? __DEV__ : false,
   initialPosition = { x: 16, y: 64 },
 }: PixelKitDevToolsProps) {
   if (!enabled) return null;
+  return <DevToolsHud initialPosition={initialPosition} />;
+}
 
+const NO_VALUE = '—';
+
+function DevToolsHud({ initialPosition }: { initialPosition: { x?: number; y?: number } }) {
   const [expanded, setExpanded] = useState<boolean>(false);
   const cpu = useCPU();
   const adpf = useADPF();
@@ -97,32 +106,43 @@ export function PixelKitDevTools({
     })
   ).current;
 
-  // Thermal Headroom Badge Colors
+  // useADPF reports status 0 ('nominal') before any sample, so a status is only treated as read
+  // once a thermal headroom sample exists or the platform reported a non-zero status.
+  const hasThermalSample = adpf.thermalHeadroom != null || adpf.thermalStatusCode > 0;
   const thermalStatus = adpf.thermalStatus;
-  const thermalColor =
-    thermalStatus === 'nominal'
-      ? '#4CAF50' // Normal: Green
-      : thermalStatus === 'light'
-      ? '#8BC34A' // Light: Light Green
-      : thermalStatus === 'moderate'
-      ? '#FFC107' // Moderate: Amber
-      : thermalStatus === 'severe'
-      ? '#FF9800' // Severe: Orange
-      : '#F44336'; // Critical: Red
+  const thermalColor = !hasThermalSample
+    ? '#9E9E9E' // No sample yet: neutral grey
+    : thermalStatus === 'nominal'
+    ? '#4CAF50' // Normal: Green
+    : thermalStatus === 'light'
+    ? '#8BC34A' // Light: Light Green
+    : thermalStatus === 'moderate'
+    ? '#FFC107' // Moderate: Amber
+    : thermalStatus === 'severe'
+    ? '#FF9800' // Severe: Orange
+    : '#F44336'; // Critical: Red
 
-  const thermalLabel =
-    thermalStatus === 'nominal'
-      ? 'NOM'
-      : thermalStatus === 'light'
-      ? 'LGT'
-      : thermalStatus === 'moderate'
-      ? 'MOD'
-      : thermalStatus === 'severe'
-      ? 'SVR'
-      : 'CRIT';
+  const thermalLabel = !hasThermalSample
+    ? NO_VALUE
+    : thermalStatus === 'nominal'
+    ? 'NOM'
+    : thermalStatus === 'light'
+    ? 'LGT'
+    : thermalStatus === 'moderate'
+    ? 'MOD'
+    : thermalStatus === 'severe'
+    ? 'SVR'
+    : 'CRIT';
 
-  const fps = adpf.currentFps ?? 60;
-  const cpuPercent = cpu.cpuLoadPercent ?? cpu.appCpuPercent ?? 0;
+  const fpsText = adpf.currentFps != null ? `${Math.round(adpf.currentFps)}` : NO_VALUE;
+  const targetHzText = adpf.targetFps != null ? `${adpf.targetFps}` : NO_VALUE;
+  const cpuPillText =
+    cpu.cpuLoadPercent != null
+      ? `${Math.round(cpu.cpuLoadPercent)}%`
+      : cpu.appCpuPercent != null
+      ? `app ${Math.round(cpu.appCpuPercent)}%`
+      : NO_VALUE;
+  const hasMemorySample = memory.totalRAMMB > 0;
 
   return (
     <Animated.View
@@ -142,11 +162,11 @@ export function PixelKitDevTools({
           style={styles.pill}
         >
           <View style={styles.fpsChip}>
-            <Text style={styles.fpsText}>{Math.round(fps)} fps</Text>
+            <Text style={styles.fpsText}>{fpsText} fps</Text>
           </View>
           <View style={[styles.statusDot, { backgroundColor: thermalColor }]} />
           <Text style={styles.pillText}>{thermalLabel}</Text>
-          <Text style={styles.pillSecondary}>{Math.round(cpuPercent)}%</Text>
+          <Text style={styles.pillSecondary}>{cpuPillText}</Text>
         </TouchableOpacity>
       ) : (
         // Expanded Panel: Detailed Silicon HUD
@@ -156,7 +176,7 @@ export function PixelKitDevTools({
               <Text style={styles.title}>⚡ PixelKit HUD</Text>
               <View style={styles.hwBadge}>
                 <Text style={styles.hwBadgeText}>
-                  {cpu.source === 'hardware' ? 'HARDWARE' : 'EMULATOR'}
+                  {cpu.source.toUpperCase()}
                 </Text>
               </View>
             </View>
@@ -173,7 +193,7 @@ export function PixelKitDevTools({
             <View style={styles.metricRow}>
               <Text style={styles.metricLabel}>Display FPS</Text>
               <Text style={styles.metricValue}>
-                {Math.round(fps)} / {adpf.targetFps ?? 120} Hz
+                {fpsText} / {targetHzText} Hz
               </Text>
             </View>
             <View style={styles.metricRow}>
@@ -208,7 +228,7 @@ export function PixelKitDevTools({
             <View style={styles.metricRow}>
               <Text style={styles.metricLabel}>Memory (RAM)</Text>
               <Text style={styles.metricValue}>
-                {memory.usedRAMMB} / {memory.totalRAMMB} MB
+                {hasMemorySample ? `${memory.usedRAMMB} / ${memory.totalRAMMB} MB` : NO_VALUE}
               </Text>
             </View>
             <View style={styles.memoryBarContainer}>
@@ -218,9 +238,7 @@ export function PixelKitDevTools({
                   {
                     width: `${Math.min(
                       100,
-                      memory.totalRAMMB > 0
-                        ? (memory.usedRAMMB / memory.totalRAMMB) * 100
-                        : 0
+                      hasMemorySample ? (memory.usedRAMMB / memory.totalRAMMB) * 100 : 0
                     )}%`,
                   },
                 ]}

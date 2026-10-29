@@ -18,7 +18,7 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import PixelNative from '@pixelkit-labs/native';
-import { resolveCapabilities, verifyCapabilities, type DeviceCapabilities } from '../core/capabilities';
+import { resolveCapabilities, verifyCapabilities, capabilityProvenance, type DeviceCapabilities, type CapabilitySource } from '../core/capabilities';
 import { logEvent, logError, type TelemetrySource } from '../core/observability';
 
 const MODULE = 'useCapabilities';
@@ -26,8 +26,14 @@ const MODULE = 'useCapabilities';
 let logged = false;
 
 export interface CapabilitiesState extends DeviceCapabilities {
-  /** `hardware` once PackageManager confirmed the flags, `derived` while they come from the model table. */
+  /**
+   * `hardware` once PackageManager verification ran, `derived` while everything comes from the model table.
+   * `hardware` does not cover every field: table-only fields (`hasHiLight`, `hasTitanM3`, `geminiNanoTier`,
+   * the `supports*` flags, `isPixel`, `pixelGeneration`, `isProModel`, `isFoldable`) stay inferred; read `provenance` per field.
+   */
   source: TelemetrySource;
+  /** Per-field origin: 'hardware' (platform read or feature probe), 'derived' (model table or API level) or 'unavailable' (probe failed or not run). */
+  provenance: Record<keyof DeviceCapabilities, CapabilitySource>;
   /** Why device verification failed, if it did. Null when it succeeded or was not attempted. */
   error: string | null;
 }
@@ -74,6 +80,6 @@ export function useCapabilities(): CapabilitiesState {
       });
     }
 
-    return { ...caps, source, error };
+    return { ...caps, source, provenance: capabilityProvenance(caps), error };
   }, []);
 }

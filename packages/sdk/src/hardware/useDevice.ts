@@ -4,7 +4,7 @@
  *
  * Nothing is assumed before the platform answers. Battery level starts null rather than a
  * comfortable 100, connectivity starts false rather than optimistically connected, and identity
- * fields fall back to null rather than to the model this SDK happens to target. Each sub-read
+ * fields and `lowPowerMode` are null when the platform does not report them. Each sub-read
  * fails independently, so one unavailable value does not blank the rest, and every failure is
  * logged and counted rather than swallowed.
  *
@@ -37,15 +37,15 @@ const MODULE = 'useDevice';
 export function useDevice() {
   // Identity is available synchronously from the platform; null when it cannot be read.
   const [identity] = useState(() => ({
-    modelName: Device.modelName ?? 'Unknown device',
-    brand: Device.brand ?? 'Unknown',
-    osVersion: Device.osVersion ?? 'Unknown',
+    modelName: Device.modelName ?? null,
+    brand: Device.brand ?? null,
+    osVersion: Device.osVersion ?? null,
     totalMemoryMB: Device.totalMemory ? Math.round(Device.totalMemory / (1024 * 1024)) : undefined,
   }));
 
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [isCharging, setIsCharging] = useState<boolean | null>(null);
-  const [lowPowerMode, setLowPowerMode] = useState<boolean>(false);
+  const [lowPowerMode, setLowPowerMode] = useState<boolean | null>(null);
   const [networkType, setNetworkType] = useState<string>('UNKNOWN');
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [battery, setBattery] = useState<BatteryTelemetry | null>(null);
@@ -59,7 +59,7 @@ export function useDevice() {
     const [level, state, lowPower, net, nativeBatt] = await Promise.all([
       tracedSafe(MODULE, 'readBatteryLevel', () => Battery.getBatteryLevelAsync(), null),
       tracedSafe(MODULE, 'readBatteryState', () => Battery.getBatteryStateAsync(), null),
-      tracedSafe(MODULE, 'readLowPowerMode', () => Battery.isLowPowerModeEnabledAsync(), false),
+      tracedSafe<boolean | null>(MODULE, 'readLowPowerMode', () => Battery.isLowPowerModeEnabledAsync(), null),
       tracedSafe(MODULE, 'readNetworkState', () => Network.getNetworkStateAsync(), null),
       PixelNative
         ? tracedSafe(MODULE, 'readBatteryTelemetry', () => PixelNative!.getBatteryTelemetry(), null)
@@ -78,7 +78,7 @@ export function useDevice() {
       ? null : state !== Battery.BatteryState.UNPLUGGED;
     const externalPower = connectedToExternalPower(nativeBatt?.plugged ?? null, expoPower);
     setIsCharging(externalPower);
-    setLowPowerMode(!!lowPower);
+    setLowPowerMode(lowPower);
     setNetworkType(net?.type ?? 'UNKNOWN');
     setIsConnected(!!net?.isConnected && net?.isInternetReachable !== false);
 
@@ -107,7 +107,7 @@ export function useDevice() {
       logEvent(MODULE, 'state', {
         batteryPercent: level == null ? null : Math.round(level * 100),
         charging: externalPower,
-        lowPowerMode: !!lowPower,
+        lowPowerMode: lowPower,
         networkType: net?.type ?? 'UNKNOWN',
         batteryTempC: nativeBatt?.temperatureC ?? null,
         batteryVoltageMv: nativeBatt?.voltageMv ?? null,

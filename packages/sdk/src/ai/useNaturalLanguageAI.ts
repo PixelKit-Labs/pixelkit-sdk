@@ -3,12 +3,12 @@
  * @description Real on-device Natural Language intelligence powered by Google ML Kit and AICore.
  * Features:
  * - Language Identification (50+ languages detected with confidence scores)
- * - On-Device Machine Translation (58 languages offline without network access)
+ * - On-Device Machine Translation (ML Kit Translate languages; each language model downloads once, then runs offline)
  * - Smart Reply Generation (context-aware conversational reply suggestions)
- * - Entity Extraction (dates, flight numbers, addresses, tracking numbers, money, phone numbers)
+ * - Entity Extraction (dates, flight numbers, addresses, tracking numbers, money, phone numbers; English text only)
  *
  * Observability:
- * - All operations report `source: 'hardware'` when running natively via PixelNano, or `'unavailable'` in web/Expo Go.
+ * - `source` is 'hardware' once at least one on-device operation has returned a result, and 'unavailable' before that or when PixelNano is absent (web/Expo Go).
  * - Hardware latencies are recorded via `recordMetric` and `logEvent`.
  */
 
@@ -32,7 +32,11 @@ export function useNaturalLanguageAI() {
   const [smartReplyResult, setSmartReplyResult] = useState<SmartReplyResult | null>(null);
   const [entityResult, setEntityResult] = useState<EntityExtractionResult | null>(null);
 
-  const source: TelemetrySource = PixelNano ? 'hardware' : 'unavailable';
+  // 'hardware' only after an operation has returned a result; the native module being linked does not prove ML Kit answered.
+  const source: TelemetrySource =
+    PixelNano && (languageResult != null || translationResult != null || smartReplyResult != null || entityResult != null)
+      ? 'hardware'
+      : 'unavailable';
 
   /**
    * Identifies the language of the provided text on-device.
@@ -61,7 +65,8 @@ export function useNaturalLanguageAI() {
   }, []);
 
   /**
-   * Translates text between two supported languages on-device.
+   * Translates text between two languages ML Kit Translate supports, on-device. A language tag it does
+   * not support rejects (the hook sets `error` and resolves null); no other language is substituted.
    */
   const translate = useCallback(
     async (text: string, sourceLang: string = 'en', targetLang: string = 'es'): Promise<TranslationResult | null> => {
@@ -121,7 +126,7 @@ export function useNaturalLanguageAI() {
   );
 
   /**
-   * Extracts structured entities (dates, tracking codes, money, phone numbers) from text.
+   * Extracts structured entities (dates, tracking codes, money, phone numbers) from English text.
    */
   const extractEntities = useCallback(async (text: string): Promise<EntityExtractionResult | null> => {
     if (!PixelNano) {

@@ -85,7 +85,9 @@ export function useGeminiNano() {
   const messagesRef = useRef<AIMessage[]>([]);
   messagesRef.current = messages;
 
-  const source: TelemetrySource = PixelNano ? 'hardware' : 'unavailable';
+  // 'hardware' only once AICore actually answered (model info read, or status reported 'available');
+  // the native module being linked says nothing about the model.
+  const source: TelemetrySource = PixelNano && (info != null || status === 'available') ? 'hardware' : 'unavailable';
 
   /** Re-reads status and model facts from AICore. */
   const refresh = useCallback(async () => {

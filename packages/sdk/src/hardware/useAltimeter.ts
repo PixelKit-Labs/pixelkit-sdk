@@ -35,7 +35,7 @@ export interface AltimeterTelemetry {
   pressureHpa: number | null;
   /** Calibrated reference sea-level pressure (QNH) in hPa. Defaults to 1013.25. */
   seaLevelPressureHpa: number;
-  /** Trend of pressure change over time indicating weather movement, or null. */
+  /** Pressure change extrapolated to hPa/hour over the last up-to-60 s of samples. Null until at least 5 samples spanning 10 s exist. */
   pressureTrend: PressureTrend | null;
   /** Whether the device has an active hardware barometer. */
   isAvailable: boolean;
@@ -160,19 +160,16 @@ export function useAltimeter(updateIntervalMs: number = 100): AltimeterTelemetry
             }
           }
 
-          // Calculate pressure trend extrapolated to hPa/hour
-          if (history.length >= 5) {
-            const oldest = history[0];
-            const dtSec = (now - oldest.time) / 1000;
-            if (dtSec >= 10) {
-              const dp = p - oldest.pressure;
-              const hpaPerHour = (dp / dtSec) * 3600;
-
-              const trend = calculatePressureTrend(hpaPerHour);
-              setPressureTrend(trend);
-            } else {
-              setPressureTrend('steady');
-            }
+          // Pressure trend extrapolated to hPa/hour over the retained window (at most 60 s).
+          // Fewer than 5 samples or a window shorter than 10 s is not enough to state a trend, so it stays null.
+          const oldest = history[0];
+          const dtSec = (now - oldest.time) / 1000;
+          if (history.length >= 5 && dtSec >= 10) {
+            const dp = p - oldest.pressure;
+            const hpaPerHour = (dp / dtSec) * 3600;
+            setPressureTrend(calculatePressureTrend(hpaPerHour));
+          } else {
+            setPressureTrend(null);
           }
 
           recordMetric(MODULE, 'altitudeM', altM, 'derived');

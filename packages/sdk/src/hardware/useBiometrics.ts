@@ -38,11 +38,14 @@ export function useBiometrics() {
           LocalAuthentication.isEnrolledAsync(),
           LocalAuthentication.supportedAuthenticationTypesAsync(),
         ]);
-        const supportedTypes = types.map(t => {
-          if (t === LocalAuthentication.AuthenticationType.FINGERPRINT) return 'Fingerprint';
-          if (t === LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) return 'Face Unlock';
-          return 'Iris';
-        });
+        // Only the three modalities expo-local-authentication defines are named; any other value
+        // is dropped rather than labelled as something it may not be.
+        const supportedTypes: string[] = [];
+        for (const t of types) {
+          if (t === LocalAuthentication.AuthenticationType.FINGERPRINT) supportedTypes.push('Fingerprint');
+          else if (t === LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) supportedTypes.push('Face Unlock');
+          else if (t === LocalAuthentication.AuthenticationType.IRIS) supportedTypes.push('Iris');
+        }
         return { hasHardware, isEnrolled, supportedTypes };
       });
       setState(next);

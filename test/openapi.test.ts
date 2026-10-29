@@ -72,8 +72,9 @@ describe('PixelKit OpenAPI 3.1 Specification', () => {
     assert.ok(spec.paths['/hooks/useTorch/actions/setTorch'], 'Missing /hooks/useTorch/actions/setTorch');
     assert.ok(spec.paths['/hooks/useTorch/actions/setTorch'].post, 'Missing POST on setTorch');
 
-    // useThermometer -> setEmissivity
-    assert.ok(spec.paths['/hooks/useThermometer/actions/setEmissivity'], 'Missing /hooks/useThermometer/actions/setEmissivity');
+    // useChannelSounding -> startRanging, stopRanging
+    assert.ok(spec.paths['/hooks/useChannelSounding/actions/startRanging'], 'Missing /hooks/useChannelSounding/actions/startRanging');
+    assert.ok(spec.paths['/hooks/useChannelSounding/actions/stopRanging'], 'Missing /hooks/useChannelSounding/actions/stopRanging');
 
     // useBatteryShare -> setBatteryShare
     assert.ok(spec.paths['/hooks/useBatteryShare/actions/setBatteryShare'], 'Missing /hooks/useBatteryShare/actions/setBatteryShare');

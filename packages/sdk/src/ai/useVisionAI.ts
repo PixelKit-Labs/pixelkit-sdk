@@ -6,10 +6,10 @@
  * - On-Device ML Kit:
  *   • Barcode Scanning (1D & 2D formats, QR codes)
  *   • Text Recognition v2 (OCR for Latin, numerals, documents)
- *   • Face Detection (landmarks, head Euler angles, tracking, smiling & eye open probabilities)
+ *   • Face Detection (landmarks, head Euler angles, smiling & eye open probabilities; no tracking ids)
  *   • Face Mesh Detection (468 3D contour points on close-range faces)
  *   • Image Labeling (on-device object & concept classification)
- *   • Object Detection & Tracking (bounding boxes, multi-class labels)
+ *   • Object Detection (bounding boxes, multi-class labels; single-image mode, so no tracking ids)
  *   • Pose Detection (33 skeletal landmarks)
  *   • Selfie & Subject Segmentation (foreground / background mask extraction)
  *   • Digital Ink Recognition (handwriting stroke recognition)
@@ -57,7 +57,14 @@ export function useVisionAI() {
   const [subjectResult, setSubjectResult] = useState<SubjectSegmentationResult | null>(null);
   const [digitalInkResult, setDigitalInkResult] = useState<DigitalInkResult | null>(null);
 
-  const source: TelemetrySource = PixelNano ? 'hardware' : 'unavailable';
+  // 'hardware' only after an on-device operation has returned a result; the native module being linked does not prove ML Kit answered.
+  const source: TelemetrySource =
+    PixelNano &&
+    (barcodeResult != null || ocrResult != null || facesResult != null || faceMeshResult != null ||
+      labelsResult != null || objectsResult != null || poseResult != null || selfieResult != null ||
+      subjectResult != null || digitalInkResult != null)
+      ? 'hardware'
+      : 'unavailable';
 
   /**
    * Helper to pick an image from the camera or photo gallery.
@@ -142,7 +149,7 @@ export function useVisionAI() {
           timestamp: Date.now(),
         };
         setAnalysis(res);
-        recordMetric(MODULE, 'geminiVisionLatencyMs', elapsedMs, 'hardware');
+        recordMetric(MODULE, 'geminiVisionLatencyMs', elapsedMs, 'derived');
         logEvent(MODULE, 'gemini analysis', { model: GEMINI_MODEL, latencyMs: elapsedMs, labels: res.labels.length });
         return res;
       } catch (e: any) {

@@ -115,7 +115,7 @@ export function useCloudHardwareAgent(defaultOptions: CloudAgentDefaults = {}): 
       setLastResult(result);
       setLastResponse(result.text || null);
       setHistory(result.contents);
-      recordMetric(MODULE, 'agentLoopMs', durationMs, 'hardware', run);
+      recordMetric(MODULE, 'agentLoopMs', durationMs, 'derived', run);
       logEvent(MODULE, 'completed', {
         stepsCount: result.steps.length,
         stoppedReason: result.stoppedReason,

@@ -60,18 +60,18 @@ export type HapticType =
  * Hardware identification, battery telemetry, and network status.
  */
 export interface DeviceTelemetry {
-  /** Commercial model name (e.g. "Pixel 11 Pro") */
-  modelName: string;
-  /** Hardware manufacturer brand (e.g. "Google") */
-  brand: string;
-  /** Operating system version (e.g. "Android 16") */
-  osVersion: string;
+  /** Commercial model name (e.g. "Pixel 11 Pro"); null when the platform does not report it */
+  modelName: string | null;
+  /** Hardware manufacturer brand (e.g. "Google"); null when the platform does not report it */
+  brand: string | null;
+  /** Operating system version (e.g. "Android 16"); null when the platform does not report it */
+  osVersion: string | null;
   /** Battery percentage 0 to 100, or null when it has not been read yet. */
   batteryPercent: number | null;
   /** Whether external power is attached, even when charging is paused; null until observed. */
   isCharging: boolean | null;
-  /** Whether Android Battery Saver mode is currently active */
-  lowPowerMode: boolean;
+  /** Whether Android Battery Saver mode is active; null until read or when the read failed */
+  lowPowerMode: boolean | null;
   /** Active network interface type ('WIFI', 'CELLULAR', 'UNKNOWN') */
   networkType: string;
   /** Whether the device has an active internet route */
@@ -180,8 +180,8 @@ export interface NFCTag {
   id: string;
   /** Textual or NDEF URI payload read from the tag */
   payload: string;
-  /** Wireless standard technology type */
-  tech: 'NfcA' | 'IsoDep' | 'Ndef';
+  /** 'Ndef' when the tag is NDEF-formatted, else the first technology of `Tag.getTechList()` (for example 'NfcA', 'MifareClassic'); null when the list is empty */
+  tech: string | null;
   /** Timestamp when the tag was scanned */
   timestamp: number;
 }
@@ -202,10 +202,10 @@ export interface BiometricState {
  * GNSS multi-band satellite location telemetry.
  */
 export interface LocationTelemetry {
-  /** Latitude in decimal degrees */
-  latitude: number;
-  /** Longitude in decimal degrees */
-  longitude: number;
+  /** Latitude in decimal degrees; null until a fix has been obtained */
+  latitude: number | null;
+  /** Longitude in decimal degrees; null until a fix has been obtained */
+  longitude: number | null;
   /** Altitude above sea level in meters */
   altitude: number | null;
   /** Horizontal positional accuracy radius in meters */
@@ -268,15 +268,15 @@ export interface MemoryTelemetry {
  * Bluetooth Low Energy (BLE) peripheral discovery data.
  */
 export interface BLEPeripheral {
-  /** Unique MAC or Bluetooth UUID */
+  /** Bluetooth device address of the advertiser */
   id: string;
-  /** Advertised device name */
-  name: string;
+  /** Device name from `BluetoothDevice.getName()` or the advertised local name; null when neither is available */
+  name: string | null;
   /** Received Signal Strength Indicator in dBm */
   rssi: number;
-  /** Estimated distance in meters based on RSSI path-loss */
+  /** Derived estimate in meters: log-distance path loss with an assumed -59 dBm at 1 m and exponent 2; not a measurement */
   estimatedDistanceMeters: number;
-  /** Timestamp when beacon/advertisement was received */
+  /** Wall-clock ms of the advertisement, from `ScanResult.getTimestampNanos()` against `SystemClock.elapsedRealtimeNanos()` */
   lastSeenTimestamp: number;
 }
 
@@ -325,10 +325,8 @@ export interface CameraTelemetry {
   flashMode: 'auto' | 'on' | 'off';
   /** Whether camera hardware permission has been granted */
   hasPermission: boolean;
-  /** Active sensor-level Camera Look profile */
+  /** Label for the consuming app's own interface. Camera Looks belong to the Pixel Camera app and are not applied to captures. */
   selectedLook: CameraLook;
-  /** UI flag for the Pixel Camera low-light video mode; not controllable by third-party apps */
-  isUltraLowLightVideoActive: boolean;
 }
 
 /**
@@ -341,10 +339,10 @@ export interface NetworkTelemetry {
   networkType: string;
   /** Whether internet is reachable */
   isConnected: boolean;
-  /** Whether device is metered (e.g. cellular data) */
-  isMetered: boolean;
-  /** Whether airplane mode is enabled */
-  isAirplaneMode: boolean;
+  /** Whether the active network lacks `NET_CAPABILITY_NOT_METERED` (ConnectivityManager); null until read or when Android does not report it */
+  isMetered: boolean | null;
+  /** Whether airplane mode is enabled; null until read or when the read failed */
+  isAirplaneMode: boolean | null;
 }
 
 /**
@@ -372,12 +370,10 @@ export type {
 
 export type {
   MicrophoneArrayTelemetry,
-  MicrophoneBeamDirection,
 } from '../hardware/useMicrophoneArray';
 
 export type {
   ThermometerTelemetry,
-  ThermometerMode,
 } from '../hardware/useThermometer';
 
 export type {
@@ -408,7 +404,6 @@ export type {
 
 export type {
   PrivateSpaceTelemetry,
-  PrivateSpaceAutoLockPolicy,
 } from '../hardware/usePrivateSpace';
 
 export type {

@@ -102,10 +102,6 @@ export type ChannelSoundingInfo = {
   isEnabled: boolean;
   serviceFound: boolean;
   hasChannelSoundingFeature: boolean;
-  supportsPbr: boolean;
-  supportsRtt: boolean;
-  channelCount: number;
-  precision: 'centimeter' | 'decimeter' | 'unsupported';
   error?: string | null;
 };
 
@@ -118,18 +114,21 @@ export type PlayIntegrityInfo = {
   securityModelCompatible: boolean;
   playServicesAvailable: boolean;
   playServicesVersion: string | null;
-  deviceIntegrity: 'MEETS_STRONG_INTEGRITY' | 'MEETS_DEVICE_INTEGRITY' | 'MEETS_BASIC_INTEGRITY' | 'UNVERIFIED';
   error?: string | null;
 };
 
 export type HardwareAttestationResult = {
   keyAlias: string;
   algorithm: string;
-  securityLevel: 'STRONGBOX' | 'TRUSTED_ENVIRONMENT' | 'SOFTWARE' | 'UNKNOWN';
+  /** `KeyInfo.getSecurityLevel()` (API 31+) of the generated key; below API 31 only 'STRONGBOX' (set when StrongBox generation succeeded) or null. */
+  securityLevel: 'STRONGBOX' | 'TRUSTED_ENVIRONMENT' | 'SOFTWARE' | 'UNKNOWN_SECURE' | null;
   isStrongBoxBacked: boolean;
   certificateChainLength: number;
+  /** DER certificates of the attestation chain, leaf first, base64 (no wrap). */
+  certificateChainBase64: string[];
   leafCertificateSubject: string | null;
   leafCertificateIssuer: string | null;
+  /** The challenge string whose UTF-8 bytes were embedded in the attestation; generated when none was supplied. */
   challenge: string;
   timestamp: number;
 };
@@ -170,12 +169,14 @@ export type PerfettoStopResult = {
 };
 
 export type HealthConnectInfo = {
+  /** Derived: `healthconnect` framework service (API 34+) or the `com.google.android.apps.healthdata` package is present. Not `HealthConnectClient.getSdkStatus()`. */
   isAvailable: boolean;
-  sdkStatus: 'SDK_AVAILABLE' | 'SDK_UNAVAILABLE' | 'SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED';
+  sdkStatus: 'SDK_AVAILABLE' | 'SDK_UNAVAILABLE';
   hasStepCounter: boolean;
   hasHeartRateSensor: boolean;
   stepSensorName: string | null;
   heartRateSensorName: string | null;
+  /** The `healthconnect` system service exists (Android 14+). */
   isFrameworkIntegrated: boolean;
   error?: string | null;
 };
@@ -216,7 +217,8 @@ export type BatteryTelemetry = {
 };
 
 export type BondedDevice = {
-  name: string;
+  /** `BluetoothDevice.getName()`; null when unnamed or BLUETOOTH_CONNECT is not granted. */
+  name: string | null;
   address: string;
   type: number;
   bondState: 'BONDED' | 'BONDING' | 'NONE';
@@ -239,8 +241,9 @@ export type RadioInfo = {
   };
   uwb: {
     supported: boolean;
-    enabled: boolean;
-    chipId: string | null;
+    /** `UwbManager.isUwbEnabled()` by reflection; null when that call is not reachable by apps. */
+    enabled: boolean | null;
+    /** The Android 16 `android.ranging.RangingManager` service exists. */
     rangingApiSupported: boolean;
   };
   wifiRtt: {
@@ -249,13 +252,12 @@ export type RadioInfo = {
   };
   thread: {
     supported: boolean;
-    serviceFound: boolean;
-    chipId: string | null;
+    /** `ServiceManager` lookup of the Thread network service; null when the (hidden) lookup is not possible. */
+    serviceFound: boolean | null;
   };
   satellite: {
     supported: boolean;
     sosSupported?: boolean;
-    provider?: string | null;
   };
 };
 
@@ -277,11 +279,14 @@ export type AppFunctionExecution = {
 };
 
 export type DiscoveredBleDevice = {
-  name: string;
+  /** `BluetoothDevice.getName()` or the advertised local name; null when the device has neither. */
+  name: string | null;
   address: string;
   rssi: number;
   txPower?: number | null;
   timestampNanos: number;
+  /** Wall-clock ms of the advertisement: now minus (`SystemClock.elapsedRealtimeNanos()` − `timestampNanos`). */
+  lastSeenEpochMs: number;
   serviceUuids: string[];
 };
 
@@ -374,6 +379,113 @@ export type UwbSessionEvent = {
   timestampMs: number;
 };
 
+/**
+ * One BLE Channel Sounding ranging request. `peerAddress` is required: Channel Sounding measures the
+ * distance to a specific Bluetooth peer, so there is nothing to range without one.
+ */
+export type ChannelSoundingRangingConfig = {
+  /** The peer's Bluetooth address as six colon-separated hex bytes, for example "AA:BB:CC:DD:EE:FF". */
+  peerAddress: string;
+  /** Local role; default 'initiator'. */
+  role?: 'initiator' | 'responder';
+  /** BleCsRangingCapabilities security level: 1 or 4. Omitted means the platform default. */
+  securityLevel?: 1 | 4;
+  /** Hint passed to BleCsRangingParams.setSightType. Omitted means the platform default. */
+  sightType?: 'unknown' | 'line_of_sight' | 'non_line_of_sight';
+  /** Hint passed to BleCsRangingParams.setLocationType. Omitted means the platform default. */
+  locationType?: 'unknown' | 'indoor' | 'outdoor';
+  updateRate?: 'normal' | 'infrequent' | 'frequent';
+};
+
+export type ChannelSoundingRangingStatus =
+  | 'opened'
+  | 'needs_peer_address'
+  | 'channel_sounding_unsupported'
+  | 'channel_sounding_disabled'
+  | 'ranging_api_unavailable'
+  | 'bluetooth_disabled'
+  | 'permission_denied'
+  | 'session_active'
+  | 'invalid_parameters'
+  | 'open_failed';
+
+export type ChannelSoundingRangingResult = {
+  /** True only when the platform reported `RangingSession.Callback.onOpened`. */
+  success: boolean;
+  status: ChannelSoundingRangingStatus;
+  /** Reason text for every status other than 'opened'. */
+  error: string | null;
+  /** Counter assigned per start request that reached the platform; null when refused earlier. */
+  sessionId: number | null;
+  peerAddress: string | null;
+  technology: 'BLE_CS';
+  serviceAvailable: boolean;
+  serviceName: 'RangingManager' | null;
+  /** android.hardware.bluetooth_le.channel_sounding is declared. */
+  channelSoundingFeature: boolean;
+  timestampMs: number;
+};
+
+export type ChannelSoundingStopResult = {
+  /** A session (or a pending open) existed when stop was called. */
+  wasActive: boolean;
+  /** stop() and close() raised no error. */
+  closed: boolean;
+  sessionId: number | null;
+  error: string | null;
+  timestampMs: number;
+};
+
+export type ChannelSoundingRangingState = {
+  active: boolean;
+  opened: boolean;
+  sessionId: number | null;
+  peerAddress: string | null;
+};
+
+export type ChannelSoundingAvailability =
+  | 'enabled'
+  | 'not_supported'
+  | 'disabled_user'
+  | 'disabled_regulatory'
+  | 'disabled_user_restrictions'
+  | `code_${number}`;
+
+/** What android.ranging.RangingManager reported; fields are null when the platform did not deliver them, with `error` saying why. */
+export type ChannelSoundingCapabilities = {
+  rangingApiAvailable: boolean;
+  availability: ChannelSoundingAvailability | null;
+  /** BleCsRangingCapabilities.getSupportedSecurityLevels (1 and/or 4). */
+  supportedSecurityLevels: number[] | null;
+  error: string | null;
+  timestampMs: number;
+};
+
+export type ChannelSoundingConfidence = 'low' | 'medium' | 'high';
+
+/**
+ * One `android.ranging.RangingData` sample from a BLE CS peer. `RangingData` does not say whether
+ * phase-based ranging or round-trip time produced it, so no method field exists. Distance is meters;
+ * null when the platform omitted it.
+ */
+export type ChannelSoundingMeasurementEvent = {
+  sessionId: number;
+  deviceAddress: string;
+  distanceMeters: number | null;
+  confidence: ChannelSoundingConfidence | null;
+  rssi: number | null;
+  timestampMs: number;
+};
+
+export type ChannelSoundingSessionEvent = {
+  sessionId: number;
+  state: 'opened' | 'started' | 'stopped' | 'closed' | 'open_failed';
+  deviceAddress: string;
+  /** RangingSession.Callback reason name (local_request, remote_request, system_policy, no_peers_found, unsupported, unknown). */
+  reason: string | null;
+  timestampMs: number;
+};
+
 /** One decoded NDEF record from a tag. */
 export type NdefRecordInfo = {
   /** Type Name Format: 1 well-known, 2 MIME, 3 absolute URI, 4 external. */
@@ -428,8 +540,6 @@ export type MicrophoneInfo = {
 export type MicrophoneArrayResult = {
   isSupported: boolean;
   microphones: MicrophoneInfo[];
-  direction: 'user' | 'away' | 'external' | 'omni';
-  fieldZoom: number;
   error?: string | null;
 };
 
@@ -445,9 +555,7 @@ export type ThermometerReading = {
 export type BatteryShareStatus = {
   isSupported: boolean;
   isActive: boolean;
-  isReceiverDetected: boolean;
   transmittedWatts: number | null;
-  batteryThreshold: number;
   error?: string | null;
 };
 
@@ -459,18 +567,25 @@ export type ChargingIntelligence = {
   manufactureDate: string | null;
   firstUsageDate: string | null;
   chargingWattage: number | null;
-  chargingTier: ChargingTier;
-  chargeLimitActive: boolean;
+  /** Classification of `chargingWattage`; null when no wattage was read. */
+  chargingTier: ChargingTier | null;
+  /** `charge_limit_available` sysfs node is "1"; null when it cannot be read. It says the limit is offered, not that it is on. */
+  chargeLimitAvailable: boolean | null;
   error?: string | null;
 };
 
 export type MloLinkInfo = {
-  band: '2.4GHz' | '5GHz' | '6GHz';
-  channelWidthMHz: number;
-  rssi: number;
-  txLinkSpeedMbps: number;
-  rxLinkSpeedMbps: number;
-  state: 'associated' | 'active' | 'idle';
+  /** `MloLink.getBand()`; null when the platform reports it as unspecified. */
+  band: '2.4GHz' | '5GHz' | '6GHz' | '60GHz' | null;
+  /** `MloLink.getChannel()`. */
+  channel: number;
+  /** dBm; null when the platform reports `WifiInfo.INVALID_RSSI`. */
+  rssi: number | null;
+  /** Mbps; null when the platform reports `LINK_SPEED_UNKNOWN`. */
+  txLinkSpeedMbps: number | null;
+  rxLinkSpeedMbps: number | null;
+  /** `MloLink.getState()`: 1 unassociated, 2 idle, 3 active; 'invalid' for 0 or any other value. */
+  state: 'invalid' | 'unassociated' | 'idle' | 'active';
 };
 
 export type Wifi7MloResult = {
@@ -525,26 +640,40 @@ export type SatelliteGuidance = {
 };
 
 export type SatelliteStatusResult = {
+  /** `android.hardware.telephony.satellite` system feature. */
   isSupported: boolean;
-  connectionState: 'disconnected' | 'searching' | 'connected' | 'pointing_assist';
+  /** Always null: Android's public API exposes no satellite connection state. */
+  connectionState: 'disconnected' | 'searching' | 'connected' | 'pointing_assist' | null;
+  /** Always null: no public carrier read. */
   carrier: string | null;
+  /** Always null: no public signal read. */
   signalQualityBars: number | null;
+  /** Always null: no public pointing data. */
   pointingGuidance: SatelliteGuidance | null;
-  emergencyServicesReady: boolean;
+  /** Always null: no public emergency-readiness read. */
+  emergencyServicesReady: boolean | null;
+  /** Why the null fields are null. */
+  unreadReason: string;
   error?: string | null;
 };
 
 export type PrivateSpaceInfo = {
-  isInsidePrivateSpace: boolean;
-  isPrivateSpaceConfigured: boolean;
-  autoLockPolicy: 'immediate' | 'screen_off' | 'device_reboot' | 'unknown';
+  /** Null when the app runs in a profile whose type cannot be read. */
+  isInsidePrivateSpace: boolean | null;
+  /** True only when the app itself runs inside the Private Space; null otherwise (Android hides the profile from apps). */
+  isPrivateSpaceConfigured: boolean | null;
+  /** Why unreadable values are null. */
+  reason: string | null;
   error?: string | null;
 };
 
 export type KeyAgreementKeyPairResult = {
   alias: string;
   publicKeyBase64: string | null;
-  securityLevel: 'STRONGBOX' | 'TRUSTED_ENVIRONMENT';
+  /** `KeyInfo.getSecurityLevel()` of the generated key (API 31+); null when unreadable or generation failed. */
+  securityLevel: 'STRONGBOX' | 'TRUSTED_ENVIRONMENT' | 'SOFTWARE' | 'UNKNOWN_SECURE' | null;
+  /** Why `securityLevel` is null after a successful generation. */
+  securityLevelReason?: string | null;
   isStrongBoxSupported: boolean;
   error?: string | null;
 };
@@ -687,6 +816,8 @@ type Events = {
   onNfcError(e: { id: string; message: string }): void;
   onUwbRangingResult(e: UwbMeasurementEvent): void;
   onUwbRangingState(e: UwbSessionEvent): void;
+  onChannelSoundingResult(e: ChannelSoundingMeasurementEvent): void;
+  onChannelSoundingState(e: ChannelSoundingSessionEvent): void;
 };
 
 declare class PixelNativeModule extends NativeModule<Events> {
@@ -727,13 +858,17 @@ declare class PixelNativeModule extends NativeModule<Events> {
   cancelVibration(): boolean;
   getBatteryTelemetry(): BatteryTelemetry;
   getRadioInfo(): RadioInfo;
+  /** True when the active network lacks `NET_CAPABILITY_NOT_METERED`; null when there is no active network or the read is not permitted. */
+  getNetworkMetered(): boolean | null;
   startBleScan(timeoutMs?: number): Promise<{ success: boolean; scanning: boolean; error?: string }>;
   stopBleScan(): boolean;
   getDiscoveredBleDevices(): DiscoveredBleDevice[];
-  /** Enables NfcAdapter reader mode on the foreground Activity; tags arrive on . */
+  /** `scanning` is true while a scan callback is registered; `errorCode`/`error` come from `ScanCallback.onScanFailed`. */
+  getBleScanState(): { scanning: boolean; errorCode: number | null; error: string | null };
+  /** Enables NfcAdapter reader mode on the foreground Activity; tags arrive on `onNfcTag`. `success` is true only after `enableReaderMode` returned on the main thread. */
   startNfcReader(flags?: number): Promise<{ success: boolean; flags?: number; started?: boolean; error?: string }>;
   /** Disables reader mode. Safe when no reader is running. */
-  stopNfcReader(): Promise<{ success: boolean }>;
+  stopNfcReader(): Promise<{ success: boolean; error?: string }>;
   /** Queues a text record written to the next tag that enters the field. */
   writeNdefText(text: string): Promise<{ success: boolean; queuedBytes?: number; error?: string }>;
   isNfcReaderActive(): boolean;
@@ -746,6 +881,17 @@ declare class PixelNativeModule extends NativeModule<Events> {
   /** Closes the running session. `wasActive` is false when nothing was running. */
   stopUwbRanging(): UwbStopResult;
   getUwbRangingState(): UwbRangingState;
+  /**
+   * Opens a real android.ranging BLE Channel Sounding session with the peer at `config.peerAddress`
+   * (Android 16+, needs android.permission.RANGING). Resolves with a `status` explaining refusals;
+   * distances arrive as `onChannelSoundingResult` events.
+   */
+  startChannelSounding(config: ChannelSoundingRangingConfig): Promise<ChannelSoundingRangingResult>;
+  /** Closes the running session. `wasActive` is false when nothing was running. */
+  stopChannelSounding(): ChannelSoundingStopResult;
+  getChannelSoundingState(): ChannelSoundingRangingState;
+  /** RangingManager's availability for BLE Channel Sounding and the supported CS security levels. */
+  getChannelSoundingCapabilities(): Promise<ChannelSoundingCapabilities>;
   isOfflineSpeechAvailable(): boolean;
   /** Resolves true on service readiness; rejects startup failure, timeout, cancellation or busy state. */
   startSpeechRecognition(requestId: string, onDevice: boolean): Promise<boolean>;
@@ -768,14 +914,14 @@ declare class PixelNativeModule extends NativeModule<Events> {
 
   // Phase 1: Sensors & Acoustics
   getMicrophoneArray(): MicrophoneArrayResult;
-  setPreferredMicrophoneDirection(direction: string, zoom: number): Promise<boolean>;
   getThermometerReading(): ThermometerReading;
 
   // Phase 2: Silicon & Battery
   getBatteryShareStatus(): BatteryShareStatus;
   setBatteryShareEnabled(enabled: boolean): Promise<boolean>;
   getChargingIntelligence(): ChargingIntelligence;
-  createADPFHintSession(targetDurationNanos: number): Promise<boolean>;
+  /** Closes any previous session, then creates one for `tids` (default: the app's main thread). Resolves true only when the platform returned a session. */
+  createADPFHintSession(targetDurationNanos: number, tids?: number[]): Promise<boolean>;
   reportADPFWorkDuration(actualDurationNanos: number): boolean;
   updateADPFWorkDuration(targetDurationNanos: number): boolean;
   closeADPFHintSession(): boolean;

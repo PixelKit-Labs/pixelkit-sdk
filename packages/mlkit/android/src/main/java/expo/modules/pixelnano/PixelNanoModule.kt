@@ -732,8 +732,10 @@ class PixelNanoModule : Module() {
       for (strokeList in strokesData) {
         val strokeBuilder = Ink.Stroke.builder()
         for (pt in strokeList) {
-          val x = (pt["x"] as? Number)?.toFloat() ?: 0f
-          val y = (pt["y"] as? Number)?.toFloat() ?: 0f
+          val x = (pt["x"] as? Number)?.toFloat()
+            ?: throw NanoException("INVALID_STROKE", "Ink point is missing a numeric x", null)
+          val y = (pt["y"] as? Number)?.toFloat()
+            ?: throw NanoException("INVALID_STROKE", "Ink point is missing a numeric y", null)
           val t = (pt["t"] as? Number)?.toLong() ?: 0L
           strokeBuilder.addPoint(Ink.Point.create(x, y, t))
         }
@@ -777,24 +779,30 @@ class PixelNanoModule : Module() {
 
     AsyncFunction("translate") Coroutine { text: String, sourceLang: String, targetLang: String ->
       val t0 = SystemClock.elapsedRealtime()
-      val srcCode = TranslateLanguage.fromLanguageTag(sourceLang) ?: TranslateLanguage.ENGLISH
-      val tgtCode = TranslateLanguage.fromLanguageTag(targetLang) ?: TranslateLanguage.SPANISH
+      // ML Kit Translate supports a fixed language list; a tag outside it is rejected, never swapped for another language.
+      val srcCode = TranslateLanguage.fromLanguageTag(sourceLang)
+        ?: throw NanoException("UNSUPPORTED_LANGUAGE", "Unsupported translation source language: $sourceLang", null)
+      val tgtCode = TranslateLanguage.fromLanguageTag(targetLang)
+        ?: throw NanoException("UNSUPPORTED_LANGUAGE", "Unsupported translation target language: $targetLang", null)
       val options = TranslatorOptions.Builder()
         .setSourceLanguage(srcCode)
         .setTargetLanguage(tgtCode)
         .build()
       val translator = Translation.getClient(options)
-      translator.downloadModelIfNeeded().awaitTask()
-      val translated = translator.translate(text).awaitTask()
-      val latency = SystemClock.elapsedRealtime() - t0
-      translator.close()
-      mapOf(
-        "translatedText" to translated,
-        "sourceLanguage" to srcCode,
-        "targetLanguage" to tgtCode,
-        "latencyMs" to latency,
-        "source" to "hardware"
-      )
+      try {
+        translator.downloadModelIfNeeded().awaitTask()
+        val translated = translator.translate(text).awaitTask()
+        val latency = SystemClock.elapsedRealtime() - t0
+        mapOf(
+          "translatedText" to translated,
+          "sourceLanguage" to srcCode,
+          "targetLanguage" to tgtCode,
+          "latencyMs" to latency,
+          "source" to "hardware"
+        )
+      } finally {
+        translator.close()
+      }
     }
 
     AsyncFunction("suggestReplies") Coroutine { history: List<Map<String, Any?>> ->

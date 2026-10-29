@@ -1,8 +1,9 @@
 /**
  * @file useRadios.ts
- * @description Comprehensive hardware radio telemetry (NFC, Bluetooth LE, UWB, Wi-Fi RTT, Satellite)
- * directly queried from Android system services (NfcAdapter, BluetoothManager, UwbManager,
- * WifiRttManager, and PackageManager).
+ * @description Radio state read from Android system services and PackageManager features:
+ * NfcAdapter, BluetoothAdapter, UwbManager (reflection), WifiRttManager, the Thread and satellite
+ * system features. Values Android does not let the app read are null. Before the first read the
+ * returned values are the all-false defaults and `source` is 'unavailable'.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -31,8 +32,9 @@ export interface RadioTelemetry {
   };
   uwb: {
     supported: boolean;
-    enabled: boolean;
-    chipId: string | null;
+    /** `UwbManager.isUwbEnabled()` by reflection; null when that call is not reachable by apps. */
+    enabled: boolean | null;
+    /** The Android 16 `android.ranging.RangingManager` service exists. */
     rangingApiSupported: boolean;
   };
   wifiRtt: {
@@ -41,13 +43,12 @@ export interface RadioTelemetry {
   };
   thread: {
     supported: boolean;
-    serviceFound: boolean;
-    chipId: string | null;
+    /** Thread network service found through `ServiceManager`; null when that hidden lookup is not possible. */
+    serviceFound: boolean | null;
   };
   satellite: {
     supported: boolean;
     sosSupported?: boolean;
-    provider?: string | null;
   };
   source: TelemetrySource;
   refresh: () => void;
@@ -70,8 +71,7 @@ const DEFAULT_RADIO_INFO: RadioInfo = {
   },
   uwb: {
     supported: false,
-    enabled: false,
-    chipId: null,
+    enabled: null,
     rangingApiSupported: false,
   },
   wifiRtt: {
@@ -80,18 +80,16 @@ const DEFAULT_RADIO_INFO: RadioInfo = {
   },
   thread: {
     supported: false,
-    serviceFound: false,
-    chipId: null,
+    serviceFound: null,
   },
   satellite: {
     supported: false,
     sosSupported: false,
-    provider: null,
   },
 };
 
 /**
- * Hook exposing real hardware radio states across NFC, Bluetooth LE, UWB, and Wi-Fi RTT.
+ * Hook exposing radio states across NFC, Bluetooth LE, UWB, Wi-Fi RTT, Thread and satellite.
  *
  * @example
  * ```typescript
@@ -102,19 +100,25 @@ const DEFAULT_RADIO_INFO: RadioInfo = {
 export function useRadios(): RadioTelemetry {
   const [radioInfo, setRadioInfo] = useState<RadioInfo>(DEFAULT_RADIO_INFO);
   const [error, setError] = useState<string | null>(null);
-  const source: TelemetrySource = PixelNative ? 'hardware' : 'unavailable';
+  const [hasRead, setHasRead] = useState<boolean>(false);
+  const source: TelemetrySource = PixelNative && hasRead ? 'hardware' : 'unavailable';
 
   const read = useCallback(() => {
     if (!PixelNative) return;
     try {
       const info = PixelNative.getRadioInfo();
       setRadioInfo(info);
+      setHasRead(true);
+      setError(null);
       recordMetric(MODULE, 'nfcEnabled', info.nfc.enabled, 'hardware');
       recordMetric(MODULE, 'bluetoothState', info.bluetooth.state, 'hardware');
-      recordMetric(MODULE, 'uwbEnabled', info.uwb.enabled, 'hardware');
-    } catch (e: any) {
-      setError(e?.message ?? 'getRadioInfo error');
-      logEvent(MODULE, 'getRadioInfo error', { message: e?.message }, 'error');
+      if (info.uwb.enabled !== null) {
+        recordMetric(MODULE, 'uwbEnabled', info.uwb.enabled, 'hardware');
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'getRadioInfo error';
+      setError(message);
+      logEvent(MODULE, 'getRadioInfo error', { message }, 'error');
     }
   }, []);
 

@@ -8,6 +8,7 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.media.MicrophoneInfo
+import android.net.wifi.MloLink
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.rtt.WifiRttManager
@@ -19,8 +20,8 @@ import android.os.PerformanceHintManager
 import android.os.Process
 import android.os.UserManager
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
-import android.telephony.TelephonyManager
 import android.util.Base64
 import expo.modules.kotlin.exception.CodedException
 import java.io.File
@@ -37,8 +38,6 @@ import javax.crypto.KeyAgreement
 
 // State storage for persistent sessions / properties
 private var adpfHintSession: Any? = null
-private var currentMicDirection: String = "omni"
-private var currentMicZoom: Double = 0.0
 
 // ───────────────────────── Phase 1: Microphone Array ─────────────────────────
 
@@ -47,8 +46,6 @@ internal fun PixelNativeModule.microphoneArrayInfo(): Map<String, Any?> {
     return mapOf(
       "isSupported" to false,
       "microphones" to emptyList<Map<String, Any?>>(),
-      "direction" to currentMicDirection,
-      "fieldZoom" to currentMicZoom,
       "error" to "Microphone array inspection requires Android 9+ (API 28+)"
     )
   }
@@ -93,25 +90,15 @@ internal fun PixelNativeModule.microphoneArrayInfo(): Map<String, Any?> {
     mapOf(
       "isSupported" to true,
       "microphones" to micList,
-      "direction" to currentMicDirection,
-      "fieldZoom" to currentMicZoom,
       "error" to null
     )
   } catch (e: Throwable) {
     mapOf(
       "isSupported" to false,
       "microphones" to emptyList<Map<String, Any?>>(),
-      "direction" to currentMicDirection,
-      "fieldZoom" to currentMicZoom,
       "error" to (e.message ?: "Failed to query microphone array")
     )
   }
-}
-
-internal fun PixelNativeModule.setPreferredMicrophoneDirectionInternal(direction: String, zoom: Double): Boolean {
-  currentMicDirection = direction
-  currentMicZoom = zoom.coerceIn(0.0, 1.0)
-  return true
 }
 
 // ───────────────────────── Phase 1: Thermometer (MLX90632 FIR) ─────────────────────────
@@ -136,16 +123,18 @@ internal fun PixelNativeModule.thermometerReading(): Map<String, Any?> {
         "surfaceTemperatureF" to null,
         "ambientTemperatureC" to null,
         "sensorName" to null,
-        "error" to null
+        "error" to "SensorManager lists no far-infrared temperature sensor on this device"
       )
     } else {
+      // SensorManager lists the sensor, but this module has no verified decoder for its samples
+      // (unit, channel layout), so it reports the sensor and no temperature.
       mapOf(
         "isSupported" to true,
-        "surfaceTemperatureC" to null, // Updated on live stream or probe
+        "surfaceTemperatureC" to null,
         "surfaceTemperatureF" to null,
         "ambientTemperatureC" to null,
         "sensorName" to firSensor.name,
-        "error" to null
+        "error" to "Sensor '${firSensor.name}' (type '${firSensor.stringType}') is listed by SensorManager, but PixelKit has no verified decoder for its samples, so no temperature is reported"
       )
     }
   } catch (e: Throwable) {
@@ -173,9 +162,7 @@ internal fun PixelNativeModule.batteryShareStatus(): Map<String, Any?> {
     return mapOf(
       "isSupported" to false,
       "isActive" to false,
-      "isReceiverDetected" to false,
       "transmittedWatts" to null,
-      "batteryThreshold" to 15,
       "error" to sysReadError(REVERSE_CHG_SYSFS)
     )
   }
@@ -187,18 +174,14 @@ internal fun PixelNativeModule.batteryShareStatus(): Map<String, Any?> {
     mapOf(
       "isSupported" to true,
       "isActive" to active,
-      "isReceiverDetected" to active,
       "transmittedWatts" to null,
-      "batteryThreshold" to 15,
       "error" to null
     )
   } catch (e: Throwable) {
     mapOf(
       "isSupported" to true,
       "isActive" to false,
-      "isReceiverDetected" to false,
       "transmittedWatts" to null,
-      "batteryThreshold" to 15,
       "error" to (e.message ?: "Failed reading reverse charging mode")
     )
   }
@@ -254,17 +237,21 @@ internal fun PixelNativeModule.chargingIntelligence(): Map<String, Any?> {
     w
   } else null
 
-  val tier = when {
-    wattage == null -> "standard"
+  // Classification of the measured wattage; null when no wattage was read.
+  val tier: String? = when {
+    wattage == null -> null
     wattage >= 30.0 -> "ultra_rapid"
     wattage >= 18.0 -> "rapid"
     wattage >= 5.0 -> "standard"
     else -> "slow"
   }
 
-  // Check 80% charge limit toggle (Android 15 / Pixel protect battery feature)
+  // Contents of the Pixel sysfs node charge_limit_available: true for "1", false for any other
+  // value, null when the node cannot be read. The node says whether the limit is offered, not
+  // whether it is switched on.
   val limitPath = "/sys/class/power_supply/battery/charge_limit_available"
-  val chargeLimitActive = readSys(limitPath) == "1"
+  val limitRaw = readSys(limitPath)
+  val chargeLimitAvailable: Boolean? = limitRaw?.let { it == "1" }
 
   return mapOf(
     "stateOfHealthPercent" to sohPercent,
@@ -273,22 +260,32 @@ internal fun PixelNativeModule.chargingIntelligence(): Map<String, Any?> {
     "firstUsageDate" to firstUseDate,
     "chargingWattage" to wattage,
     "chargingTier" to tier,
-    "chargeLimitActive" to chargeLimitActive,
+    "chargeLimitAvailable" to chargeLimitAvailable,
     "error" to sysReadError(listOf(sohPath, mfgPath, firstUsePath, limitPath))
   )
 }
 
 // ───────────────────────── Phase 2: ADPF Hint Session ─────────────────────────
 
-internal fun PixelNativeModule.createADPFHintSessionInternal(targetDurationNanos: Long): Boolean {
+/**
+ * Creates a PerformanceHintManager session for [tids] (default: the app's main thread, whose
+ * tid equals the process id). Any previous session is closed first. Returns true only when
+ * `createHintSession` returned a session; the framework returns null when the device has no
+ * hint support or the tids are rejected.
+ */
+internal fun PixelNativeModule.createADPFHintSessionInternal(targetDurationNanos: Long, tids: IntArray?): Boolean {
   if (Build.VERSION.SDK_INT < 31) return false
   return try {
     val phm = context.getSystemService(Context.PERFORMANCE_HINT_SERVICE) as? PerformanceHintManager
       ?: return false
-    val tids = intArrayOf(Process.myTid())
-    adpfHintSession = phm.createHintSession(tids, targetDurationNanos)
-    true
+    (adpfHintSession as? PerformanceHintManager.Session)?.close()
+    adpfHintSession = null
+    val sessionTids = if (tids != null && tids.isNotEmpty()) tids else intArrayOf(Process.myPid())
+    val session = phm.createHintSession(sessionTids, targetDurationNanos)
+    adpfHintSession = session
+    session != null
   } catch (_: Throwable) {
+    adpfHintSession = null
     false
   }
 }
@@ -328,6 +325,9 @@ internal fun PixelNativeModule.closeADPFHintSessionInternal(): Boolean {
 }
 
 // ───────────────────────── Phase 3: Wi-Fi 7 Multi-Link Operation (MLO) ─────────────────────────
+/** Value MloLink.getRssi() returns when no RSSI is known; equals the non-public WifiInfo.INVALID_RSSI (-127). */
+private const val MLO_LINK_RSSI_UNKNOWN = -127
+
 
 internal fun PixelNativeModule.wifi7MloInfo(): Map<String, Any?> {
   if (Build.VERSION.SDK_INT < 34) {
@@ -344,53 +344,37 @@ internal fun PixelNativeModule.wifi7MloInfo(): Map<String, Any?> {
     val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
     val info = wm.connectionInfo
 
-    // Query affiliated MLO links via reflection / API 34+ WifiInfo.getAffiliatedMloLinks()
-    val getMloMethod = info.javaClass.methods.firstOrNull { it.name == "getAffiliatedMloLinks" }
-    val mloLinks = if (getMloMethod != null) {
-      val rawLinks = getMloMethod.invoke(info) as? Collection<*>
-      rawLinks?.mapNotNull { item ->
-        if (item == null) return@mapNotNull null
-        val bandMethod = item.javaClass.methods.firstOrNull { it.name == "getBand" }
-        val bandInt = (bandMethod?.invoke(item) as? Number)?.toInt() ?: 0
-        val bandStr = when (bandInt) {
-          1 -> "2.4GHz"
-          2 -> "5GHz"
-          8 -> "6GHz"
-          else -> "2.4GHz"
-        }
+    // WifiInfo.getAffiliatedMloLinks(): links of the AP MLD. getAssociatedMloLinks(): the subset
+    // this station is associated to. MloLink.getBand() returns ScanResult.WIFI_BAND_* values.
+    val affiliated = info.affiliatedMloLinks
+    val associated = info.associatedMloLinks
+    val mloLinks = affiliated.map { link ->
+      val band = when (link.band) {
+        android.net.wifi.ScanResult.WIFI_BAND_24_GHZ -> "2.4GHz"
+        android.net.wifi.ScanResult.WIFI_BAND_5_GHZ -> "5GHz"
+        android.net.wifi.ScanResult.WIFI_BAND_6_GHZ -> "6GHz"
+        android.net.wifi.ScanResult.WIFI_BAND_60_GHZ -> "60GHz"
+        else -> null
+      }
+      val state = when (link.state) {
+        MloLink.MLO_LINK_STATE_UNASSOCIATED -> "unassociated"
+        MloLink.MLO_LINK_STATE_IDLE -> "idle"
+        MloLink.MLO_LINK_STATE_ACTIVE -> "active"
+        else -> "invalid"
+      }
+      mapOf(
+        "band" to band,
+        "channel" to link.channel,
+        "rssi" to link.rssi.takeIf { it != MLO_LINK_RSSI_UNKNOWN },
+        "txLinkSpeedMbps" to link.txLinkSpeedMbps.takeIf { it != WifiInfo.LINK_SPEED_UNKNOWN },
+        "rxLinkSpeedMbps" to link.rxLinkSpeedMbps.takeIf { it != WifiInfo.LINK_SPEED_UNKNOWN },
+        "state" to state
+      )
+    }
 
-        val rssiMethod = item.javaClass.methods.firstOrNull { it.name == "getRssi" }
-        val rssi = (rssiMethod?.invoke(item) as? Number)?.toInt() ?: -127
-
-        val txSpeedMethod = item.javaClass.methods.firstOrNull { it.name == "getTxLinkSpeedMbps" }
-        val txSpeed = (txSpeedMethod?.invoke(item) as? Number)?.toInt() ?: 0
-
-        val rxSpeedMethod = item.javaClass.methods.firstOrNull { it.name == "getRxLinkSpeedMbps" }
-        val rxSpeed = (rxSpeedMethod?.invoke(item) as? Number)?.toInt() ?: 0
-
-        val stateMethod = item.javaClass.methods.firstOrNull { it.name == "getState" }
-        val stateInt = (stateMethod?.invoke(item) as? Number)?.toInt() ?: 0
-        val stateStr = when (stateInt) {
-          1 -> "associated"
-          2 -> "active"
-          else -> "idle"
-        }
-
-        mapOf(
-          "band" to bandStr,
-          "channelWidthMHz" to (if (bandStr == "6GHz") 320 else 160),
-          "rssi" to rssi,
-          "txLinkSpeedMbps" to txSpeed,
-          "rxLinkSpeedMbps" to rxSpeed,
-          "state" to stateStr
-        )
-      } ?: emptyList()
-    } else emptyList()
-
-    val isMloActive = mloLinks.size > 1
-    val aggregate = if (isMloActive) {
-      mloLinks.sumOf { ((it["txLinkSpeedMbps"] as? Number)?.toInt() ?: 0) }
-    } else null
+    val isMloActive = associated.size > 1
+    val associatedTx = associated.mapNotNull { it.txLinkSpeedMbps.takeIf { v -> v != WifiInfo.LINK_SPEED_UNKNOWN } }
+    val aggregate = if (isMloActive && associatedTx.isNotEmpty()) associatedTx.sum() else null
 
     mapOf(
       "isSupported" to true,
@@ -604,92 +588,95 @@ internal fun PixelNativeModule.startWifiRttRangingInternal(bssids: List<String>)
 
 // ───────────────────────── Phase 3: Satellite NTN (Non-Terrestrial Network) ─────────────────────────
 
+/**
+ * Support comes from the `android.hardware.telephony.satellite` system feature. The public
+ * `android.telephony.satellite.SatelliteManager` (API 36) exposes only
+ * register/unregisterStateChangeListener with an enabled-state callback, so there is no public
+ * read for connection state, carrier, signal bars or SOS readiness; those fields are null.
+ */
 internal fun PixelNativeModule.satelliteStatus(): Map<String, Any?> {
-  val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-
-  // Check Android 15 Satellite API or reflection
-  val isSupported = if (Build.VERSION.SDK_INT >= 35) {
-    try {
-      val m = tm.javaClass.methods.firstOrNull { it.name == "isSatelliteSupported" }
-      m?.invoke(tm) as? Boolean ?: false
-    } catch (_: Throwable) { false }
-  } else {
-    // Check satellite communication package
-    context.packageManager.hasSystemFeature("android.hardware.telephony.satellite")
-  }
-
-  if (!isSupported) {
-    return mapOf(
-      "isSupported" to false,
-      "connectionState" to "disconnected",
-      "carrier" to null,
-      "signalQualityBars" to null,
-      "pointingGuidance" to null,
-      "emergencyServicesReady" to false,
-      "error" to null
-    )
-  }
-
+  val hasFeature = context.packageManager.hasSystemFeature("android.hardware.telephony.satellite")
   return mapOf(
-    "isSupported" to true,
-    "connectionState" to "disconnected",
-    "carrier" to "Skylo / T-Mobile Starlink",
-    "signalQualityBars" to 0,
+    "isSupported" to hasFeature,
+    "connectionState" to null,
+    "carrier" to null,
+    "signalQualityBars" to null,
     "pointingGuidance" to null,
-    "emergencyServicesReady" to true,
+    "emergencyServicesReady" to null,
+    "unreadReason" to "Android's public API exposes no satellite connection state, carrier, signal or emergency readiness to apps",
     "error" to null
   )
 }
 
 // ───────────────────────── Phase 4: Private Space Isolation ─────────────────────────
 
+/**
+ * Android hides the Private Space profile from third-party apps (UserManager.getUserProfiles()
+ * does not list it), so whether one exists cannot be read from outside it. When the app runs
+ * inside the profile, existence is implied. No public API exposes the auto-lock setting.
+ */
 internal fun PixelNativeModule.privateSpaceInfo(): Map<String, Any?> {
   if (Build.VERSION.SDK_INT < 35) {
     return mapOf(
       "isInsidePrivateSpace" to false,
       "isPrivateSpaceConfigured" to false,
-      "autoLockPolicy" to "unknown",
+      "reason" to null,
       "error" to "Private Space requires Android 15+ (API 35+)"
     )
   }
 
   return try {
     val um = context.getSystemService(Context.USER_SERVICE) as UserManager
-    // Check UserManager.isPrivateProfile()
-    val isPrivateMethod = um.javaClass.methods.firstOrNull { it.name == "isPrivateProfile" }
-    val isInside = isPrivateMethod?.invoke(um) as? Boolean ?: false
-
-    // Check user profiles to determine if a private profile exists on device
-    val profiles = um.userProfiles
-    val hasPrivate = profiles.any { profile ->
-      try {
-        val checkMethod = um.javaClass.methods.firstOrNull { it.name == "isPrivateProfile" && it.parameterCount == 1 }
-        checkMethod?.invoke(um, profile) as? Boolean ?: false
-      } catch (_: Throwable) { false }
+    // A private profile is a profile: a process outside any profile is not inside Private Space.
+    var isInside: Boolean? = if (!um.isProfile) false else null
+    if (isInside == null) {
+      val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+      val userType = try {
+        launcherApps?.getLauncherUserInfo(Process.myUserHandle())?.userType
+      } catch (_: Throwable) { null }
+      if (userType != null) isInside = userType == UserManager.USER_TYPE_PROFILE_PRIVATE
     }
-
+    val reason = if (isInside == true) {
+      "No public API exposes the Private Space auto-lock setting"
+    } else {
+      "Android hides the Private Space profile from third-party apps; whether one exists is not readable from outside it. No public API exposes the auto-lock setting"
+    }
     mapOf(
       "isInsidePrivateSpace" to isInside,
-      "isPrivateSpaceConfigured" to hasPrivate,
-      "autoLockPolicy" to "screen_off",
+      "isPrivateSpaceConfigured" to (if (isInside == true) true else null),
+      "reason" to reason,
       "error" to null
     )
   } catch (e: Throwable) {
     mapOf(
-      "isInsidePrivateSpace" to false,
-      "isPrivateSpaceConfigured" to false,
-      "autoLockPolicy" to "unknown",
+      "isInsidePrivateSpace" to null,
+      "isPrivateSpaceConfigured" to null,
+      "reason" to null,
       "error" to (e.message ?: "Failed querying Private Space")
     )
   }
 }
 
-// ───────────────────────── Phase 4: Titan M2 Hardware Key Agreement (ECDH) ─────────────────────────
+// ───────────────────────── Phase 4: Keystore ECDH Key Agreement ─────────────────────────
+
+/** Maps KeyInfo.getSecurityLevel() (API 31+) of an AndroidKeyStore private key; null when unreadable. */
+internal fun keystoreSecurityLevel(privateKey: java.security.PrivateKey): String? {
+  if (Build.VERSION.SDK_INT < 31) return null
+  val info = KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
+    .getKeySpec(privateKey, KeyInfo::class.java)
+  return when (info.securityLevel) {
+    KeyProperties.SECURITY_LEVEL_STRONGBOX -> "STRONGBOX"
+    KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> "TRUSTED_ENVIRONMENT"
+    KeyProperties.SECURITY_LEVEL_SOFTWARE -> "SOFTWARE"
+    KeyProperties.SECURITY_LEVEL_UNKNOWN_SECURE -> "UNKNOWN_SECURE"
+    else -> null
+  }
+}
 
 internal fun PixelNativeModule.generateKeyAgreementKeyPairInternal(alias: String, preferStrongBox: Boolean): Map<String, Any?> {
+  val hasStrongBox = context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
   return try {
     val kpg = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
-    val hasStrongBox = context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
     val useStrongBox = preferStrongBox && hasStrongBox
 
     val specBuilder = KeyGenParameterSpec.Builder(
@@ -705,11 +692,20 @@ internal fun PixelNativeModule.generateKeyAgreementKeyPairInternal(alias: String
     kpg.initialize(specBuilder.build())
     val keyPair = kpg.generateKeyPair()
     val pubKeyBase64 = Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
+    var level: String? = null
+    var levelReason: String? = null
+    try {
+      level = keystoreSecurityLevel(keyPair.private)
+      if (level == null) levelReason = "KeyInfo.getSecurityLevel() is unavailable below Android 12 or reported an unknown level"
+    } catch (e: Throwable) {
+      levelReason = e.message ?: "KeyInfo security level read failed"
+    }
 
     mapOf(
       "alias" to alias,
       "publicKeyBase64" to pubKeyBase64,
-      "securityLevel" to if (useStrongBox) "STRONGBOX" else "TRUSTED_ENVIRONMENT",
+      "securityLevel" to level,
+      "securityLevelReason" to levelReason,
       "isStrongBoxSupported" to hasStrongBox,
       "error" to null
     )
@@ -717,8 +713,9 @@ internal fun PixelNativeModule.generateKeyAgreementKeyPairInternal(alias: String
     mapOf(
       "alias" to alias,
       "publicKeyBase64" to null,
-      "securityLevel" to "TRUSTED_ENVIRONMENT",
-      "isStrongBoxSupported" to context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE),
+      "securityLevel" to null,
+      "securityLevelReason" to null,
+      "isStrongBoxSupported" to hasStrongBox,
       "error" to (e.message ?: "Failed generating key pair")
     )
   }

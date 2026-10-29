@@ -158,3 +158,44 @@ export function verifyCapabilities(base: DeviceCapabilities, probe: FeatureProbe
     aicoreVersion: aicore?.installed ? aicore.versionName : null,
   };
 }
+
+/** Where one capability value came from. */
+export type CapabilitySource = 'hardware' | 'derived' | 'unavailable';
+
+/**
+ * Per-field provenance of a resolved capability set.
+ * - 'hardware': read from the platform (`Build`/`expo-device` identity, API level, or a PackageManager feature probe).
+ * - 'derived': inferred from the model-name table or from the API level (the model table is not read from the device).
+ * - 'unavailable': a device probe was attempted and gave no answer, or none was attempted.
+ */
+export function capabilityProvenance(caps: DeviceCapabilities): Record<keyof DeviceCapabilities, CapabilitySource> {
+  const verified = caps.verification === 'device';
+  const probed = (value: unknown): CapabilitySource => (verified && value !== null ? 'hardware' : 'unavailable');
+  return {
+    modelName: 'hardware',
+    isPhysicalDevice: 'hardware',
+    isPixel: 'derived',
+    pixelGeneration: 'derived',
+    isProModel: 'derived',
+    isFoldable: 'derived',
+    androidApiLevel: caps.androidApiLevel === null ? 'unavailable' : 'hardware',
+    hasHiLight: 'derived',
+    // A device probe replaces the table value only when the probe answered; verifyCapabilities cannot tell
+    // an answered probe from the fallback, so a verified UWB flag is reported as hardware.
+    hasUWB: verified ? 'hardware' : 'derived',
+    hasTitanM3: 'derived',
+    geminiNanoTier: 'derived',
+    supportsRangingApi: 'derived',
+    supportsHapticEnvelopes: 'derived',
+    supportsAppFunctions: 'derived',
+    supportsAndroid17Apis: 'derived',
+    verification: 'hardware',
+    hasNFC: probed(caps.hasNFC),
+    hasBleChannelSounding: probed(caps.hasBleChannelSounding),
+    hasWifiRtt: probed(caps.hasWifiRtt),
+    hasSatelliteTelephony: probed(caps.hasSatelliteTelephony),
+    hasStrongBox: probed(caps.hasStrongBox),
+    hasNpuFeature: probed(caps.hasNpuFeature),
+    aicoreVersion: verified ? 'hardware' : 'unavailable',
+  };
+}

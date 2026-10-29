@@ -10,9 +10,9 @@ Verify all 12 next-generation PixelKit capabilities across Sensors, Acoustics, S
 6. `useADPFHintSession` (PerformanceHintManager Frame Hints & Work Duration)
 7. `useWifi7MLO` (802.11be Multi-Link Operation)
 8. `useWifiRTT` (802.11az / 802.11mc Fine Timing Measurement Ranging)
-9. `useSatelliteNTN` (3GPP Rel-17 NTN Satellite SOS)
+9. `useSatelliteNTN` (satellite telephony system feature; no public connection state)
 10. `usePrivateSpace` (Android 15+ UserManager Profile Isolation)
-11. `useKeyAgreement` (Titan M2 StrongBox ECDH Key Agreement)
+11. `useKeyAgreement` (Keystore ECDH Key Agreement, security level read from KeyInfo)
 12. `useEmbeddings` (MediaPipe TextEmbedder Vector Embeddings & Cosine Similarity)
 
 ## Target Application
@@ -29,7 +29,7 @@ Verify all 12 next-generation PixelKit capabilities across Sensors, Acoustics, S
   - Verify pressure readings update in real time (hPa).
   - Verify ICAO altitude (meters) is computed from barometric pressure when available.
   - Verify climb velocity (m/s) displays rate of vertical motion.
-  - Confirm pressure trend reports `steady`, `rising`, `falling`, or `rapid_fall`.
+  - Confirm pressure trend is `null` (shown as an em dash) for the first 10 s of sampling, then reports `steady`, `rising`, `falling`, or `rapid_fall`.
   - Tap **Calibrate QNH (1013.25 hPa)** to test sea-level reference adjustment.
   - Confirm `source` reports `'derived'` when pressure sensor is present, or `'unavailable'` with `null` readings if no barometer exists (Zero-simulation principle).
 
@@ -76,20 +76,20 @@ Verify all 12 next-generation PixelKit capabilities across Sensors, Acoustics, S
 ### 6. ADPF Performance Hint Session (`useADPFHintSession`)
 - Navigate to **Silicon** tab -> **Compute** section.
 - Locate **ADPF Work Duration Hint Session**:
-  - Verify `isSupported` status from `PerformanceHintManager`.
+  - Verify `isSupported` is true only when `PerformanceHintManager.createHintSession` returned a session; when it is false, `error` states that no session was returned.
   - Verify target frame duration is set (e.g. `16.6 ms` for 60Hz or `8.3 ms` for 120Hz).
-  - Tap **Report Frame Work**:
-    - Simulates workload reporting via `reportActualWorkDuration()`.
-    - Verify reported duration is logged with zero native JNI crashes.
-    - Verify `source: 'hardware'` when supported.
+  - Report a work duration for the session's thread (the main thread unless thread ids were passed):
+    - Verify `reportWorkDuration()` returns `true` only when the platform accepted the call, with zero native JNI crashes.
+    - Verify `closeSession()` returns `true` and leaves `isSupported` unchanged.
+    - Verify `source: 'hardware'` only while a session exists.
 
 ### 7. Wi-Fi 7 Multi-Link Operation MLO (`useWifi7MLO`)
 - Navigate to **Sensors** tab -> **Radios** section.
 - Locate **Wi-Fi 7 MLO (802.11be)**:
   - If connected to a Wi-Fi 7 access point with MLO enabled:
-    - Verify affiliated links display separate bands (e.g. 5GHz + 6GHz bonded).
-    - Verify individual link RSSI, TX/RX speeds, and channel widths (e.g. 320 MHz).
-    - Verify aggregate link speed is computed.
+    - Verify affiliated links display separate bands (e.g. 5GHz + 6GHz) with `state` `unassociated`, `idle` or `active`.
+    - Verify individual link RSSI, TX/RX speeds and channel number; unknown values display as `—` (null). No channel width is reported.
+    - Verify `isMloActive` is true only when more than one link is associated, and `aggregateSpeedMbps` is the sum of TX speeds of the associated links.
   - If connected to Wi-Fi 6/5 or offline:
     - Verify `isMloActive: false`, empty links array, `aggregateSpeedMbps: null`, `source: 'unavailable'`.
 
@@ -104,27 +104,26 @@ Verify all 12 next-generation PixelKit capabilities across Sensors, Acoustics, S
 ### 9. Rel-17 Satellite Non-Terrestrial Network (`useSatelliteNTN`)
 - Navigate to **Sensors** tab -> **Radios** section.
 - Locate **Satellite NTN (Rel-17 SOS)**:
-  - Verify `isSatelliteSupported` query returns from `TelephonyManager`.
-  - Verify connection state displays (`disconnected`, `searching`, `connected`, `pointing_assist`).
-  - If pointing assist is active, verify azimuth and elevation angles render.
-  - Confirm zero synthetic satellite connections on non-satellite hardware.
+  - Verify `isSupported` follows the `android.hardware.telephony.satellite` system feature.
+  - Verify connection state, carrier, signal bars, pointing guidance and SOS readiness display as `—` (null) with `unreadReason` shown: Android exposes none of them to apps.
+  - Confirm zero synthetic satellite connections on any hardware.
 
 ### 10. Android 15 Private Space Isolation (`usePrivateSpace`)
 - Navigate to **Sensors** tab -> **Security** section.
 - Locate **Android 15 Private Space**:
-  - Verify `isInsidePrivateSpace` accurately identifies whether app is running in the main user profile or the private isolated profile (`UserManager.isPrivateProfile()`).
-  - Verify `isPrivateSpaceConfigured` checks for existence of private profile on device.
-  - Verify auto-lock policy reporting (`immediate`, `screen_off`, `device_reboot`, `unknown`).
+  - Verify `isInsidePrivateSpace` is `false` when the app runs in the main user profile; inside the private profile it is `true`, or `null` when the profile type cannot be read.
+  - Verify `isPrivateSpaceConfigured` is `null` from the main profile (Android hides the Private Space from apps) and `true` only when running inside it; `reason` explains the null.
+  - Confirm no auto-lock policy is shown: it is not readable by apps.
 
-### 11. Titan M2 StrongBox ECDH Key Agreement (`useKeyAgreement`)
+### 11. Keystore ECDH Key Agreement (`useKeyAgreement`)
 - Navigate to **Sensors** tab -> **Security** section.
-- Locate **Titan M2 Key Agreement (ECDH)**:
-  - Verify `isStrongBoxSupported` reflects Titan M2 hardware security module presence.
+- Locate **Keystore Key Agreement (ECDH)**:
+  - Verify `isStrongBoxSupported` reflects the `android.hardware.strongbox_keystore` feature.
   - Tap **Generate ECDH Keypair**:
-    - Generates P-256 EC keypair inside StrongBox hardware keystore.
-    - Displays public key in base64 format.
+    - Generates an EC keypair in the Android Keystore (StrongBox requested when the device declares it).
+    - Displays public key in base64 format and `securityLevel` as read from `KeyInfo` (`—` when null).
   - Tap **Derive Shared Secret**:
-    - Executes ECDH key agreement via `javax.crypto.KeyAgreement` inside the hardware enclave.
+    - Executes ECDH key agreement via `javax.crypto.KeyAgreement` with the Keystore private key.
     - Confirms shared secret is derived with zero keystore corruption.
 
 ### 12. On-Device Vector Embeddings (`useEmbeddings`)

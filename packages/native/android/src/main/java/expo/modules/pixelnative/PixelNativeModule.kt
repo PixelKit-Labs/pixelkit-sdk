@@ -40,6 +40,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Base64
 import android.view.Choreographer
 import android.view.Display
 import android.view.WindowManager
@@ -85,6 +86,9 @@ class PixelNativeModule : Module() {
   private val uwbController by lazy {
     UwbRangingController(context, mainHandler) { name, payload -> sendEvent(name, payload) }
   }
+  private val channelSoundingController by lazy {
+    ChannelSoundingController(context, mainHandler) { name, payload -> sendEvent(name, payload) }
+  }
   private val perfettoController by lazy { PerfettoTraceController(context) }
   private var bleScanCallback: ScanCallback? = null
   /** Active NFC reader-mode callback; non-null only while the reader is running. */
@@ -92,6 +96,8 @@ class PixelNativeModule : Module() {
   /** Text queued by writeNdefText, written to the next tag that enters the field. */
   private var pendingNdefWrite: String? = null
   private val discoveredBleDevices = Collections.synchronizedList(mutableListOf<Map<String, Any?>>())
+  /** Last ScanCallback.onScanFailed result of the current/most recent scan; null when none failed. */
+  @Volatile private var bleScanFailure: Map<String, Any?>? = null
 
   // App-process CPU sampling state
   private var lastCpuMs = 0L
@@ -113,7 +119,9 @@ class PixelNativeModule : Module() {
       "onNfcTag",
       "onNfcError",
       "onUwbRangingResult",
-      "onUwbRangingState"
+      "onUwbRangingState",
+      "onChannelSoundingResult",
+      "onChannelSoundingState"
     )
 
     // ───────────────────────── SoC / build identity ─────────────────────────
@@ -433,11 +441,23 @@ class PixelNativeModule : Module() {
     // ───────────────────────── Radios ─────────────────────────
     Function("getRadioInfo") { radioInfo() }
 
+    /**
+     * Whether the active network lacks NET_CAPABILITY_NOT_METERED (ConnectivityManager). Null when there
+     * is no active network or ACCESS_NETWORK_STATE is not granted.
+     */
+    Function("getNetworkMetered") {
+      try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        val network = cm?.activeNetwork
+        val caps = if (cm != null && network != null) cm.getNetworkCapabilities(network) else null
+        caps?.let { !it.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED) }
+      } catch (_: Throwable) {
+        null
+      }
+    }
+
     // ───────────────────────── Phase 1: Sensors & Acoustics ─────────────────────────
     Function("getMicrophoneArray") { microphoneArrayInfo() }
-    AsyncFunction("setPreferredMicrophoneDirection") { direction: String, zoom: Double ->
-      setPreferredMicrophoneDirectionInternal(direction, zoom)
-    }
     Function("getThermometerReading") { thermometerReading() }
 
     // ───────────────────────── Phase 2: Silicon & Battery ─────────────────────────
@@ -446,8 +466,8 @@ class PixelNativeModule : Module() {
       setBatteryShareEnabledInternal(enabled)
     }
     Function("getChargingIntelligence") { chargingIntelligence() }
-    AsyncFunction("createADPFHintSession") { targetDurationNanos: Long ->
-      createADPFHintSessionInternal(targetDurationNanos)
+    AsyncFunction("createADPFHintSession") { targetDurationNanos: Long, tids: List<Int>? ->
+      createADPFHintSessionInternal(targetDurationNanos, tids?.toIntArray())
     }
     Function("reportADPFWorkDuration") { actualDurationNanos: Long ->
       reportADPFWorkDurationInternal(actualDurationNanos)
@@ -654,22 +674,29 @@ class PixelNativeModule : Module() {
         bleScanCallback = null
       }
       discoveredBleDevices.clear()
+      bleScanFailure = null
       val cb = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
           result?.let { res ->
             val dev = res.device
             val record = res.scanRecord
-            val name = dev.name ?: record?.deviceName ?: "BLE Peripheral"
-            val address = dev.address ?: "00:00:00:00:00:00"
+            // A result without an address cannot be told apart from other devices; skip it.
+            val address = dev?.address ?: return
+            // BluetoothDevice.getName() needs BLUETOOTH_CONNECT on Android 12+; fall back to the advertised name.
+            val name = (try { dev.name } catch (_: SecurityException) { null }) ?: record?.deviceName
             val rssi = res.rssi
-            val txPower = if (Build.VERSION.SDK_INT >= 26) res.txPower else null
+            // ScanResult.TX_POWER_NOT_PRESENT (127) means the advertisement carried no TX power.
+            val txPower = if (Build.VERSION.SDK_INT >= 26) res.txPower.takeIf { it != ScanResult.TX_POWER_NOT_PRESENT } else null
             val uuids = record?.serviceUuids?.map { it.uuid.toString() } ?: emptyList<String>()
+            // ScanResult.getTimestampNanos() is on the elapsedRealtime clock: convert it to wall-clock ms.
+            val ageMs = (SystemClock.elapsedRealtimeNanos() - res.timestampNanos) / 1_000_000L
             val devMap = mapOf(
               "name" to name,
               "address" to address,
               "rssi" to rssi,
               "txPower" to txPower,
               "timestampNanos" to res.timestampNanos,
+              "lastSeenEpochMs" to (System.currentTimeMillis() - ageMs),
               "serviceUuids" to uuids
             )
             synchronized(discoveredBleDevices) {
@@ -684,6 +711,16 @@ class PixelNativeModule : Module() {
           }
         }
         override fun onScanFailed(errorCode: Int) {
+          val name = when (errorCode) {
+            ScanCallback.SCAN_FAILED_ALREADY_STARTED -> "SCAN_FAILED_ALREADY_STARTED"
+            ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> "SCAN_FAILED_APPLICATION_REGISTRATION_FAILED"
+            ScanCallback.SCAN_FAILED_INTERNAL_ERROR -> "SCAN_FAILED_INTERNAL_ERROR"
+            ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED -> "SCAN_FAILED_FEATURE_UNSUPPORTED"
+            ScanCallback.SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES -> "SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES"
+            ScanCallback.SCAN_FAILED_SCANNING_TOO_FREQUENTLY -> "SCAN_FAILED_SCANNING_TOO_FREQUENTLY"
+            else -> "SCAN_FAILED_$errorCode"
+          }
+          bleScanFailure = mapOf("errorCode" to errorCode, "error" to name)
           bleScanCallback = null
         }
       }
@@ -722,6 +759,16 @@ class PixelNativeModule : Module() {
       }
     }
 
+    /** Scan state: `scanning` is true while a callback is registered; `error`/`errorCode` come from onScanFailed. */
+    Function("getBleScanState") {
+      val failure = bleScanFailure
+      mapOf(
+        "scanning" to (bleScanCallback != null),
+        "errorCode" to failure?.get("errorCode"),
+        "error" to failure?.get("error")
+      )
+    }
+
     // ───────────────────────── UWB Ranging (android.ranging, Android 16+) ─────────────────────────
     /**
      * Opens a real RAW UWB ranging session with a peer. The config carries the peer parameters
@@ -741,6 +788,32 @@ class PixelNativeModule : Module() {
 
     Function("getUwbRangingState") {
       uwbController.state()
+    }
+
+    // ───────────────────────── BLE Channel Sounding ranging (android.ranging, Android 16+) ─────────────────────────
+    /**
+     * Opens a real RAW BLE Channel Sounding ranging session with the peer whose Bluetooth address the
+     * caller supplies (see ChannelSoundingRequestParser). Resolves with `status: 'opened'` once the
+     * platform reports onOpened, otherwise with a precise status such as `needs_peer_address`,
+     * `channel_sounding_unsupported`, `bluetooth_disabled`, `permission_denied` or `open_failed`.
+     * Distances arrive as `onChannelSoundingResult` events.
+     */
+    AsyncFunction("startChannelSounding") { config: Map<String, Any?>?, promise: expo.modules.kotlin.Promise ->
+      channelSoundingController.start(config, promise)
+    }
+
+    /** Stops and closes the running session; reports `wasActive: false` when none was running. */
+    Function("stopChannelSounding") {
+      channelSoundingController.stop()
+    }
+
+    Function("getChannelSoundingState") {
+      channelSoundingController.state()
+    }
+
+    /** What RangingManager reports for BLE Channel Sounding: availability and supported CS security levels. */
+    AsyncFunction("getChannelSoundingCapabilities") {
+      channelSoundingController.capabilities()
     }
 
     // ───────────────────────── AppFunctions Registry & Execution ─────────────────────────
@@ -881,7 +954,6 @@ class PixelNativeModule : Module() {
       nfcReaderCallback?.let { runCatching { adapter.disableReaderMode(activity) } }
 
       val callback = NfcAdapter.ReaderCallback { tag -> handleNfcTag(adapter, tag) }
-      nfcReaderCallback = callback
 
       val readerFlags = flags ?: (
         NfcAdapter.FLAG_READER_NFC_A or
@@ -892,37 +964,34 @@ class PixelNativeModule : Module() {
       )
       val extras = Bundle().apply { putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250) }
 
-      var started = false
-      var failure: String? = null
-      // enableReaderMode must be called on the main thread.
-      mainHandler.post {
-        try {
-          adapter.enableReaderMode(activity, callback, readerFlags, extras)
-          started = true
-        } catch (e: Throwable) {
-          failure = e.message ?: "enableReaderMode failed"
-        }
-      }
-      // Give the main thread a moment to report a synchronous failure.
-      Thread.sleep(60)
-      if (failure != null) {
+      // This function runs on the main queue (see runOnQueue below), as enableReaderMode requires,
+      // so success is reported only after enableReaderMode returned without throwing.
+      try {
+        adapter.enableReaderMode(activity, callback, readerFlags, extras)
+        nfcReaderCallback = callback
+        mapOf("success" to true, "flags" to readerFlags, "started" to true)
+      } catch (e: Throwable) {
         nfcReaderCallback = null
-        return@AsyncFunction mapOf("success" to false, "error" to failure)
+        mapOf("success" to false, "error" to (e.message ?: "enableReaderMode failed"))
       }
-      mapOf("success" to true, "flags" to readerFlags, "started" to started)
-    }
+    }.runOnQueue(Queues.MAIN)
 
     /** Disables reader mode. Safe to call when no reader is running. */
     AsyncFunction("stopNfcReader") {
       val adapter = NfcAdapter.getDefaultAdapter(context)
       val activity = appContext.currentActivity
       pendingNdefWrite = null
+      var failure: String? = null
       if (adapter != null && activity != null && nfcReaderCallback != null) {
-        mainHandler.post { runCatching { adapter.disableReaderMode(activity) } }
+        try {
+          adapter.disableReaderMode(activity)
+        } catch (e: Throwable) {
+          failure = e.message ?: "disableReaderMode failed"
+        }
       }
       nfcReaderCallback = null
-      mapOf("success" to true)
-    }
+      if (failure != null) mapOf("success" to false, "error" to failure) else mapOf("success" to true)
+    }.runOnQueue(Queues.MAIN)
 
     /**
      * Queues a text record. The next tag to enter the field is written and the result is reported
@@ -963,6 +1032,7 @@ class PixelNativeModule : Module() {
       }
       explicitSpeechEngine.shutdown()
       try { uwbController.stop() } catch (_: Throwable) {}
+      try { channelSoundingController.stop() } catch (_: Throwable) {}
       try { perfettoController.release() } catch (_: Throwable) {}
     }
   }
@@ -1160,6 +1230,7 @@ class PixelNativeModule : Module() {
       )
     }
     return try {
+      // ServiceManager.getService is a hidden API; a failed lookup is reported in `error`.
       val serviceManagerClass = Class.forName("android.os.ServiceManager")
       val getServiceMethod = serviceManagerClass.getMethod("getService", String::class.java)
       val binder = getServiceMethod.invoke(null, "app_function")
@@ -1168,8 +1239,8 @@ class PixelNativeModule : Module() {
         "isSupported" to true,
         "serviceFound" to found,
         "apiLevel" to Build.VERSION.SDK_INT,
-        "serviceName" to "app_function",
-        "interfaceDescriptor" to "android.app.appfunctions.IAppFunctionManager",
+        "serviceName" to (if (found) "app_function" else null),
+        "interfaceDescriptor" to (if (found) "android.app.appfunctions.IAppFunctionManager" else null),
         "error" to null
       )
     } catch (e: Throwable) {
@@ -1177,8 +1248,8 @@ class PixelNativeModule : Module() {
         "isSupported" to true,
         "serviceFound" to false,
         "apiLevel" to Build.VERSION.SDK_INT,
-        "serviceName" to "app_function",
-        "interfaceDescriptor" to "android.app.appfunctions.IAppFunctionManager",
+        "serviceName" to null,
+        "interfaceDescriptor" to null,
         "error" to (e.message ?: "Failed to query app_function service")
       )
     }
@@ -1262,10 +1333,6 @@ class PixelNativeModule : Module() {
       "isEnabled" to (hasFeature && isBtEnabled),
       "serviceFound" to hasRangingService,
       "hasChannelSoundingFeature" to hasFeature,
-      "supportsPbr" to hasFeature,
-      "supportsRtt" to hasFeature,
-      "channelCount" to if (hasFeature) 79 else 0,
-      "precision" to if (hasFeature) "centimeter" else "unsupported",
       "error" to if (!hasFeature) "Bluetooth LE Channel Sounding not supported on this device hardware" else null
     )
   }
@@ -1286,13 +1353,6 @@ class PixelNativeModule : Module() {
 
     val isSupported = hasStrongBox || hwKeystoreVer != null || playServicesAvailable
 
-    val deviceIntegrity = when {
-      hasStrongBox && (hwKeystoreVer ?: 0) >= 400 && secModelCompatible && playServicesAvailable -> "MEETS_STRONG_INTEGRITY"
-      hwKeystoreVer != null && playServicesAvailable -> "MEETS_DEVICE_INTEGRITY"
-      playServicesAvailable -> "MEETS_BASIC_INTEGRITY"
-      else -> "UNVERIFIED"
-    }
-
     return mapOf(
       "isSupported" to isSupported,
       "hasStrongBox" to hasStrongBox,
@@ -1302,7 +1362,6 @@ class PixelNativeModule : Module() {
       "securityModelCompatible" to secModelCompatible,
       "playServicesAvailable" to playServicesAvailable,
       "playServicesVersion" to playServicesVersion,
-      "deviceIntegrity" to deviceIntegrity,
       "error" to if (!isSupported) "Hardware key attestation and Play Integrity are not supported on this platform" else null
     )
   }
@@ -1311,7 +1370,9 @@ class PixelNativeModule : Module() {
     val pm = context.packageManager
     val hasStrongBox = pm.hasSystemFeature("android.hardware.strongbox_keystore")
     val alias = "pixelkit_attest_${System.currentTimeMillis()}"
-    val challengeBytes = (challengeStr ?: "pixelkit_hardware_attest_${System.currentTimeMillis()}").toByteArray(Charsets.UTF_8)
+    // The challenge bytes used for attestation; returned verbatim in `challenge`.
+    val challengeUsed = challengeStr ?: "pixelkit_hardware_attest_${System.currentTimeMillis()}"
+    val challengeBytes = challengeUsed.toByteArray(Charsets.UTF_8)
 
     try {
       val keyPairGenerator = KeyPairGenerator.getInstance(
@@ -1357,16 +1418,22 @@ class PixelNativeModule : Module() {
       val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
       val certChain = keyStore.getCertificateChain(alias)
       val leafCert = certChain?.firstOrNull() as? X509Certificate
+      // KeyInfo.getSecurityLevel() needs API 31; below that the level is known only when StrongBox generation succeeded.
+      val readLevel = try {
+        (keyStore.getKey(alias, null) as? java.security.PrivateKey)?.let { keystoreSecurityLevel(it) }
+      } catch (e: Throwable) { null }
+      val level = readLevel ?: if (isStrongBox) "STRONGBOX" else null
 
       val result = mapOf(
         "keyAlias" to alias,
         "algorithm" to "EC",
-        "securityLevel" to if (isStrongBox) "STRONGBOX" else "TRUSTED_ENVIRONMENT",
-        "isStrongBoxBacked" to isStrongBox,
+        "securityLevel" to level,
+        "isStrongBoxBacked" to (level == "STRONGBOX"),
         "certificateChainLength" to (certChain?.size ?: 0),
+        "certificateChainBase64" to (certChain?.map { Base64.encodeToString(it.encoded, Base64.NO_WRAP) } ?: emptyList<String>()),
         "leafCertificateSubject" to leafCert?.subjectDN?.name,
         "leafCertificateIssuer" to leafCert?.issuerDN?.name,
-        "challenge" to (challengeStr ?: "pixelkit_hardware_attest"),
+        "challenge" to challengeUsed,
         "timestamp" to System.currentTimeMillis()
       )
 
@@ -1382,20 +1449,22 @@ class PixelNativeModule : Module() {
     }
   }
 
+  /**
+   * Health Connect availability, inferred without the androidx HealthConnectClient (not a
+   * dependency of this module): the framework service `healthconnect` (Android 14+) or the
+   * standalone `com.google.android.apps.healthdata` package. This is not HealthConnectClient.getSdkStatus().
+   */
   private fun healthConnectInfo(): Map<String, Any?> {
     val pm = context.packageManager
     val hasStepFeature = pm.hasSystemFeature("android.hardware.sensor.stepcounter")
-    val isAndroid14Plus = Build.VERSION.SDK_INT >= 34
+    val frameworkService = Build.VERSION.SDK_INT >= 34 &&
+      context.getSystemService(Context.HEALTHCONNECT_SERVICE) != null
     val isPackageInstalled = try {
       pm.getPackageInfo("com.google.android.apps.healthdata", 0) != null
     } catch (e: Throwable) { false }
 
-    val isAvailable = isAndroid14Plus || isPackageInstalled
-    val status = when {
-      isAvailable -> "SDK_AVAILABLE"
-      isPackageInstalled -> "SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED"
-      else -> "SDK_UNAVAILABLE"
-    }
+    val isAvailable = frameworkService || isPackageInstalled
+    val status = if (isAvailable) "SDK_AVAILABLE" else "SDK_UNAVAILABLE"
 
     val sm = context.getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
     val stepSensor = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_STEP_COUNTER)
@@ -1408,7 +1477,7 @@ class PixelNativeModule : Module() {
       "hasHeartRateSensor" to (heartRateSensor != null),
       "stepSensorName" to stepSensor?.name,
       "heartRateSensorName" to heartRateSensor?.name,
-      "isFrameworkIntegrated" to isAndroid14Plus,
+      "isFrameworkIntegrated" to frameworkService,
       "error" to if (!isAvailable) "Health Connect is not available on this device" else null
     )
   }
@@ -1853,7 +1922,7 @@ class PixelNativeModule : Module() {
         if (bonded != null) {
           for (dev in bonded) {
             bondedList.add(mapOf(
-              "name" to (dev.name ?: "Bluetooth Peripheral"),
+              "name" to (try { dev.name } catch (_: SecurityException) { null }),
               "address" to dev.address,
               "type" to dev.type,
               "bondState" to when (dev.bondState) {
@@ -1877,27 +1946,25 @@ class PixelNativeModule : Module() {
       "bondedDevices" to bondedList
     )
 
-    // UWB
+    // UWB: `enabled` is read from UwbManager.isUwbEnabled() by reflection (system API); null when
+    // the manager or the method is not reachable by this app. rangingApiSupported is true when the
+    // Android 16 android.ranging.RangingManager service exists.
     val uwbSupported = pm.hasSystemFeature("android.hardware.uwb")
     var uwbEnabled: Boolean? = null
     if (uwbSupported && Build.VERSION.SDK_INT >= 31) {
       try {
         val uwbManager = context.getSystemService("uwb")
-        if (uwbManager != null) {
-          val m = uwbManager.javaClass.methods.firstOrNull { it.name == "isUwbEnabled" && it.parameterCount == 0 }
-          uwbEnabled = (m?.invoke(uwbManager) as? Boolean) ?: true
-        } else {
-          uwbEnabled = true
-        }
+        val m = uwbManager?.javaClass?.methods?.firstOrNull { it.name == "isUwbEnabled" && it.parameterCount == 0 }
+        uwbEnabled = m?.invoke(uwbManager) as? Boolean
       } catch (e: Throwable) {
-        uwbEnabled = true
+        uwbEnabled = null
       }
     }
     val uwbMap = mapOf(
       "supported" to uwbSupported,
-      "enabled" to (uwbEnabled ?: uwbSupported),
-      "chipId" to if (uwbSupported) "default" else null,
-      "rangingApiSupported" to (Build.VERSION.SDK_INT >= 36)
+      "enabled" to uwbEnabled,
+      "rangingApiSupported" to (Build.VERSION.SDK_INT >= 36 &&
+        context.getSystemService(android.ranging.RangingManager::class.java) != null)
     )
 
     // Wi-Fi RTT
@@ -1912,25 +1979,24 @@ class PixelNativeModule : Module() {
 
     // Thread (802.15.4 / Matter mesh radio)
     val threadSupported = pm.hasSystemFeature("android.hardware.thread_network")
-    val threadServiceFound = try {
+    // ServiceManager.getService is a hidden API; null means the lookup was not possible.
+    val threadServiceFound: Boolean? = try {
       val serviceManagerClass = Class.forName("android.os.ServiceManager")
       val getServiceMethod = serviceManagerClass.getMethod("getService", String::class.java)
       getServiceMethod.invoke(null, "thread_network") != null ||
         getServiceMethod.invoke(null, "android.hardware.threadnetwork.IThreadChip/chip0") != null
-    } catch (e: Throwable) { false }
+    } catch (e: Throwable) { null }
     val threadMap = mapOf(
       "supported" to threadSupported,
-      "serviceFound" to threadServiceFound,
-      "chipId" to if (threadSupported) "chip0" else null
+      "serviceFound" to threadServiceFound
     )
 
-    // Satellite
+    // Satellite: both values are system feature flags.
     val satelliteSupported = pm.hasSystemFeature("android.hardware.telephony.satellite")
     val satelliteSosSupported = pm.hasSystemFeature("com.google.android.feature.SATELLITE_SOS_PROVIDER_1")
     val satelliteMap = mapOf(
       "supported" to satelliteSupported,
-      "sosSupported" to satelliteSosSupported,
-      "provider" to if (satelliteSosSupported) "Google Satellite SOS" else null
+      "sosSupported" to satelliteSosSupported
     )
 
     return mapOf(

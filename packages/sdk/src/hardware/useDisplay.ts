@@ -88,7 +88,11 @@ export function useDisplay() {
     catch (e: any) { logEvent(MODULE, 'setPreferredRefreshRate error', { message: e?.message }, 'warn'); return false; }
   }, []);
 
-  /** Toggles High Brightness Mode (HBM) / peak luminance boost for sunlight legibility or HDR presentation. */
+  /**
+   * Requests maximum window brightness (`WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL`) and, on
+   * API 34+, a desired HDR headroom of 3.0 (0.0 when disabled). The panel's own High Brightness Mode is
+   * firmware-controlled and is not read, so the resolved `true` means the window attributes were set.
+   */
   const setHighBrightnessMode = useCallback(async (enabled: boolean): Promise<boolean> => {
     if (!PixelNative) return false;
     try {
@@ -134,7 +138,7 @@ export function useDisplay() {
     maxLuminance: display?.maxLuminance ?? null,
     /** Current HDR to SDR luminance boost ratio (Android 14+ / API 34+), or null if not reported */
     hdrSdrRatio: display?.hdrSdrRatio ?? null,
-    /** Whether High Brightness Mode (HBM) override is currently engaged */
+    /** Whether the last successful `setHighBrightnessMode(true)` request is still in effect. A request record, not a read of the panel's HBM state. */
     isHbmActive,
     setPreferredRefreshRate,
     setHighBrightnessMode,

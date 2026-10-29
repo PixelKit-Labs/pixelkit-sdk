@@ -60,21 +60,38 @@ export function useSensors(updateIntervalMs: number = 100) {
 
     const setupSensors = async () => {
       try {
-        Accelerometer.setUpdateInterval(updateIntervalMs);
-        Gyroscope.setUpdateInterval(updateIntervalMs);
-        Magnetometer.setUpdateInterval(updateIntervalMs);
-        Barometer.setUpdateInterval(updateIntervalMs);
+        const probe = (name: string, sensor: { isAvailableAsync(): Promise<boolean> }): Promise<boolean> =>
+          sensor.isAvailableAsync().catch((e) => {
+            logError(MODULE, `${name} probe failed`, e);
+            return false;
+          });
+        const [hasAccel, hasGyro, hasMag] = await Promise.all([
+          probe('accelerometer', Accelerometer),
+          probe('gyroscope', Gyroscope),
+          probe('magnetometer', Magnetometer),
+        ]);
+        if (cancelled) return;
 
-        accelSub = Accelerometer.addListener((d) => {
-          markSample();
-          setAccelerometer({ x: Number(d.x.toFixed(3)), y: Number(d.y.toFixed(3)), z: Number(d.z.toFixed(3)) });
-        });
-        gyroSub = Gyroscope.addListener((d) => {
-          setGyroscope({ x: Number(d.x.toFixed(3)), y: Number(d.y.toFixed(3)), z: Number(d.z.toFixed(3)) });
-        });
-        magSub = Magnetometer.addListener((d) => {
-          setMagnetometer({ x: Number(d.x.toFixed(1)), y: Number(d.y.toFixed(1)), z: Number(d.z.toFixed(1)) });
-        });
+        Barometer.setUpdateInterval(updateIntervalMs);
+        if (hasAccel) {
+          Accelerometer.setUpdateInterval(updateIntervalMs);
+          accelSub = Accelerometer.addListener((d) => {
+            markSample();
+            setAccelerometer({ x: Number(d.x.toFixed(3)), y: Number(d.y.toFixed(3)), z: Number(d.z.toFixed(3)) });
+          });
+        }
+        if (hasGyro) {
+          Gyroscope.setUpdateInterval(updateIntervalMs);
+          gyroSub = Gyroscope.addListener((d) => {
+            setGyroscope({ x: Number(d.x.toFixed(3)), y: Number(d.y.toFixed(3)), z: Number(d.z.toFixed(3)) });
+          });
+        }
+        if (hasMag) {
+          Magnetometer.setUpdateInterval(updateIntervalMs);
+          magSub = Magnetometer.addListener((d) => {
+            setMagnetometer({ x: Number(d.x.toFixed(1)), y: Number(d.y.toFixed(1)), z: Number(d.z.toFixed(1)) });
+          });
+        }
 
         const hasBarometer = await Barometer.isAvailableAsync().catch((e) => {
           logError(MODULE, 'barometer probe failed', e);
@@ -106,7 +123,8 @@ export function useSensors(updateIntervalMs: number = 100) {
           });
         }
 
-        setIsAvailable(true);
+        // True when at least one motion sensor (accelerometer, gyroscope, magnetometer) is present and subscribed.
+        setIsAvailable(hasAccel || hasGyro || hasMag);
         setError(null);
         logEvent(MODULE, 'subscribed', {
           intervalMs: updateIntervalMs,

@@ -1,9 +1,10 @@
 /**
  * @file useHealthConnect.ts
- * @description Android Health Connect & Sensor Vitals integration.
- * Verified on Pixel 11 Pro: Android 14+ system-integrated Health Connect framework,
- * `feature:android.hardware.sensor.stepcounter`, and physical hardware health sensors.
- * Nothing is simulated: queries actual system Health Connect framework and Sensor HAL.
+ * @description Health Connect availability and the device's step counter / heart rate sensors.
+ * `isAvailable` and `sdkStatus` are inferred: the `healthconnect` system service (Android 14+) or the
+ * `com.google.android.apps.healthdata` package is present. They are not the result of
+ * `HealthConnectClient.getSdkStatus()`, which this SDK does not call. Sensor fields come from
+ * `SensorManager` and the step counter system feature.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -15,10 +16,10 @@ const MODULE = 'useHealthConnect';
 export { type HealthConnectInfo };
 
 export interface HealthConnectState {
-  /** Whether Health Connect is available on the device */
+  /** Inferred: the `healthconnect` system service or the `com.google.android.apps.healthdata` package exists */
   isAvailable: boolean;
-  /** Platform SDK availability status ('SDK_AVAILABLE' | 'SDK_UNAVAILABLE' | 'SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED') */
-  sdkStatus: 'SDK_AVAILABLE' | 'SDK_UNAVAILABLE' | 'SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED';
+  /** 'SDK_AVAILABLE' when `isAvailable`, else 'SDK_UNAVAILABLE'; no provider-update state is reported */
+  sdkStatus: 'SDK_AVAILABLE' | 'SDK_UNAVAILABLE';
   /** Whether physical hardware step counter sensor is present */
   hasStepCounter: boolean;
   /** Whether hardware heart rate sensor is present */
@@ -27,7 +28,7 @@ export interface HealthConnectState {
   stepSensorName: string | null;
   /** Hardware heart rate sensor name */
   heartRateSensorName: string | null;
-  /** Whether Health Connect is built into the OS (Android 14+) */
+  /** Whether the `healthconnect` system service exists (Android 14+) */
   isFrameworkIntegrated: boolean;
   /** Error message if unavailable */
   error: string | null;
@@ -72,8 +73,8 @@ export function useHealthConnect(): HealthConnectState {
         isFrameworkIntegrated: info.isFrameworkIntegrated,
       });
       return info;
-    } catch (e: any) {
-      const msg = e?.message ?? 'getHealthConnectInfo failed';
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'getHealthConnectInfo failed';
       setError(msg);
       logEvent(MODULE, 'getHealthConnectInfo error', { error: msg }, 'error');
       return null;
@@ -84,7 +85,7 @@ export function useHealthConnect(): HealthConnectState {
     refresh();
   }, [refresh]);
 
-  const isHardware = Boolean(PixelNative && data?.isAvailable);
+  const isHardware = Boolean(PixelNative && data);
 
   return {
     isAvailable: data?.isAvailable ?? false,

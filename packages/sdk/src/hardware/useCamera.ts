@@ -65,7 +65,6 @@ export function useCamera() {
     flashMode: 'auto',
     hasPermission: false,
     selectedLook: 'Original',
-    isUltraLowLightVideoActive: false,
   });
 
   const [mode, setModeState] = useState<CameraMode>('picture');
@@ -145,13 +144,6 @@ export function useCamera() {
 
   const setLook = useCallback((look: CameraLook) => {
     setCameraState(prev => ({ ...prev, selectedLook: look }));
-  }, []);
-
-  const toggleUltraLowLightVideo = useCallback(() => {
-    setCameraState(prev => ({
-      ...prev,
-      isUltraLowLightVideoActive: !prev.isUltraLowLightVideoActive,
-    }));
   }, []);
 
   /** Takes a still. Resolves with the file on disk, or null when the capture fails. */
@@ -307,7 +299,6 @@ export function useCamera() {
     toggleTorch,
     setMode,
     setLook,
-    toggleUltraLowLightVideo,
     takePicture,
     startRecording,
     stopRecording,

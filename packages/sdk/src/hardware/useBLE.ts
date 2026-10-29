@@ -1,23 +1,30 @@
 /**
  * @file useBLE.ts
  * @description Bluetooth Low Energy (BLE) peripheral discovery, bonded devices, and RSSI tracking.
- * Reads physical adapter state, Bluetooth 5.4 Channel Sounding hardware support, bonded devices,
+ * Reads physical adapter state, whether the device declares BLE Channel Sounding, bonded devices,
  * and active BluetoothLeScanner discovery from PixelNative.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PixelNative, { type BondedDevice, type DiscoveredBleDevice } from '@pixelkit-labs/native';
-import { logEvent, logError, recordMetric, traced, type TelemetrySource } from '../core/observability';
+import { logEvent, logError, traced } from '../core/observability';
+import { useRadios } from './useRadios';
 
 const MODULE = 'useBLE';
 import { BLEPeripheral } from '../core/types';
 
+/** Assumed RSSI at 1 m. This is a fixed assumption, not a per-device calibration. */
+const ASSUMED_RSSI_AT_1M_DBM = -59;
+/** Path-loss exponent of the free-space model. */
+const PATH_LOSS_EXPONENT = 2.0;
+
 /**
- * Calculates estimated distance in meters from RSSI and txPower using the log-distance path loss model.
+ * Derived estimate: log-distance path loss with `ASSUMED_RSSI_AT_1M_DBM` and `PATH_LOSS_EXPONENT`.
+ * Real RSSI is noisy and environment dependent, so treat the result as a rough proximity figure.
  */
-function estimateDistance(rssi: number, txPower: number = -59): number {
+function estimateDistance(rssi: number): number {
   if (rssi === 0) return -1.0;
-  const ratio = (txPower - rssi) / (10 * 2.0); // Path loss exponent n=2.0 (free space)
+  const ratio = (ASSUMED_RSSI_AT_1M_DBM - rssi) / (10 * PATH_LOSS_EXPONENT);
   return Number(Math.pow(10, ratio).toFixed(2));
 }
 
@@ -35,22 +42,29 @@ function estimateDistance(rssi: number, txPower: number = -59): number {
  */
 export function useBLE() {
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [peripherals, setPeripherals] = useState<BLEPeripheral[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
 
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const nativeInfo = PixelNative?.getRadioInfo?.()?.bluetooth;
-  const isSupported = nativeInfo?.supported ?? false;
-  const isEnabled = nativeInfo?.enabled ?? false;
-  const state = nativeInfo?.state ?? (isEnabled ? 'ON' : 'OFF');
-  const channelSounding = nativeInfo?.channelSounding ?? false;
-  const bondedDevices: BondedDevice[] = nativeInfo?.bondedDevices ?? [];
+  const { bluetooth, error, source } = useRadios();
+  const isSupported = bluetooth.supported;
+  const isEnabled = bluetooth.enabled;
+  const state = bluetooth.state;
+  const channelSounding = bluetooth.channelSounding;
+  const bondedDevices: BondedDevice[] = bluetooth.bondedDevices;
 
-  // When native module is available, provenance is genuine hardware
-  const source: TelemetrySource = PixelNative ? 'hardware' : 'unavailable';
+  const clearTimers = useCallback((): void => {
+    if (pollTimer.current) {
+      clearInterval(pollTimer.current);
+      pollTimer.current = null;
+    }
+    if (stopTimeout.current) {
+      clearTimeout(stopTimeout.current);
+      stopTimeout.current = null;
+    }
+  }, []);
 
   const syncDiscovered = useCallback(() => {
     if (!PixelNative?.getDiscoveredBleDevices) return;
@@ -60,8 +74,8 @@ export function useBLE() {
         id: d.address,
         name: d.name,
         rssi: d.rssi,
-        estimatedDistanceMeters: estimateDistance(d.rssi, d.txPower ?? -59),
-        lastSeenTimestamp: Math.floor(Date.now() - (d.timestampNanos ? 100 : 0)),
+        estimatedDistanceMeters: estimateDistance(d.rssi),
+        lastSeenTimestamp: d.lastSeenEpochMs,
       }));
       setPeripherals(mapped);
     } catch (e) {
@@ -73,14 +87,7 @@ export function useBLE() {
    * Halts active BLE scanning.
    */
   const stopScan = useCallback((): void => {
-    if (pollTimer.current) {
-      clearInterval(pollTimer.current);
-      pollTimer.current = null;
-    }
-    if (stopTimeout.current) {
-      clearTimeout(stopTimeout.current);
-      stopTimeout.current = null;
-    }
+    clearTimers();
     try {
       PixelNative?.stopBleScan?.();
       logEvent(MODULE, 'scan stopped');
@@ -89,7 +96,23 @@ export function useBLE() {
     }
     syncDiscovered();
     setIsScanning(false);
-  }, [syncDiscovered]);
+  }, [clearTimers, syncDiscovered]);
+
+  /** Reads the native scan state; a failed scan (`onScanFailed`) ends the scan and sets `scanError`. */
+  const pollScan = useCallback(() => {
+    syncDiscovered();
+    try {
+      const scanState = PixelNative?.getBleScanState?.();
+      if (scanState?.error) {
+        clearTimers();
+        setScanError(`${scanState.error} (code ${scanState.errorCode})`);
+        setIsScanning(false);
+        logEvent(MODULE, 'scan failed', { code: scanState.errorCode, error: scanState.error }, 'error');
+      }
+    } catch (e) {
+      logError(MODULE, 'getBleScanState failed', e);
+    }
+  }, [clearTimers, syncDiscovered]);
 
   /**
    * Begins physical Bluetooth Low Energy discovery via Android BluetoothLeScanner.
@@ -111,30 +134,23 @@ export function useBLE() {
 
       setIsScanning(true);
 
-      // Poll discovered devices every 500ms while scanning
-      if (pollTimer.current) clearInterval(pollTimer.current);
-      pollTimer.current = setInterval(syncDiscovered, 500);
+      // Poll discovered devices and scan state every 500ms while scanning; auto-stop after the timeout
+      clearTimers();
+      pollTimer.current = setInterval(pollScan, 500);
 
-      // Auto-stop flag after timeout
-      if (stopTimeout.current) clearTimeout(stopTimeout.current);
       stopTimeout.current = setTimeout(() => {
         stopScan();
       }, timeoutMs);
 
       return true;
-    } catch (e: any) {
-      setScanError(e?.message ?? 'Scan error');
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : 'Scan error');
       setIsScanning(false);
       return false;
     }
-  }, [stopScan, syncDiscovered]);
+  }, [clearTimers, stopScan, pollScan]);
 
-  useEffect(() => {
-    return () => {
-      if (pollTimer.current) clearInterval(pollTimer.current);
-      if (stopTimeout.current) clearTimeout(stopTimeout.current);
-    };
-  }, []);
+  useEffect(() => clearTimers, [clearTimers]);
 
   return {
     /** Whether device hardware has Bluetooth Low Energy */
@@ -143,9 +159,9 @@ export function useBLE() {
     isEnabled,
     /** Bluetooth adapter state ('ON' | 'OFF' | 'TURNING_ON' | 'TURNING_OFF') */
     state,
-    /** True if Bluetooth Channel Sounding (fine ranging) is supported by silicon */
+    /** True if the device declares the BLE Channel Sounding system feature */
     channelSounding,
-    /** Real paired/bonded Bluetooth peripherals from Android BluetoothAdapter */
+    /** Paired/bonded Bluetooth peripherals from Android BluetoothAdapter */
     bondedDevices,
     /** Latest failure message, or null. Failures are also logged and counted. */
     error,
@@ -153,9 +169,9 @@ export function useBLE() {
     source,
     /** Whether BLE radio is actively scanning */
     isScanning,
-    /** List of discovered nearby peripherals with genuine RSSI and distance estimate */
+    /** Discovered nearby peripherals: RSSI and last-seen time are platform values, distance is a derived estimate */
     peripherals,
-    /** Error message if scan failed */
+    /** Error message if scan failed, including the `ScanCallback.onScanFailed` code */
     scanError,
     /** Start physical discovery scan */
     startScan,

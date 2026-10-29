@@ -50,12 +50,12 @@ export function useGemini() {
   const source: TelemetrySource = apiKey ? 'hardware' : 'unavailable';
   const [model, setModel] = useState<string>(GEMINI_MODEL);
   const [availableModels, setAvailableModels] = useState<string[]>(DEFAULT_MODELS);
-  const [temperature, setTemperature] = useState<number>(0.4);
-  const [topP, setTopP] = useState<number>(0.95);
-  const [topK, setTopK] = useState<number>(40);
-  const [maxOutputTokens, setMaxOutputTokens] = useState<number>(2048);
-  const [systemInstruction, setSystemInstruction] = useState<string>(DEFAULT_GEMINI_SYSTEM_INSTRUCTION);
-  const [thinkingBudget, setThinkingBudget] = useState<number>(0);
+  const [temperature, setTemperatureState] = useState<number>(0.4);
+  const [topP, setTopPState] = useState<number>(0.95);
+  const [topK, setTopKState] = useState<number>(40);
+  const [maxOutputTokens, setMaxOutputTokensState] = useState<number>(2048);
+  const [systemInstruction, setSystemInstructionState] = useState<string>(DEFAULT_GEMINI_SYSTEM_INSTRUCTION);
+  const [thinkingBudget, setThinkingBudgetState] = useState<number>(0);
   const [safetyThreshold, setSafetyThreshold] = useState<SafetyThreshold>('default');
   const [searchGrounding, setSearchGrounding] = useState<boolean>(false);
   /** Text of the reply currently streaming in. Empty between turns. */
@@ -172,8 +172,8 @@ export function useGemini() {
       }]);
       setLastGrounding(grounding);
       setLastFirstChunkMs(firstChunkMs);
-      recordMetric(MODULE, 'latencyMs', elapsedMs, 'hardware');
-      if (firstChunkMs != null) recordMetric(MODULE, 'firstChunkMs', firstChunkMs, 'hardware');
+      recordMetric(MODULE, 'latencyMs', elapsedMs, 'derived');
+      if (firstChunkMs != null) recordMetric(MODULE, 'firstChunkMs', firstChunkMs, 'derived');
       logEvent(MODULE, 'reply', { model, latencyMs: elapsedMs, firstChunkMs, tokens, grounded: !!grounding });
     } catch (err: any) {
       const message = err?.message ?? 'Unknown error';
@@ -217,6 +217,33 @@ export function useGemini() {
 
   const setSearchGroundingEnabled = useCallback((enabled: boolean) => {
     setSearchGrounding(enabled);
+    chatRef.current = null;
+  }, []);
+
+  // The sampling, instruction and thinking settings are read when a chat session is created, so a
+  // change drops the current session and the next message starts one with the new values.
+  const setTemperature = useCallback((value: number) => {
+    setTemperatureState(value);
+    chatRef.current = null;
+  }, []);
+  const setTopP = useCallback((value: number) => {
+    setTopPState(value);
+    chatRef.current = null;
+  }, []);
+  const setTopK = useCallback((value: number) => {
+    setTopKState(value);
+    chatRef.current = null;
+  }, []);
+  const setMaxOutputTokens = useCallback((value: number) => {
+    setMaxOutputTokensState(value);
+    chatRef.current = null;
+  }, []);
+  const setSystemInstruction = useCallback((value: string) => {
+    setSystemInstructionState(value);
+    chatRef.current = null;
+  }, []);
+  const setThinkingBudget = useCallback((value: number) => {
+    setThinkingBudgetState(value);
     chatRef.current = null;
   }, []);
 

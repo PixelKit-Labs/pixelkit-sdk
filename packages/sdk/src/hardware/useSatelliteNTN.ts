@@ -1,9 +1,8 @@
 /**
  * @file useSatelliteNTN.ts
- * @description 3GPP Release-17 Non-Terrestrial Network (satellite SOS) status and alignment telemetry.
- *
- * Adheres to the Zero-Simulation Principle: isSupported: false, carrier: null,
- * and source: 'unavailable' on non-satellite hardware modems.
+ * @description Satellite messaging support. `isSupported` is the `android.hardware.telephony.satellite`
+ * system feature. Android's public `SatelliteManager` exposes no connection state, carrier, signal or
+ * emergency-readiness read, so those fields are null and `unreadReason` says why.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,7 +10,7 @@ import PixelNative, {
   type SatelliteStatusResult,
   type SatelliteGuidance,
 } from '@pixelkit-labs/native';
-import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/observability';
+import { logEvent, logError, type TelemetrySource } from '../core/observability';
 
 const MODULE = 'useSatelliteNTN';
 export { type SatelliteGuidance };
@@ -19,53 +18,50 @@ export { type SatelliteGuidance };
 export type SatelliteConnectionState = 'disconnected' | 'searching' | 'connected' | 'pointing_assist';
 
 export interface SatelliteNTNTechTelemetry {
-  /** Whether this device hardware and modem support Non-Terrestrial Network satellite links. */
+  /** Whether the device declares the `android.hardware.telephony.satellite` system feature. */
   isSupported: boolean;
-  /** Current lifecycle connection state with the satellite constellation. */
-  connectionState: SatelliteConnectionState;
-  /** Satellite network provider or operator (e.g. Skylo, T-Mobile Starlink, Iridium), or null. */
+  /** Always null: Android's public API exposes no satellite connection state. */
+  connectionState: SatelliteConnectionState | null;
+  /** Always null: Android's public API exposes no satellite carrier. */
   carrier: string | null;
-  /** Signal quality indicator bars (0 to 4), or null if disconnected. */
+  /** Always null: Android's public API exposes no satellite signal strength. */
   signalQualityBars: number | null;
-  /** Spatial pointing guidance for antenna alignment (azimuth, elevation, alignment flag), or null. */
+  /** Always null: Android's public API exposes no satellite pointing data. */
   pointingGuidance: SatelliteGuidance | null;
-  /** Whether the satellite link is ready for emergency SOS packet transmission. */
-  emergencyServicesReady: boolean;
-  /** Error message if satellite query failed. */
+  /** Always null: Android's public API exposes no satellite emergency readiness. */
+  emergencyServicesReady: boolean | null;
+  /** Why the null fields are null; null before the first read. */
+  unreadReason: string | null;
+  /** Error message if the query failed. */
   error: string | null;
-  /** Provenance of the data: 'hardware' or 'unavailable'. */
+  /** 'hardware' when the feature flag says satellite is supported, 'unavailable' otherwise. */
   source: TelemetrySource;
-  /** Re-reads satellite modem connectivity and pointing status. */
+  /** Re-reads the system feature. */
   refresh: () => void;
 }
 
-export function useSatelliteNTN(): SatelliteNTNTechTelemetry {
-  const [data, setData] = useState<SatelliteStatusResult>({
-    isSupported: false,
-    connectionState: 'disconnected',
-    carrier: null,
-    signalQualityBars: null,
-    pointingGuidance: null,
-    emergencyServicesReady: false,
-    error: null,
-  });
+const EMPTY: SatelliteStatusResult = {
+  isSupported: false,
+  connectionState: null,
+  carrier: null,
+  signalQualityBars: null,
+  pointingGuidance: null,
+  emergencyServicesReady: null,
+  unreadReason: '',
+  error: null,
+};
 
+export function useSatelliteNTN(): SatelliteNTNTechTelemetry {
+  const [data, setData] = useState<SatelliteStatusResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const current = data ?? EMPTY;
   const source: TelemetrySource =
-    PixelNative && data.isSupported ? 'hardware' : 'unavailable';
+    PixelNative && current.isSupported ? 'hardware' : 'unavailable';
 
   const refresh = useCallback(() => {
     if (!PixelNative) {
-      setData({
-        isSupported: false,
-        connectionState: 'disconnected',
-        carrier: null,
-        signalQualityBars: null,
-        pointingGuidance: null,
-        emergencyServicesReady: false,
-        error: 'PixelNative module unavailable',
-      });
+      setData(null);
       setError('PixelNative module unavailable');
       return;
     }
@@ -74,16 +70,8 @@ export function useSatelliteNTN(): SatelliteNTNTechTelemetry {
       const res = PixelNative.getSatelliteStatus();
       setData(res);
       setError(res.error ?? null);
-
-      if (res.signalQualityBars !== null) {
-        recordMetric(MODULE, 'signalQualityBars', res.signalQualityBars, 'hardware');
-      }
-      logEvent(MODULE, 'queried satellite ntn status', {
-        supported: res.isSupported,
-        state: res.connectionState,
-        carrier: res.carrier,
-      });
-    } catch (e: any) {
+      logEvent(MODULE, 'queried satellite support', { supported: res.isSupported });
+    } catch (e) {
       const err = logError(MODULE, 'getSatelliteStatus failed', e);
       setError(err.message);
     }
@@ -94,12 +82,13 @@ export function useSatelliteNTN(): SatelliteNTNTechTelemetry {
   }, [refresh]);
 
   return {
-    isSupported: data.isSupported,
-    connectionState: data.connectionState,
-    carrier: data.carrier,
-    signalQualityBars: data.signalQualityBars,
-    pointingGuidance: data.pointingGuidance,
-    emergencyServicesReady: data.emergencyServicesReady,
+    isSupported: current.isSupported,
+    connectionState: current.connectionState,
+    carrier: current.carrier,
+    signalQualityBars: current.signalQualityBars,
+    pointingGuidance: current.pointingGuidance,
+    emergencyServicesReady: current.emergencyServicesReady,
+    unreadReason: data ? data.unreadReason : null,
     error,
     source,
     refresh,

@@ -55,17 +55,18 @@ Verify all Pixel 11 Pro (Tensor G6, grizzly) and Android 17 hardware extensions:
 - Navigate to **Sensors** tab -> **Radios** section.
 - Under **Radio inventory**:
   - Verify Thread 802.15.4 mesh (`chip0`) and Satellite SOS availability.
-- Under **BLE 6.0 Channel Sounding**:
-  - Verify Phase-Based Ranging (PBR) hardware status.
-  - Verify distance measurement precision indicates `centimeter` on supported silicon.
+- Under the Channel Sounding card (the template's visible label may still read **BLE 6.0 Channel Sounding**):
+  - Verify `isSupported` follows the `android.hardware.bluetooth_le.channel_sounding` feature flag and `rangingAvailability` shows what `RangingManager` reports, or `—` when it did not.
+  - Tap start ranging without a peer address: the expected result is `needs_peer_address` in `sessionError` and no session; the card must not show a distance or a precision claim.
+  - With a Channel Sounding peer's Bluetooth address and `android.permission.RANGING` granted, the expected result is `isRanging` true after `onOpened` and `measurements` filled only by platform samples (distance may be `—` until the peer answers). Without a peer, record this step as not exercised.
 
-### 7. Titan M2 Hardware Key Attestation (`usePlayIntegrity`)
+### 7. Keystore Key Attestation (`usePlayIntegrity`)
 - Navigate to **Sensors** tab -> **Security** section.
-- Locate **Play Integrity & Key Attestation**:
-  - Verify StrongBox Keystore 400 (`TITAN M2`) badge.
+- Locate **Play Integrity & Key Attestation** (the template's visible label may still mention Play Integrity; the hook returns no integrity verdict):
+  - Verify `hasStrongBox` and `strongBoxVersion` follow the `android.hardware.strongbox_keystore` feature and no integrity verdict (`MEETS_*`) is shown.
 - Tap **Attest Hardware Key**:
   - Verify button shows `Attesting…`.
-  - Verify attestation succeeds with EC keypair generated inside Titan M2 hardware enclave.
+  - Verify the attestation returns a `securityLevel` read from `KeyInfo` (`—` when null), the challenge actually used, and `certificateChainBase64`.
   - Verify certificate chain length is displayed (e.g. `3 certs`).
 
 ### 8. Health Connect & Sensor Vitals (`useHealthConnect`)

@@ -1,49 +1,35 @@
 /**
  * @file useMicrophoneArray.ts
- * @description Acoustic array topology, polar pattern directivity, and beamforming controls
- * queried directly from Android AudioManager.
+ * @description Microphone inventory read from `AudioManager.getMicrophones()`: id, description,
+ * type, directionality, location, group, position and orientation of each microphone the platform
+ * lists. The hook does not steer or focus the array: `MediaRecorder` and `AudioRecord` take a
+ * preferred direction per recorder instance, and this hook owns no recorder.
  *
- * Adheres to the Zero-Simulation Principle: values are empty and source is 'unavailable'
- * if the device lacks multi-mic array hardware or if the native module is absent.
+ * Zero-Simulation Principle: the list is empty and source is 'unavailable' if the platform lists no
+ * microphones (Android below 9) or the native module is absent.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import PixelNative, {
-  type MicrophoneInfo,
-  type MicrophoneDirectionality,
-  type MicrophoneLocation,
-} from '@pixelkit-labs/native';
+import PixelNative, { type MicrophoneInfo } from '@pixelkit-labs/native';
 import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/observability';
 
 const MODULE = 'useMicrophoneArray';
 
-export type MicrophoneBeamDirection = 'user' | 'away' | 'external' | 'omni';
-
 export interface MicrophoneArrayTelemetry {
-  /** Array of hardware microphones detected on the device chassis. */
+  /** Microphones the platform lists for this device. */
   microphones: MicrophoneInfo[];
-  /** Current beam direction configured for the microphone array. */
-  direction: MicrophoneBeamDirection;
-  /** Acoustic field zoom ratio from 0.0 (wide) to 1.0 (narrow focus). */
-  fieldZoom: number;
-  /** Whether the hardware and OS support microphone array querying and beamforming. */
+  /** Whether the platform can list microphones (Android 9+). */
   isSupported: boolean;
-  /** Error message if microphone array query or direction setting failed. */
+  /** Error message if the microphone query failed. */
   error: string | null;
   /** Provenance of the data: 'hardware' or 'unavailable'. */
   source: TelemetrySource;
-  /** Directs acoustic beamforming towards the user, away, external, or omnidirectional. */
-  setDirection: (direction: MicrophoneBeamDirection) => Promise<boolean>;
-  /** Adjusts microphone field dimension / acoustic zoom (0.0 to 1.0). */
-  setFieldZoom: (zoom: number) => Promise<boolean>;
-  /** Re-queries the hardware microphone array. */
+  /** Re-queries the platform microphone list. */
   refresh: () => void;
 }
 
 export function useMicrophoneArray(): MicrophoneArrayTelemetry {
   const [microphones, setMicrophones] = useState<MicrophoneInfo[]>([]);
-  const [direction, setDirectionState] = useState<MicrophoneBeamDirection>('omni');
-  const [fieldZoom, setFieldZoomState] = useState<number>(0.0);
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,58 +46,18 @@ export function useMicrophoneArray(): MicrophoneArrayTelemetry {
       const res = PixelNative.getMicrophoneArray();
       setIsSupported(res.isSupported);
       setMicrophones(res.microphones ?? []);
-      setDirectionState((res.direction as MicrophoneBeamDirection) ?? 'omni');
-      setFieldZoomState(res.fieldZoom ?? 0.0);
       setError(res.error ?? null);
 
       recordMetric(MODULE, 'microphoneCount', res.microphones?.length ?? 0, 'hardware');
       logEvent(MODULE, 'queried microphone array', {
         count: res.microphones?.length ?? 0,
-        direction: res.direction,
       });
-    } catch (e: any) {
+    } catch (e) {
       const err = logError(MODULE, 'getMicrophoneArray failed', e);
       setError(err.message);
       setIsSupported(false);
     }
   }, []);
-
-  const setDirection = useCallback(
-    async (dir: MicrophoneBeamDirection): Promise<boolean> => {
-      if (!PixelNative) return false;
-      try {
-        const success = await PixelNative.setPreferredMicrophoneDirection(dir, fieldZoom);
-        if (success) {
-          setDirectionState(dir);
-          logEvent(MODULE, 'updated beam direction', { direction: dir });
-        }
-        return success;
-      } catch (e: any) {
-        logError(MODULE, 'setPreferredMicrophoneDirection failed', e);
-        return false;
-      }
-    },
-    [fieldZoom]
-  );
-
-  const setFieldZoom = useCallback(
-    async (zoom: number): Promise<boolean> => {
-      if (!PixelNative) return false;
-      const clamped = Math.max(0.0, Math.min(1.0, zoom));
-      try {
-        const success = await PixelNative.setPreferredMicrophoneDirection(direction, clamped);
-        if (success) {
-          setFieldZoomState(clamped);
-          logEvent(MODULE, 'updated field zoom', { fieldZoom: clamped });
-        }
-        return success;
-      } catch (e: any) {
-        logError(MODULE, 'setFieldZoom failed', e);
-        return false;
-      }
-    },
-    [direction]
-  );
 
   useEffect(() => {
     refresh();
@@ -119,13 +65,9 @@ export function useMicrophoneArray(): MicrophoneArrayTelemetry {
 
   return {
     microphones,
-    direction,
-    fieldZoom,
     isSupported,
     error,
     source,
-    setDirection,
-    setFieldZoom,
     refresh,
   };
 }

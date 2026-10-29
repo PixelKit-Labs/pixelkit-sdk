@@ -24,7 +24,8 @@ export function useTPU() {
   const [isBenchmarking, setIsBenchmarking] = useState<boolean>(false);
   const [cpuFallbackLatencyMs, setCpuFallbackLatencyMs] = useState<number | null>(null);
 
-  const source: TelemetrySource = aicore != null ? 'hardware' : 'unavailable';
+  // getPackageVersion returns an object even when the package is absent, so presence is `installed`.
+  const source: TelemetrySource = aicore?.installed === true ? 'hardware' : 'unavailable';
 
   useEffect(() => {
     if (!PixelNative) { logEvent(MODULE, 'native module absent; AI stack detection unavailable', undefined, 'warn'); return; }

@@ -10,7 +10,9 @@
  * 1. Hardware mode: When the PixelKit ADB daemon is running (scripts/hilight-daemon, started via
  *    `npm run hilight:daemon`), this hook talks to 127.0.0.1:11080 to drive the physical LEDs (source: 'hardware').
  * 2. Unavailable: with no daemon the LEDs cannot be driven, so availability is 'unavailable' and
- *    the control functions refuse. Nothing is mirrored on screen as though it were the hardware.
+ *    every control function refuses (resolves false and sets `error`). Nothing is mirrored on screen
+ *    as though it were the hardware. State (`isActive`, `mode`, `currentColor`) changes only after
+ *    the daemon answered 2xx to the command.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -46,26 +48,33 @@ export interface HiLightState {
   currentColor: string;
   /** Active illumination animation pattern */
   mode: HiLightMode;
-  /** Brightness level normalized from 0.0 to 1.0 */
+  /**
+   * Brightness level, 0.0 to 1.0, sent with the next lit command. Initial value 0.85 is the hook's
+   * own default request, not a value read from the LEDs.
+   */
   brightness: number;
-  /** Whether the phone is placed face-down (glanceable mode active) */
-  isFaceDownMode: boolean;
   /** Probe local daemon status */
   refreshDaemonStatus: () => Promise<boolean>;
-  /** Set custom color for the ring */
-  setColor: (hexColor: string) => void;
-  /** Change the active lighting pattern */
-  setMode: (mode: HiLightMode) => void;
-  /** Set LED ring brightness */
-  setBrightness: (level: number) => void;
-  /** Show the Gemini-thinking pulse pattern */
-  triggerGeminiPulse: (durationMs?: number) => void;
-  /** Trigger custom color alert for favorite contact or event */
-  triggerContactAlert: (hexColor: string, durationMs?: number) => void;
-  /** Turn off the HiLight ring completely */
-  turnOff: () => void;
-  /** Toggle HiLight on/off */
-  toggle: () => void;
+  /** Set custom color for the ring. Resolves true only when the daemon accepted the command. */
+  setColor: (hexColor: string) => Promise<boolean>;
+  /**
+   * Change the active lighting pattern, optionally with a colour sent in the same daemon command.
+   * Resolves true only when the daemon accepted the command.
+   */
+  setMode: (mode: HiLightMode, hexColor?: string) => Promise<boolean>;
+  /**
+   * Set LED ring brightness. While the ring is lit the new level is sent to the daemon and the
+   * result is returned; while it is off the level is kept for the next lit command and true is returned.
+   */
+  setBrightness: (level: number) => Promise<boolean>;
+  /** Show the Gemini-thinking pulse pattern. Resolves true only when the daemon accepted the command. */
+  triggerGeminiPulse: (durationMs?: number) => Promise<boolean>;
+  /** Trigger custom color alert for favorite contact or event. Resolves true only when the daemon accepted it. */
+  triggerContactAlert: (hexColor: string, durationMs?: number) => Promise<boolean>;
+  /** Turn off the HiLight ring. Resolves true only when the daemon accepted the command. */
+  turnOff: () => Promise<boolean>;
+  /** Toggle HiLight on/off. Resolves true only when the daemon accepted the command. */
+  toggle: () => Promise<boolean>;
 }
 
 const DAEMON_URL = 'http://127.0.0.1:11080';
@@ -110,7 +119,6 @@ export function useHiLight(): HiLightState {
   const [currentColor, setCurrentColor] = useState<string>(GEMINI_CYAN);
   const [mode, setModeState] = useState<HiLightMode>('off');
   const [brightness, setBrightnessState] = useState<number>(0.85);
-  const [isFaceDownMode] = useState<boolean>(true);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -145,145 +153,161 @@ export function useHiLight(): HiLightState {
     };
   }, [checkDaemon]);
 
-  const setColor = useCallback(
-    (hexColor: string) => {
-      setCurrentColor(hexColor);
-      setIsActive(true);
-      const newMode = mode === 'off' ? 'glow' : mode;
-      if (mode === 'off') setModeState('glow');
+  const fail = useCallback((message: string) => {
+    setError(message);
+    logEvent(MODULE, message, undefined, 'warn');
+  }, []);
 
-      if (hasHiLight) {
-        sendDaemonCommand('/set', {
-          color: hexColor,
-          mode: newMode,
-          brightness,
-          durationMs: 0,
-        });
+  /**
+   * Runs one daemon command. Refuses when the device has no HiLight array or the daemon is not
+   * connected; otherwise resolves with the daemon's answer and records `error` on failure.
+   */
+  const runCommand = useCallback(
+    async (path: string, payload?: object): Promise<boolean> => {
+      if (!hasHiLight) {
+        fail('This device has no HiLight LED array');
+        return false;
       }
+      if (!isDaemonConnected) {
+        fail('PixelKit HiLight daemon is not connected');
+        return false;
+      }
+      const ok = await sendDaemonCommand(path, payload);
+      if (!ok) {
+        fail('HiLight daemon rejected the command or did not answer');
+        // A failed command usually means the daemon went away; refresh the connection state.
+        void checkDaemon();
+        return false;
+      }
+      setError(null);
+      return true;
     },
-    [hasHiLight, mode, brightness]
+    [hasHiLight, isDaemonConnected, fail, checkDaemon]
+  );
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const setColor = useCallback(
+    async (hexColor: string): Promise<boolean> => {
+      const newMode: HiLightMode = mode === 'off' ? 'glow' : mode;
+      const ok = await runCommand('/set', {
+        color: hexColor,
+        mode: newMode,
+        brightness,
+        durationMs: 0,
+      });
+      if (!ok) return false;
+      clearTimer();
+      setCurrentColor(hexColor);
+      setModeState(newMode);
+      setIsActive(true);
+      return true;
+    },
+    [runCommand, clearTimer, mode, brightness]
   );
 
   const setMode = useCallback(
-    (newMode: HiLightMode) => {
-      setModeState(newMode);
+    async (newMode: HiLightMode, hexColor?: string): Promise<boolean> => {
       const active = newMode !== 'off';
-      setIsActive(active);
-
-      if (hasHiLight) {
-        if (active) {
-          sendDaemonCommand('/set', {
-            color: currentColor,
+      const color = hexColor ?? currentColor;
+      const ok = active
+        ? await runCommand('/set', {
+            color,
             mode: newMode,
             brightness,
             durationMs: 0,
-          });
-        } else {
-          sendDaemonCommand('/off');
-        }
-      }
+          })
+        : await runCommand('/off');
+      if (!ok) return false;
+      clearTimer();
+      if (active) setCurrentColor(color);
+      setModeState(newMode);
+      setIsActive(active);
+      return true;
     },
-    [hasHiLight, currentColor, brightness]
+    [runCommand, clearTimer, currentColor, brightness]
   );
 
   const setBrightness = useCallback(
-    (level: number) => {
+    async (level: number): Promise<boolean> => {
       const clamped = Math.max(0.0, Math.min(1.0, level));
-      setBrightnessState(clamped);
-
-      if (hasHiLight && isActive) {
-        sendDaemonCommand('/set', {
+      if (isActive) {
+        const ok = await runCommand('/set', {
           color: currentColor,
           mode,
           brightness: clamped,
           durationMs: 0,
         });
+        if (!ok) return false;
+        clearTimer();
       }
+      setBrightnessState(clamped);
+      return true;
     },
-    [hasHiLight, isActive, currentColor, mode]
+    [runCommand, clearTimer, isActive, currentColor, mode]
+  );
+
+  const startTimedCommand = useCallback(
+    async (color: string, newMode: HiLightMode, durationMs: number): Promise<boolean> => {
+      const ok = await runCommand('/set', { color, mode: newMode, brightness, durationMs });
+      if (!ok) return false;
+      clearTimer();
+      setCurrentColor(color);
+      setModeState(newMode);
+      setIsActive(true);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setModeState('off');
+        setIsActive(false);
+      }, durationMs);
+      return true;
+    },
+    [runCommand, clearTimer, brightness]
   );
 
   const triggerGeminiPulse = useCallback(
-    (durationMs: number = 4000) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      setCurrentColor(GEMINI_CYAN);
-      setModeState('gemini_thinking');
-      setIsActive(true);
-
-      if (hasHiLight) {
-        sendDaemonCommand('/set', {
-          color: GEMINI_CYAN,
-          mode: 'gemini_thinking',
-          brightness,
-          durationMs,
-        });
-      }
-
-      timerRef.current = setTimeout(() => {
-        setModeState('off');
-        setIsActive(false);
-      }, durationMs);
-    },
-    [hasHiLight, brightness]
+    (durationMs: number = 4000) => startTimedCommand(GEMINI_CYAN, 'gemini_thinking', durationMs),
+    [startTimedCommand]
   );
 
   const triggerContactAlert = useCallback(
-    (hexColor: string, durationMs: number = 5000) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      setCurrentColor(hexColor);
-      setModeState('incoming_call');
-      setIsActive(true);
-
-      if (hasHiLight) {
-        sendDaemonCommand('/set', {
-          color: hexColor,
-          mode: 'incoming_call',
-          brightness,
-          durationMs,
-        });
-      }
-
-      timerRef.current = setTimeout(() => {
-        setModeState('off');
-        setIsActive(false);
-      }, durationMs);
-    },
-    [hasHiLight, brightness]
+    (hexColor: string, durationMs: number = 5000) => startTimedCommand(hexColor, 'incoming_call', durationMs),
+    [startTimedCommand]
   );
 
-  const turnOff = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+  const turnOff = useCallback(async (): Promise<boolean> => {
+    const ok = await runCommand('/off');
+    if (!ok) return false;
+    clearTimer();
     setModeState('off');
     setIsActive(false);
+    return true;
+  }, [runCommand, clearTimer]);
 
-    if (hasHiLight) {
-      sendDaemonCommand('/off');
-    }
-  }, [hasHiLight]);
-
-  const toggle = useCallback(() => {
-    if (isActive) {
-      turnOff();
-    } else {
-      setIsActive(true);
-      setCurrentColor(GOOGLE_BLUE);
-      setModeState('glow');
-
-      if (hasHiLight) {
-        sendDaemonCommand('/set', {
-          color: GOOGLE_BLUE,
-          mode: 'glow',
-          brightness,
-          durationMs: 0,
-        });
-      }
-    }
-  }, [isActive, turnOff, hasHiLight, brightness]);
+  const toggle = useCallback(async (): Promise<boolean> => {
+    if (isActive) return turnOff();
+    const ok = await runCommand('/set', {
+      color: GOOGLE_BLUE,
+      mode: 'glow',
+      brightness,
+      durationMs: 0,
+    });
+    if (!ok) return false;
+    clearTimer();
+    setCurrentColor(GOOGLE_BLUE);
+    setModeState('glow');
+    setIsActive(true);
+    return true;
+  }, [isActive, turnOff, runCommand, clearTimer, brightness]);
 
   return {
     availability,
     isHardwareSupported: hasHiLight,
-    /** Latest failure message, or null. Failures are also logged and counted. */
     error,
     source,
     isDaemonConnected,
@@ -291,7 +315,6 @@ export function useHiLight(): HiLightState {
     currentColor,
     mode,
     brightness,
-    isFaceDownMode,
     refreshDaemonStatus: checkDaemon,
     setColor,
     setMode,

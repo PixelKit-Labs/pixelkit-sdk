@@ -28,10 +28,10 @@ export interface ChargingIntelligenceTelemetry {
   firstUsageDate: string | null;
   /** Real-time charging wattage delivered to the battery, or null if discharging. */
   chargingWattage: number | null;
-  /** Classification of the current charging rate ('slow', 'standard', 'rapid', 'ultra_rapid'). */
-  chargingTier: ChargingTier;
-  /** Whether the 80% battery protect charge limiting policy is active on device. */
-  chargeLimitActive: boolean;
+  /** Classification of `chargingWattage` ('slow', 'standard', 'rapid', 'ultra_rapid'); null when no wattage was read. */
+  chargingTier: ChargingTier | null;
+  /** Whether the `charge_limit_available` sysfs node reads "1"; null when unreadable. The node says the limit is offered, not that it is on. */
+  chargeLimitAvailable: boolean | null;
   /** Error message if battery telemetry query failed. */
   error: string | null;
   /** Provenance of the data: 'hardware' or 'unavailable'. */
@@ -47,8 +47,8 @@ export function useChargingIntelligence(): ChargingIntelligenceTelemetry {
     manufactureDate: null,
     firstUsageDate: null,
     chargingWattage: null,
-    chargingTier: 'standard',
-    chargeLimitActive: false,
+    chargingTier: null,
+    chargeLimitAvailable: null,
     error: null,
   });
 
@@ -65,8 +65,8 @@ export function useChargingIntelligence(): ChargingIntelligenceTelemetry {
         manufactureDate: null,
         firstUsageDate: null,
         chargingWattage: null,
-        chargingTier: 'standard',
-        chargeLimitActive: false,
+        chargingTier: null,
+        chargeLimitAvailable: null,
         error: 'PixelNative module unavailable',
       });
       setError('PixelNative module unavailable');
@@ -106,7 +106,7 @@ export function useChargingIntelligence(): ChargingIntelligenceTelemetry {
     firstUsageDate: data.firstUsageDate,
     chargingWattage: data.chargingWattage,
     chargingTier: data.chargingTier,
-    chargeLimitActive: data.chargeLimitActive,
+    chargeLimitAvailable: data.chargeLimitAvailable,
     error,
     source,
     refresh,

@@ -1,6 +1,7 @@
 /**
  * @file useLocation.ts
- * @description Position, altitude, heading and speed from the multi-band GNSS receiver.
+ * @description Position, altitude, heading and speed from `expo-location` (`getCurrentPositionAsync`, highest accuracy).
+ * Latitude and longitude are null until the first fix arrives, including when permission was denied.
  *
  * `accuracy` is the radius in metres the platform believes the position lies within. Indoors it can
  * be tens of metres, so it gates whether a coordinate is worth acting on. It is reported rather than
@@ -19,8 +20,8 @@ import { LocationTelemetry } from '../core/types';
 const MODULE = 'useLocation';
 
 const EMPTY: LocationTelemetry = {
-  latitude: 0,
-  longitude: 0,
+  latitude: null,
+  longitude: null,
   altitude: null,
   accuracy: null,
   heading: null,

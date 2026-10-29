@@ -39,6 +39,8 @@ export {
 };
 
 const MODULE = 'useGeminiLive';
+/** isListening and isStreamingMedia clear when no audio or image chunk has been sent for this long. */
+const STREAM_IDLE_MS = 2000;
 
 export interface GeminiLiveRunOptions {
   context: TraceContext;
@@ -83,7 +85,6 @@ export interface GeminiLiveTelemetry {
   sendImageChunk: (base64Data: string, mimeType?: string) => void;
   sendVideoFrame: (base64Jpeg: string) => void;
   sendMultimodalTurn: (text: string, images?: Array<{ data: string; mimeType?: string }>) => void;
-  interrupt: () => void;
   clearTranscript: () => void;
 }
 
@@ -100,8 +101,15 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
   const [context, setContext] = useState<TraceContext | null>(null);
   const sessionRef = useRef<LiveSession | null>(null);
   const sessionSequence = useRef(0);
+  /** Timers that clear isListening / isStreamingMedia once no chunk has been sent for STREAM_IDLE_MS. */
+  const listenIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mediaIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetStreamingState = useCallback(() => {
+    clearTimeout(listenIdleTimer.current ?? undefined);
+    clearTimeout(mediaIdleTimer.current ?? undefined);
+    listenIdleTimer.current = null;
+    mediaIdleTimer.current = null;
     setIsConnected(false);
     setIsStreaming(false);
     setIsSpeaking(false);
@@ -316,6 +324,8 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     const session = sessionRef.current;
     if (!pcmBase64 || !session || session.socket.readyState !== WebSocket.OPEN) return;
     setIsListening(true);
+    clearTimeout(listenIdleTimer.current ?? undefined);
+    listenIdleTimer.current = setTimeout(() => setIsListening(false), STREAM_IDLE_MS);
     session.socket.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: pcmBase64 }] } }));
   }, []);
 
@@ -324,6 +334,8 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     if (!base64Data || !session || session.socket.readyState !== WebSocket.OPEN) return;
     const clean = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
     setIsStreamingMedia(true);
+    clearTimeout(mediaIdleTimer.current ?? undefined);
+    mediaIdleTimer.current = setTimeout(() => setIsStreamingMedia(false), STREAM_IDLE_MS);
     session.socket.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType, data: clean }] } }));
     session.scope.event('media_sent', { mimeType, bytes: clean.length });
   }, []);
@@ -343,13 +355,6 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     session.scope.event('request_accepted', { modality: 'multimodal', chars: value.length, imageCount: images?.length ?? 0 });
   }, []);
 
-  const interrupt = useCallback(() => {
-    const session = sessionRef.current;
-    setIsSpeaking(false);
-    setIsStreaming(false);
-    session?.scope.event('cancelled', { reason: 'user_interrupt' }, 'warn');
-  }, []);
-
   const clearTranscript = useCallback(() => {
     setTranscript([]);
     setCurrentThinking(null);
@@ -363,6 +368,6 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     transcript, currentThinking, activeToolCalls, error,
     source: isConnected ? 'hardware' : 'unavailable', context,
     connect, disconnect, sendText, sendAudioChunk, sendImageChunk, sendVideoFrame,
-    sendMultimodalTurn, interrupt, clearTranscript,
+    sendMultimodalTurn, clearTranscript,
   };
 }

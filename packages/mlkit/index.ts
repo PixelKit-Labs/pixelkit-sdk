@@ -61,6 +61,7 @@ export type SummarizeOptions = {
 export type SummarizeResult = {
   summary: string;
   latencyMs: number;
+  /** 'mlkit-summarization' when the ML Kit GenAI task model answered; 'gemini-nano-prompt' when it was unavailable or threw and a Gemini Nano prompt was used instead. */
   engine: string;
   source: 'hardware';
 };
@@ -69,6 +70,7 @@ export type ProofreadResult = {
   correctedText: string;
   suggestions: string[];
   latencyMs: number;
+  /** 'mlkit-proofreading' or, when the ML Kit task model was unavailable or threw, 'gemini-nano-prompt'. */
   engine: string;
   source: 'hardware';
 };
@@ -77,6 +79,7 @@ export type RewriteResult = {
   rewrittenText: string;
   suggestions: string[];
   latencyMs: number;
+  /** 'mlkit-rewriting' or, when the ML Kit task model was unavailable or threw, 'gemini-nano-prompt'. */
   engine: string;
   source: 'hardware';
 };
@@ -115,8 +118,10 @@ declare class PixelNanoModule extends NativeModule<Events> {
   segmentSubject(imageInput: string): Promise<SubjectSegmentationResult>;
   recognizeDigitalInk(strokesData: Array<Array<{ x: number; y: number; t?: number }>>, languageTag?: string): Promise<DigitalInkResult>;
   identifyLanguage(text: string): Promise<LanguageIdResult>;
+  /** Rejects with `E_NANO_UNSUPPORTED_LANGUAGE` when either tag is not a language ML Kit Translate supports; no other language is substituted. */
   translate(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult>;
   suggestReplies(history: Array<{ text: string; timestamp?: number; isLocalUser?: boolean; sender?: string }>): Promise<SmartReplyResult>;
+  /** English text only: the extractor is created with `EntityExtractorOptions.ENGLISH`. */
   extractEntities(text: string): Promise<EntityExtractionResult>;
   isEmbeddingModelAvailable(): boolean;
   getEmbeddingStatus(): EmbeddingStatus;
@@ -183,6 +188,7 @@ export type TextRecognitionResult = {
 };
 
 export type FaceItem = {
+  /** Always null: the face detector is created without `enableTracking()`. */
   trackingId: number | null;
   smilingProbability: number | null;
   leftEyeOpenProbability: number | null;
@@ -221,6 +227,7 @@ export type ImageLabelResult = {
 };
 
 export type DetectedObject = {
+  /** Always null: the object detector runs in SINGLE_IMAGE_MODE, which does not assign tracking ids. */
   trackingId: number | null;
   boundingBox: { left: number; top: number; right: number; bottom: number };
   labels: Array<{ text: string; confidence: number }>;
@@ -254,6 +261,7 @@ export type SelfieSegmentationResult = {
 
 export type SubjectSegmentationResult = {
   subjectsCount: number;
+  /** True when ML Kit returned a foreground confidence mask; the mask values themselves are not returned. */
   foregroundConfidence: boolean;
   latencyMs: number;
   source: 'hardware';

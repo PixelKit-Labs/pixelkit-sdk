@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: PixelKit SDK API
-  version: 1.6.84
+  version: 1.6.85
   description: |
   OpenAPI 3.1.0 specification for the **PixelKit SDK** targeting Google Pixel hardware (Tensor G6, Titan M2/M3, Android 17 API 37).
 
@@ -109,21 +109,29 @@ paths:
                 $ref: "#/components/schemas/useADPF_reportWorkDuration_Response"
   /hooks/useADPFHintSession:
     get:
-      summary: Active frame workload negotiation with Android Dynamic Performance Framework and Tensor EAS.
+      summary: "PerformanceHintManager hint session: report how long work took against a target duration for the session's threads."
       description: |
-  Creates an active ADPF hint session with the Energy-Aware Scheduler to dynamically adjust CPU clock frequencies based on actual frame render workloads, eliminating stutter without wasting battery.
+  Creates an ADPF performance hint session. You report how long a unit of work took against a target duration and the platform may use that when scheduling the session's threads. Whether and how it changes CPU frequency is up to the platform and is not observed by this hook.
 
-  Interfaces directly with android.os.PerformanceHintManager (Android 12+ API 31+). Manages an active thread hint session allowing apps to report exact frame computation times in nanoseconds. This informs the kernel scheduler in real-time whether the workload is meeting its deadline (e.g. 16.67ms for 60Hz or 8.33ms for 120Hz), scaling frequencies up only when needed.
+  Uses android.os.PerformanceHintManager (Android 12+, API 31+). On mount the native module closes any previous session, then calls createHintSession for the app's main thread (its tid equals the process id), or for the thread ids passed as threadIds, with the initial target duration. isSupported is true only when createHintSession returned a session; otherwise it is false and error says so. reportWorkDuration and updateTargetWorkDuration forward to Session.reportActualWorkDuration and Session.updateTargetWorkDuration and return true when the platform accepted the call. The session covers the main thread by default, so report durations of work done on that thread (or pass the tids of the threads that do the work); durations measured on the JS thread describe a thread that is not in the session. The native module keeps one session per app.
       operationId: get_useADPFHintSession
       tags:
         - silicon-compute
       parameters:
         - name: initialTargetDurationMs
           in: query
-          description: "Initial target frame duration budget in milliseconds, defaulting to 16.67ms (60 FPS)."
+          description: "Initial target work duration in milliseconds, defaulting to 16.67ms (a 60 FPS budget)."
           required: false
           schema:
             type: number
+        - name: threadIds
+          in: query
+          description: "Thread ids (Linux tids) the session covers. Defaults to the app's main thread."
+          required: false
+          schema:
+            type: array
+            items:
+              type: number
       responses:
         200:
           description: Current telemetry reading from useADPFHintSession.
@@ -134,7 +142,7 @@ paths:
   /hooks/useADPFHintSession/actions/reportWorkDuration:
     post:
       summary: Invoke reportWorkDuration (useADPFHintSession)
-      description: Reports frame workload duration to the Energy-Aware Scheduler.
+      description: "Reports one unit of work duration for the session's threads. Returns false when there is no session or the platform rejected the call."
       operationId: useADPFHintSession_reportWorkDuration
       tags:
         - silicon-compute
@@ -148,7 +156,7 @@ paths:
   /hooks/useADPFHintSession/actions/updateTargetWorkDuration:
     post:
       summary: Invoke updateTargetWorkDuration (useADPFHintSession)
-      description: Updates the target frame deadline in nanoseconds.
+      description: Updates the target work duration in nanoseconds. Returns false when there is no session or the platform rejected the call.
       operationId: useADPFHintSession_updateTargetWorkDuration
       tags:
         - silicon-compute
@@ -162,7 +170,7 @@ paths:
   /hooks/useADPFHintSession/actions/closeSession:
     post:
       summary: Invoke closeSession (useADPFHintSession)
-      description: Terminates the active ADPF hint session.
+      description: Closes the active ADPF hint session. Returns false when there is none.
       operationId: useADPFHintSession_closeSession
       tags:
         - silicon-compute
@@ -227,11 +235,11 @@ paths:
                 $ref: "#/components/schemas/useAltimeter_resetCalibration_Response"
   /hooks/useAppFunctions:
     get:
-      summary: Exposes on-device actions and hardware capabilities to system AI and Gemini Assistant.
+      summary: "In-process registry and runner for device actions, plus a probe of the Android AppFunctions service."
       description: |
-  Bridges Android 16/17 AppFunctions (API 36+). Allows Gemini and local agents to discover and execute in-app functions, query Tensor silicon thermals, and register custom agentic tool handlers.
+  Lists the actions this hook can run, runs them, and lets your own code register more handlers. It also reports whether the Android AppFunctions service exists. It does not make your app callable by Gemini.
 
-  Backed by android.app.appfunctions.IAppFunctionManager (system service 133 on Pixel 11 Pro). Exposes built-in hardware actions ('check_phone_thermals', 'purge_memory_cache', 'get_device_silicon_info') and enables developers to register custom AppFunction schemas and handlers dynamically. An id that is neither custom nor built in is run through the native registry (PixelNative.getAppFunctions: triggerHapticEffect, setTorchLevel, getSiliconStatus, scanNearbyRadios); executeFunction resolves success false with the native message when the effect did not happen (for example an unsupported haptic primitive) and with an unknown-id error for any other id. Reports source: 'hardware' when backed by the real system service.
+  isSupported is an API-level check (36 and above); serviceFound and serviceName come from a lookup of the Android app_function system service. The hook keeps an in-process registry: built-in actions ('check_phone_thermals', 'purge_memory_cache', 'get_device_silicon_info') and custom schemas and handlers added with registerFunction are listed in functions and run by executeFunction, but none of them is registered with the system service, so Gemini and other assistants cannot see them (that needs a native AppFunctionService in your app). An id that is neither custom nor built in is run through the native registry (PixelNative.getAppFunctions: triggerHapticEffect, setTorchLevel, getSiliconStatus, scanNearbyRadios); executeFunction resolves success false with the native message when the effect did not happen (for example an unsupported haptic primitive) and with an unknown-id error for any other id. source is 'hardware' only when the system service was found.
       operationId: get_useAppFunctions
       tags:
         - neural-ai
@@ -568,9 +576,9 @@ paths:
     get:
       summary: "Bluetooth adapter state, Channel Sounding, bonded devices, and active BLE peripheral discovery."
       description: |
-  Reports whether Bluetooth is on, which devices are already paired, whether this phone supports Channel Sounding, and performs live RF peripheral discovery with real RSSI values.
+  Reports whether Bluetooth is on, which devices are already paired, whether this phone declares Channel Sounding, and performs live peripheral discovery with real RSSI values and a derived distance estimate.
 
-  Adapter state, Channel Sounding support and the bonded device list are read from Android BluetoothAdapter through the native module with source hardware. Live peripheral discovery scans for nearby BLE beacons using Android BluetoothLeScanner, returning verified MAC addresses, RSSI (dBm), and log-distance path loss distance estimations.
+  Adapter state and the bonded device list are read from Android BluetoothAdapter through the native module (useRadios); channelSounding is whether the device declares the android.hardware.bluetooth_le.channel_sounding feature, and ranging a peer is useChannelSounding. Live peripheral discovery uses Android BluetoothLeScanner: each peripheral has its address (results without an address are skipped), name (null when neither BluetoothDevice.getName() nor the advertised local name is available), RSSI in dBm, lastSeenTimestamp (wall-clock ms computed from ScanResult.getTimestampNanos() against SystemClock.elapsedRealtimeNanos()) and estimatedDistanceMeters. The distance is derived, not measured: log-distance path loss with an assumed -59 dBm at 1 m and exponent 2. A failed scan (ScanCallback.onScanFailed) is reported in scanError with its code.
       operationId: get_useBLE
       tags:
         - radios-security
@@ -587,7 +595,7 @@ paths:
       description: |
   Begins physical Bluetooth Low Energy discovery through BluetoothLeScanner.
 
-  **Output Contract**: Resolves true when the scan started; false with the reason in scanError otherwise. Results appear in peripherals, polled every 500 ms.
+  **Output Contract**: Resolves true when the scan started; false with the reason in scanError otherwise. Results appear in peripherals, polled every 500 ms; an asynchronous scan failure ends the scan and sets scanError.
       operationId: useBLE_startScan
       tags:
         - radios-security
@@ -623,11 +631,11 @@ paths:
                 $ref: "#/components/schemas/useBLE_stopScan_Response"
   /hooks/useBatteryShare:
     get:
-      summary: Google Pixel Battery Share (Reverse Wireless Qi Charging) telemetry and actuator.
+      summary: Google Pixel Battery Share (reverse wireless Qi charging) state and toggle.
       description: |
-  Monitors and controls the phone's reverse wireless charging transmitter coil to share battery power with accessories like Pixel Buds or other Qi devices docked on the back.
+  Shows whether the phone's reverse wireless charging coil is on and tries to switch it. It cannot tell whether a receiver is docked or how much power flows.
 
-  Directly interfaces with the Google Pixel reverse wireless charging subsystem (/sys/class/power_supply/wireless/reverse_chg_mode). Reports whether wireless power transfer is active, whether a compatible Qi receiver is docked, real-time power transmission in watts, and allows programmatically enabling or disabling power transfer with safety cutoff thresholds.
+  Reads the Google Pixel reverse charging sysfs node (/sys/class/power_supply/wireless/reverse_chg_mode, or /sys/devices/platform/google,battery/reverse_chg_mode): a non-zero mode means the coil is on. setBatteryShare writes that node when the app is permitted to and reports whether the write succeeded. Receiver presence, delivered watts and a charge cutoff are not exposed by any node PixelKit can read, so the hook reports none of them (transmittedWatts is always null) and offers no threshold setting.
       operationId: get_useBatteryShare
       tags:
         - silicon-compute
@@ -641,7 +649,10 @@ paths:
   /hooks/useBatteryShare/actions/setBatteryShare:
     post:
       summary: Invoke setBatteryShare (useBatteryShare)
-      description: Turns reverse wireless charging on or off.
+      description: |
+  Writes the reverse charging node on or off, then re-reads it.
+
+  **Output Contract**: Resolves true when the node write succeeded, false when the app may not write it. isActive afterwards is the re-read node value, not the request.
       operationId: useBatteryShare_setBatteryShare
       tags:
         - silicon-compute
@@ -652,24 +663,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useBatteryShare_setBatteryShare_Response"
-  /hooks/useBatteryShare/actions/setBatteryThreshold:
-    post:
-      summary: Invoke setBatteryThreshold (useBatteryShare)
-      description: Sets minimum battery cutoff percentage.
-      operationId: useBatteryShare_setBatteryThreshold
-      tags:
-        - silicon-compute
-      responses:
-        200:
-          description: Result of invoking setBatteryThreshold.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useBatteryShare_setBatteryThreshold_Response"
   /hooks/useBatteryShare/actions/refresh:
     post:
       summary: Invoke refresh (useBatteryShare)
-      description: Refreshes reverse wireless charging state.
+      description: "Re-reads the reverse charging node and returns what was read, or null when the read failed or the native module is absent."
       operationId: useBatteryShare_refresh
       tags:
         - silicon-compute
@@ -1051,23 +1048,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useCamera_resumePreview_Response"
-  /hooks/useCamera/actions/toggleUltraLowLightVideo:
-    post:
-      summary: Invoke toggleUltraLowLightVideo (useCamera)
-      description: |
-  Flips the UI flag only, for the same reason.
-
-  **Output Contract**: void
-      operationId: useCamera_toggleUltraLowLightVideo
-      tags:
-        - sensors-actuators
-      responses:
-        200:
-          description: Result of invoking toggleUltraLowLightVideo.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useCamera_toggleUltraLowLightVideo_Response"
   /hooks/useCameraExtensions:
     get:
       summary: "Google computational photography vendor extensions (Night Sight, Ultra HDR, Portrait Bokeh)."
@@ -1105,7 +1085,7 @@ paths:
       description: |
   The first hook to call. It answers "does this device have that?" so your interface can hide features the phone does not support, instead of showing a control that will fail.
 
-  Resolution starts from a model table keyed on the device name, then upgrades to real PackageManager feature checks when the native module is present, at which point verification changes from model-table to device. Fields that can only be answered by the device are null until that upgrade happens. Evaluates verified platform features including android.hardware.npu, BLE Channel Sounding, and StrongBox KeyStore.
+  Resolution starts from a model table keyed on the device name (inference, not a device read), then upgrades the PackageManager-probed flags (UWB, NFC, BLE Channel Sounding, Wi-Fi RTT, satellite, StrongBox, NPU) and the AICore version when the native module is present, at which point verification changes from model-table to device. Only those probed fields come from the device. hasHiLight, hasTitanM3, geminiNanoTier, isPixel, pixelGeneration, isProModel, isFoldable and the supports* flags are always derived from the model name or the API level, even after device verification; the provenance map reports that per field. Fields that can only be answered by the device are null until verification happens.
       operationId: get_useCapabilities
       tags:
         - system-media
@@ -1169,11 +1149,11 @@ paths:
                 $ref: "#/components/schemas/useCellular_requestPermission_Response"
   /hooks/useChannelSounding:
     get:
-      summary: Bluetooth Core 6.0 high-accuracy centimeter-precision Phase-Based Ranging (PBR).
+      summary: Bluetooth LE Channel Sounding availability and real ranging sessions against a Bluetooth peer.
       description: |
-  Inspects hardware Bluetooth Low Energy 6.0 Channel Sounding transceiver state and manages high-precision spatial distance estimation. Uses multi-channel phase-based ranging (PBR) and round-trip time (RTT) across 79 Bluetooth channels without requiring line of sight.
+  Reports whether this phone declares Bluetooth Channel Sounding, and measures the distance to a second Bluetooth device whose address you supply. Nothing is measured without a peer.
 
-  Backed by android.hardware.bluetooth_le.channel_sounding and the Android 16/17 Ranging HAL service (IBluetoothChannelSounding). Measures distance with sub-decimeter accuracy, complementing UWB for non-line-of-sight spatial positioning. Nothing is simulated: queries actual device hardware capabilities.
+  Support, adapter state and ranging service readiness come from the android.hardware.bluetooth_le.channel_sounding feature flag, a lookup of the ranging HAL service (IBluetoothChannelSounding) and the Bluetooth adapter, carrying source hardware. rangingAvailability and supportedSecurityLevels are what android.ranging.RangingManager reports for BLE Channel Sounding (BleCsRangingCapabilities); they are null when the platform did not deliver them. startRanging(config) opens a real android.ranging.RangingSession (Android 16, API 36+, RAW session with BleCsRangingParams) with the peer at config.peerAddress. The call resolves true only when the platform reports the session open; otherwise it resolves false and sessionError carries a status such as needs_peer_address, channel_sounding_unsupported, channel_sounding_disabled, ranging_api_unavailable, bluetooth_disabled, permission_denied (android.permission.RANGING must be declared and granted), session_active, invalid_parameters or open_failed. Every measurement is an android.ranging.RangingData sample: a distance in metres, a confidence ('low', 'medium', 'high'), an RSSI when the platform supplied one, and a timestamp, each null when omitted. RangingData does not say whether phase-based ranging or round-trip time produced a sample, so the hook reports no method, channel count or accuracy figure. Nothing is simulated: with no peer answering, measurements stays empty.
       operationId: get_useChannelSounding
       tags:
         - radios-security
@@ -1187,10 +1167,19 @@ paths:
   /hooks/useChannelSounding/actions/startRanging:
     post:
       summary: Invoke startRanging (useChannelSounding)
-      description: Starts a Channel Sounding ranging session against paired or discovered BLE devices.
+      description: |
+  Opens a real BLE Channel Sounding ranging session with the peer at config.peerAddress.
+
+  **Output Contract**: Resolves true when the platform reported the session open; false with the status and reason in sessionError when the peer address is missing or malformed, the device or OS cannot range, Bluetooth is off, a permission is missing, another session is running, or the platform refused to open. sessionInfo is updated either way.
       operationId: useChannelSounding_startRanging
       tags:
         - radios-security
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/useChannelSounding_startRanging_Request"
       responses:
         200:
           description: Result of invoking startRanging.
@@ -1201,7 +1190,10 @@ paths:
   /hooks/useChannelSounding/actions/stopRanging:
     post:
       summary: Invoke stopRanging (useChannelSounding)
-      description: Stops an active ranging session.
+      description: |
+  Closes the running Channel Sounding ranging session.
+
+  **Output Contract**: Returns `{ wasActive, closed, sessionId, error, timestampMs }`: wasActive is false when nothing was running, and error carries a failure from the platform's stop or close. Returns null when the native module is absent.
       operationId: useChannelSounding_stopRanging
       tags:
         - radios-security
@@ -1215,7 +1207,10 @@ paths:
   /hooks/useChannelSounding/actions/refresh:
     post:
       summary: Invoke refresh (useChannelSounding)
-      description: Re-probes hardware channel sounding status.
+      description: |
+  Re-probes the feature flag, HAL service and adapter state.
+
+  **Output Contract**: Returns `{ isSupported, isEnabled, serviceFound, hasChannelSoundingFeature, error }`, or null when the native module is absent.
       operationId: useChannelSounding_refresh
       tags:
         - radios-security
@@ -1232,7 +1227,7 @@ paths:
       description: |
   Surfaces low-level battery health indicators: lifetime physical charge cycles, maximum state of health (SoH) capacity relative to design, manufacture and first-activation dates, and USB-PD PPS fast charging tiers.
 
-  Reads Android 14+ battery health metrics and Google Pixel power supply sysfs telemetry. Provides lifetime charge cycles (BatteryManager.EXTRA_CYCLE_COUNT), state of health percentage (/sys/class/power_supply/battery/soh), factory manufacture date, first-use date, real-time charging wattage, and classifies charging speed into tiers (slow, standard, rapid, ultra_rapid > 30W).
+  Reads Android 14+ battery health metrics and Google Pixel power supply sysfs telemetry. Provides lifetime charge cycles (BatteryManager.EXTRA_CYCLE_COUNT), state of health percentage (/sys/class/power_supply/battery/soh), manufacture date, first-use date, charging wattage (BATTERY_PROPERTY_CURRENT_NOW times the battery voltage, only while the current is positive), and a tier classified from that wattage (slow, standard, rapid, ultra_rapid at 30 W and above). Values the app cannot read are null.
       operationId: get_useChargingIntelligence
       tags:
         - silicon-compute
@@ -1259,21 +1254,21 @@ paths:
                 $ref: "#/components/schemas/useChargingIntelligence_refresh_Response"
   /hooks/useCloudHardwareAgent:
     get:
-      summary: Autonomous cloud hardware reasoning loop with multi-turn tool calling and extended thinking.
+      summary: Multi-turn Gemini tool-calling loop over the capability adapter you pass to each ask().
       description: |
-  Dispatches autonomous multi-turn reasoning loops with Gemini in the cloud, dynamically invoking unified PixelKit hardware tools to diagnose system telemetry and execute hardware actions.
+  Runs a loop with Gemini in the cloud: the model can call the tools in the capability adapter you pass, the hook runs them on the device and sends the results back, until the model answers or the step limit is reached.
 
-  Orchestrates multi-turn agentic hardware problem solving using Google Gen AI SDK (`@google/genai`). Evaluates prompts, plans hardware tool invocations, executes local sensors and actuators, and reflects on results across consecutive turns until the goal is achieved. Surfaces live reasoning thought chains, intermediate tool execution steps, and final diagnostics.
+  Wraps runCloudAgent from @google/genai: ask() sends the prompt and the conversation so far, executes each model tool call through runTool against run.capabilityAdapter, folds the results back into the next turn, and stops when the model answers, maxSteps (default DEFAULT_MAX_STEPS, 6) is reached, the run is cancelled, or no capability or API key is available. The default model is the DEFAULT_AGENT_MODEL constant. Intermediate tool steps are reported in steps and final text in lastResponse. The hook does not request or surface model thoughts.
       operationId: get_useCloudHardwareAgent
       tags:
         - neural-ai
       parameters:
         - name: defaultOptions
           in: query
-          description: "Default configuration for model selection, temperature, system instruction, thinking budget, and max steps."
+          description: "Optional defaults merged under each ask() run: model, systemInstruction, temperature, maxSteps and onStep. Per-ask values win. The adapter and trace context are not defaults; they are passed to ask()."
           required: false
           schema:
-            $ref: "#/components/schemas/CloudAgentOptions"
+            $ref: "#/components/schemas/CloudAgentDefaultsPartialOmitCloudAgentOptionscapabilityAdaptercontextsinkredactionsignal"
       responses:
         200:
           description: Current telemetry reading from useCloudHardwareAgent.
@@ -1284,10 +1279,19 @@ paths:
   /hooks/useCloudHardwareAgent/actions/ask:
     post:
       summary: Invoke ask (useCloudHardwareAgent)
-      description: Dispatches an autonomous multi-turn reasoning prompt.
+      description: |
+  Runs the multi-turn tool-calling loop for one prompt against run.capabilityAdapter.
+
+  **Output Contract**: Resolves with { text, contents, steps, totalSteps, stoppedReason: 'completed' | 'max_steps_exceeded' | 'unavailable' | 'cancelled', context, unavailableReason?, providerRequestId?, usage? }, or null for a blank prompt or when the loop threw (reason in error). A missing API key or empty adapter resolves with stoppedReason 'unavailable'.
       operationId: useCloudHardwareAgent_ask
       tags:
         - neural-ai
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/useCloudHardwareAgent_ask_Request"
       responses:
         200:
           description: Result of invoking ask.
@@ -1349,7 +1353,7 @@ paths:
       description: |
   Reads what the screen is doing and lets you influence it. The refresh rate changes constantly on this panel to save power, so it is re-read live rather than assumed.
 
-  Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode toggles peak sunlight luminance, and setPreferredDisplayMode selects panel modes directly.
+  Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode requests maximum window brightness (BRIGHTNESS_OVERRIDE_FULL) plus an HDR headroom of 3.0 on API 34+, and setPreferredDisplayMode requests a panel mode by ID. These are window-attribute requests; the panel's own High Brightness Mode is controlled by firmware and is not read.
       operationId: get_useDisplay
       tags:
         - system-media
@@ -1387,9 +1391,9 @@ paths:
     post:
       summary: Invoke setHighBrightnessMode (useDisplay)
       description: |
-  Engages High Brightness Mode (HBM) peak sunlight boost and maximum HDR headroom override.
+  Requests maximum window brightness (WindowManager BRIGHTNESS_OVERRIDE_FULL) and, on API 34+, a desired HDR headroom of 3.0; disabling restores the default brightness override and headroom 0.0. Does not control or read the panel's firmware High Brightness Mode.
 
-  **Output Contract**: Resolves true when applied.
+  **Output Contract**: Resolves true when the window attributes were set. It does not confirm what the panel actually did.
       operationId: useDisplay_setHighBrightnessMode
       tags:
         - system-media
@@ -1866,18 +1870,18 @@ paths:
                 $ref: "#/components/schemas/useGemini_setApiKey_Response"
   /hooks/useGeminiLive:
     get:
-      summary: "Real-time bidirectional streaming audio, camera video frames, text, and hardware tool execution with Gemini 3.8 Multimodal Live API."
+      summary: "Bidirectional streaming of text, microphone audio chunks and camera frames with the Gemini Live API over a WebSocket, with tool calls routed through a capability adapter you supply."
       description: |
-  Streams live bidirectional voice, camera video frames, and text with Gemini in the cloud over WebSockets, executing real-time hardware diagnostics and actions with low-latency audio duplexing.
+  Streams text, audio chunks and camera frames to Gemini in the cloud over a WebSocket and shows the transcript the model sends back. Model tool calls run only against the capabilities adapter you pass to connect.
 
-  Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks and camera image/video frames from device sensors, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
+  Opens a WebSocket to the Gemini Live API (BidiGenerateContent). You supply the session's trace context and capability adapter to connect(); the API key comes from run.apiKey or the stored key. sendAudioChunk, sendImageChunk and sendVideoFrame forward base64 PCM audio and JPEG frames as realtime input, and sendText and sendMultimodalTurn send client turns. The hook does not capture audio or decode and play the model's audio: isSpeaking means audio parts from the model are arriving, and the audio bytes themselves are not played or exposed. isListening and isStreamingMedia are set when a chunk is sent and clear 2 s after the last one. Model tool calls are validated and executed through runTool against the adapter's tools; each call is a network round trip plus the tool's own execution time. The default model is the DEFAULT_LIVE_MODEL constant (currently 'models/gemini-2.0-flash-exp'); config.model overrides it.
       operationId: get_useGeminiLive
       tags:
         - neural-ai
       parameters:
         - name: config
           in: query
-          description: "Configuration options for model name, voice profile ('Aoede', 'Puck', etc.), system instruction, thinking budget, and hardware tool binding."
+          description: "Optional. model (default DEFAULT_LIVE_MODEL), voiceName (one of 'Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'; default 'Aoede'), systemInstruction, and thinkingBudget (tokens; thinkingConfig is only sent when it is a non-zero number). Capabilities are not part of config: pass them to connect()."
           required: false
           schema:
             $ref: "#/components/schemas/GeminiLiveConfig"
@@ -1891,10 +1895,19 @@ paths:
   /hooks/useGeminiLive/actions/connect:
     post:
       summary: Invoke connect (useGeminiLive)
-      description: Opens the duplex WebSocket connection to Gemini Live.
+      description: |
+  Opens the Live WebSocket session with the trace context and capability adapter for this session.
+
+  **Output Contract**: Resolves with { status: 'connected' | 'unavailable' | 'error' | 'cancelled', context, reason? }. Check status before sending.
       operationId: useGeminiLive_connect
       tags:
         - neural-ai
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/useGeminiLive_connect_Request"
       responses:
         200:
           description: Result of invoking connect.
@@ -1986,20 +1999,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useGeminiLive_sendMultimodalTurn_Response"
-  /hooks/useGeminiLive/actions/interrupt:
-    post:
-      summary: Invoke interrupt (useGeminiLive)
-      description: Interrupts model speech playback.
-      operationId: useGeminiLive_interrupt
-      tags:
-        - neural-ai
-      responses:
-        200:
-          description: Result of invoking interrupt.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useGeminiLive_interrupt_Response"
   /hooks/useGeminiLive/actions/clearTranscript:
     post:
       summary: Invoke clearTranscript (useGeminiLive)
@@ -2384,9 +2383,9 @@ paths:
     get:
       summary: "Four focused text tasks that run locally: summarise, proofread, rewrite, describe."
       description: |
-  Purpose-built text helpers that run on the phone. Each does one job well and is faster and more reliable than prompting a general model for the same thing. No network, no key.
+  Text helpers that run on the phone: summarise, proofread, rewrite and describe an image. Each call reports which engine served it. No network, no key.
 
-  Wraps the ML Kit GenAI task modules on AICore through pixel-nano: genai-summarization, genai-proofreading and genai-rewriting, plus image description. Because each task ships a tuned model rather than a free-form prompt, the output is more consistent than asking a chat model, and it works on more devices. Every call reports its own measured latency and the engine that served it.
+  Wraps the ML Kit GenAI task modules on AICore through pixel-nano: genai-summarization, genai-proofreading and genai-rewriting, plus image description. summarize, proofread and rewrite use the ML Kit task model when it is available; when it is not, or it throws, the module falls back to a Gemini Nano prompt and the result's engine field says so ('mlkit-summarization', 'mlkit-proofreading', 'mlkit-rewriting' or 'gemini-nano-prompt'). describeImage is a Gemini Nano multimodal prompt (engine 'gemini-nano-vision'). AICore decides where inference runs; the hook does not select or report the processor. Every call reports its own measured latency and the engine that served it.
       operationId: get_useGenAITasks
       tags:
         - neural-ai
@@ -2493,9 +2492,9 @@ paths:
     get:
       summary: "Vibration, from simple taps to custom-shaped waveforms."
       description: |
-  Makes the phone buzz. Standard patterns cover ordinary taps and confirmations. On this device you can also design your own vibration shape, rising and falling in intensity, which is how you make a distinctive feel rather than a generic buzz.
+  Makes the phone buzz. Standard patterns cover ordinary taps and confirmations. On devices where Android reports envelope support you can also design your own vibration shape, rising and falling in intensity, which is how you make a distinctive feel rather than a generic buzz.
 
-  Standard patterns come from expo-haptics. Beyond that, the native module reports the actual vibrator hardware: whether amplitude can be varied, its resonant frequency, and which composition primitives it supports. Android 16 envelope effects are built with BasicEnvelopeBuilder from intensity and sharpness control points and must finish at zero intensity. This Pixel supports them, which is how the thinking ramp and alert pulses are produced.
+  Standard patterns come from expo-haptics. Beyond that, the native module reports the vibrator's capabilities: whether amplitude can be varied, its resonant frequency (null when the platform does not report it), and which composition primitives it supports. Android 16 envelope effects are built with BasicEnvelopeBuilder from intensity and sharpness control points and must finish at zero intensity; they play only where Vibrator.areEnvelopeEffectsSupported() is true (check envelopeSupported). source reflects the capability read, not the expo-haptics calls.
       operationId: get_useHaptics
       tags:
         - sensors-actuators
@@ -2512,7 +2511,7 @@ paths:
       description: |
   Faint tick for moving between options: sliders, wheel pickers, tab changes.
 
-  **Output Contract**: Resolves once dispatched. No-op on web; failures are logged rather than thrown.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw; failures are logged rather than thrown.
       operationId: useHaptics_selection
       tags:
         - sensors-actuators
@@ -2529,7 +2528,7 @@ paths:
       description: |
   Impact taps of increasing weight, for presses, reveals and destructive confirmations.
 
-  **Output Contract**: Resolves once dispatched. No-op on web.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw.
       operationId: useHaptics_light
       tags:
         - sensors-actuators
@@ -2546,7 +2545,7 @@ paths:
       description: |
   Impact taps of increasing weight, for presses, reveals and destructive confirmations.
 
-  **Output Contract**: Resolves once dispatched. No-op on web.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw.
       operationId: useHaptics_medium
       tags:
         - sensors-actuators
@@ -2563,7 +2562,7 @@ paths:
       description: |
   Impact taps of increasing weight, for presses, reveals and destructive confirmations.
 
-  **Output Contract**: Resolves once dispatched. No-op on web.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw.
       operationId: useHaptics_heavy
       tags:
         - sensors-actuators
@@ -2580,7 +2579,7 @@ paths:
       description: |
   Notification patterns that carry meaning: a double pulse, a buzz, a triple pulse. Use them consistently.
 
-  **Output Contract**: Resolves once dispatched. No-op on web.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw.
       operationId: useHaptics_success
       tags:
         - sensors-actuators
@@ -2597,7 +2596,7 @@ paths:
       description: |
   Notification patterns that carry meaning: a double pulse, a buzz, a triple pulse. Use them consistently.
 
-  **Output Contract**: Resolves once dispatched. No-op on web.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw.
       operationId: useHaptics_warning
       tags:
         - sensors-actuators
@@ -2614,7 +2613,7 @@ paths:
       description: |
   Notification patterns that carry meaning: a double pulse, a buzz, a triple pulse. Use them consistently.
 
-  **Output Contract**: Resolves once dispatched. No-op on web.
+  **Output Contract**: Resolves true when the platform call completed, false on web or when it threw.
       operationId: useHaptics_error
       tags:
         - sensors-actuators
@@ -2692,9 +2691,9 @@ paths:
     post:
       summary: Invoke triggerHaptic (useHaptics)
       description: |
-  Plays a standard platform pattern. No-op on web.
+  Plays a standard platform pattern through expo-haptics. Returns false on web.
 
-  **Output Contract**: `Promise<void>` — resolves when dispatched; failures are logged, not thrown
+  **Output Contract**: `Promise<boolean>` — true when the platform call completed without throwing (the platform does not confirm the actuator moved); false on web or when the call threw (failures are logged, not thrown)
       operationId: useHaptics_triggerHaptic
       tags:
         - sensors-actuators
@@ -2707,11 +2706,11 @@ paths:
                 $ref: "#/components/schemas/useHaptics_triggerHaptic_Response"
   /hooks/useHealthConnect:
     get:
-      summary: "Platform health records, steps, and sensor vitals telemetry."
+      summary: "Health Connect availability and the device's step counter and heart rate sensors. Does not read health records."
       description: |
-  Inspects Android Health Connect framework availability, system step counter hardware, and sensor vitals. Integrates unified health telemetry on Android 14+ without simulation.
+  Tells you whether Health Connect looks available on the device and whether the phone has a step counter and heart rate sensor. It does not read steps, heart rate or any Health Connect record.
 
-  Backed by android.health.connect system framework on Android 14+, PackageManager healthdata provider detection, and hardware Sensor.TYPE_STEP_COUNTER / Sensor.TYPE_HEART_RATE HAL drivers. Nothing is simulated: reports real device health telemetry availability.
+  isAvailable and sdkStatus are inferred: the healthconnect system service (Context.HEALTHCONNECT_SERVICE, Android 14+) or the com.google.android.apps.healthdata package is present. They are not the result of HealthConnectClient.getSdkStatus(), which this SDK does not call, so no provider-update state is reported. hasStepCounter / hasHeartRateSensor and the sensor names come from the step counter system feature and SensorManager.getDefaultSensor (TYPE_STEP_COUNTER, TYPE_HEART_RATE).
       operationId: get_useHealthConnect
       tags:
         - sensors-actuators
@@ -2742,7 +2741,7 @@ paths:
       description: |
   Controls the coloured lights around the rear camera. Useful as a glanceable signal when the phone is face down: a colour for an incoming call, a pulse while an assistant is thinking. Either it drives the physical LEDs or it reports that it cannot; there is no on-screen substitute.
 
-  Android 17 exposes the array as eight lights of type Light.LIGHT_TYPE_APPLICATION, but every lights session needs CONTROL_DEVICE_LIGHTS, which is signature|privileged and cannot be held by a normal app. PixelKit therefore ships a small Java daemon that runs as the adb shell user and listens on 127.0.0.1:11080; start it with npm run hilight:daemon. With the daemon up, availability is hardware and the calls drive real LEDs. Without it, availability is simulated: the colour and pattern state is still tracked and mirrored on screen with haptics, and nothing pretends the lights are on.
+  Android 17 exposes the array as eight lights of type Light.LIGHT_TYPE_APPLICATION, but every lights session needs CONTROL_DEVICE_LIGHTS, which is signature|privileged and cannot be held by a normal app. PixelKit therefore ships a small Java daemon that runs as the adb shell user and listens on 127.0.0.1:11080; start it with npm run hilight:daemon. With the daemon up, availability is hardware and the calls drive real LEDs. Without it, availability is unavailable and every control function refuses: it resolves false and sets error. Nothing is mirrored on screen. mode, isActive and currentColor change only after the daemon answered a command with a 2xx status.
       operationId: get_useHiLight
       tags:
         - pro-exclusives
@@ -2774,9 +2773,9 @@ paths:
     post:
       summary: Invoke setColor (useHiLight)
       description: |
-  Sets a solid colour and turns the ring on, switching the mode from off to glow when needed.
+  Sets a solid colour and turns the ring on, switching the mode from off to glow when needed. Refuses when the daemon is not connected.
 
-  **Output Contract**: Returns nothing. Nothing lights unless availability is hardware.
+  **Output Contract**: Resolves true when the daemon accepted the command; currentColor, mode and isActive update only then. Resolves false and sets error otherwise.
       operationId: useHiLight_setColor
       tags:
         - pro-exclusives
@@ -2797,9 +2796,9 @@ paths:
     post:
       summary: Invoke setMode (useHiLight)
       description: |
-  Switches the animation pattern.
+  Switches the animation pattern, optionally with a colour sent in the same daemon command. Refuses when the daemon is not connected.
 
-  **Output Contract**: Returns nothing; mode and isActive update immediately.
+  **Output Contract**: Resolves true when the daemon accepted the command; mode, isActive and (when lit) currentColor update only then. Resolves false and sets error otherwise.
       operationId: useHiLight_setMode
       tags:
         - pro-exclusives
@@ -2820,9 +2819,9 @@ paths:
     post:
       summary: Invoke setBrightness (useHiLight)
       description: |
-  Scales the RGB values sent to the LEDs. The hardware has no separate brightness channel.
+  Sets the brightness sent to the daemon. While the ring is lit the level is sent immediately; while it is off the level is kept for the next lit command.
 
-  **Output Contract**: Returns nothing. Applied immediately when the ring is lit, stored otherwise.
+  **Output Contract**: While lit: true when the daemon accepted it, false and error otherwise. While off: true, because nothing is sent until the next lit command.
       operationId: useHiLight_setBrightness
       tags:
         - pro-exclusives
@@ -2843,9 +2842,9 @@ paths:
     post:
       summary: Invoke triggerGeminiPulse (useHiLight)
       description: |
-  Cyan gemini_thinking hold that clears itself. Pair it with a model call.
+  Cyan gemini_thinking hold that clears itself. Pair it with a model call. Refuses when the daemon is not connected.
 
-  **Output Contract**: Returns nothing. A pending timer from an earlier call is cancelled first.
+  **Output Contract**: Resolves true when the daemon accepted the command; a timer from an earlier hold is cancelled then and a new one starts. Resolves false and sets error otherwise.
       operationId: useHiLight_triggerGeminiPulse
       tags:
         - pro-exclusives
@@ -2866,9 +2865,9 @@ paths:
     post:
       summary: Invoke triggerContactAlert (useHiLight)
       description: |
-  Coloured incoming_call hold for a caller or event, then clears itself.
+  Coloured incoming_call hold for a caller or event, then clears itself. Refuses when the daemon is not connected.
 
-  **Output Contract**: Returns nothing. Replaces any hold already running.
+  **Output Contract**: Resolves true when the daemon accepted the command and replaces any hold already running. Resolves false and sets error otherwise.
       operationId: useHiLight_triggerContactAlert
       tags:
         - pro-exclusives
@@ -2889,9 +2888,9 @@ paths:
     post:
       summary: Invoke turnOff (useHiLight)
       description: |
-  Clears the ring and cancels any pending auto-off timer.
+  Sends the off command and cancels any pending auto-off timer.
 
-  **Output Contract**: Returns nothing; mode becomes off and isActive false.
+  **Output Contract**: Resolves true when the daemon accepted it; mode becomes off and isActive false only then. Resolves false and sets error otherwise.
       operationId: useHiLight_turnOff
       tags:
         - pro-exclusives
@@ -2906,9 +2905,9 @@ paths:
     post:
       summary: Invoke toggle (useHiLight)
       description: |
-  Switches between off and a default blue glow.
+  Switches between off and a default blue glow. Refuses when the daemon is not connected.
 
-  **Output Contract**: Returns nothing; isActive flips.
+  **Output Contract**: Resolves true when the daemon accepted the command and isActive flipped. Resolves false and sets error otherwise.
       operationId: useHiLight_toggle
       tags:
         - pro-exclusives
@@ -2921,11 +2920,11 @@ paths:
                 $ref: "#/components/schemas/useHiLight_toggle_Response"
   /hooks/useKeyAgreement:
     get:
-      summary: Hardware-isolated Elliptic Curve Diffie-Hellman session key derivation via Titan M2.
+      summary: ECDH session key derivation with a private key generated in the Android Keystore; the achieved security level is read from KeyInfo.
       description: |
-  Generates hardware-bound EC keypairs in the Titan M2 security enclave and derives high-entropy shared secrets via ECDH without ever exposing the private key to software memory.
+  Generates an EC keypair in the Android Keystore (StrongBox when requested and declared by the device) and derives a shared secret via ECDH. The private key stays in the Keystore. The level the key really got (StrongBox, trusted environment, software) is read back from KeyInfo and is null when it cannot be read.
 
-  Utilizes AndroidKeyStore and Java Cryptography Architecture (JCA) backed by the Google Titan M2 StrongBox hardware security module. Implements Elliptic Curve Diffie-Hellman (ECDH) on the NIST P-256 (secp256r1) curve with PURPOSE_AGREE_KEY. Generates hardware-isolated keypairs and derives symmetrical AES shared secrets against external peer public keys.
+  Uses AndroidKeyStore and the Java Cryptography Architecture. Generates an EC keypair with PURPOSE_AGREE_KEY (the Keystore default curve) and derives an ECDH shared secret against an external peer public key. When preferStrongBox is true and the device declares android.hardware.strongbox_keystore, StrongBox is requested; the achieved level is read with KeyInfo.getSecurityLevel() (API 31+) and returned as securityLevel (STRONGBOX, TRUSTED_ENVIRONMENT, SOFTWARE, UNKNOWN_SECURE), or null with securityLevelReason when it cannot be read or generation failed.
       operationId: get_useKeyAgreement
       tags:
         - radios-security
@@ -2939,7 +2938,7 @@ paths:
   /hooks/useKeyAgreement/actions/generateKeyPair:
     post:
       summary: Invoke generateKeyPair (useKeyAgreement)
-      description: Generates an EC keypair inside the hardware enclave.
+      description: "Generates an EC keypair in the Android Keystore. Resolves with publicKeyBase64 and securityLevel (null when unreadable or when generation failed, with the reason in error)."
       operationId: useKeyAgreement_generateKeyPair
       tags:
         - radios-security
@@ -2953,7 +2952,7 @@ paths:
   /hooks/useKeyAgreement/actions/deriveSharedSecret:
     post:
       summary: Invoke deriveSharedSecret (useKeyAgreement)
-      description: "Derives a shared secret via ECDH with a peer's public key."
+      description: "Derives a shared secret via ECDH with a peer's public key. Resolves with sharedSecretBase64 (null on failure, with the reason in error)."
       operationId: useKeyAgreement_deriveSharedSecret
       tags:
         - radios-security
@@ -2966,11 +2965,11 @@ paths:
                 $ref: "#/components/schemas/useKeyAgreement_deriveSharedSecret_Response"
   /hooks/useLocation:
     get:
-      summary: "Position, altitude, heading and speed from the satellite receiver."
+      summary: "Position, altitude, heading and speed from expo-location."
       description: |
-  Where the phone is, how accurate that is, which way it is pointing and how fast it is moving. Always check accuracy before trusting a fix, and check permission before assuming you will get one at all.
+  Where the phone is, how accurate that is, which way it is pointing and how fast it is moving. Latitude and longitude are null until the first fix. Always check accuracy before trusting a fix, and check permission before assuming you will get one at all.
 
-  Streams from expo-location using the high-accuracy provider, which on a Pixel uses the dual-band receiver. The accuracy value is the radius in metres that the platform believes the position lies within; indoors it can be tens of metres and should gate any decision made from the coordinates. Heading and speed are only meaningful while actually moving.
+  Takes one fix from expo-location (getCurrentPositionAsync, Accuracy.Highest); it does not report which receiver or band produced it. Latitude and longitude are null until the first fix arrives, including when permission is denied. The accuracy value is the radius in metres that the platform believes the position lies within; indoors it can be tens of metres and should gate any decision made from the coordinates. Heading and speed are only meaningful while actually moving.
       operationId: get_useLocation
       tags:
         - radios-security
@@ -3143,11 +3142,11 @@ paths:
                 $ref: "#/components/schemas/useMemory_purgeCaches_Response"
   /hooks/useMicrophoneArray:
     get:
-      summary: "Multi-mic acoustic array topology, polar directivity, and beamforming controls."
+      summary: "Microphone inventory: position, orientation, directionality and location of each microphone the platform lists."
       description: |
-  Inspects the physical microphone array on the device chassis (top, bottom, rear camera visor), returns polar pattern directivity, and allows steering the hardware acoustic beam towards the user or scene.
+  Lists the microphones the phone reports (top, bottom, rear), with where each sits and its polar pattern. It only reads the list; it does not steer or focus the microphones.
 
-  Directly queries the Android AudioManager for connected hardware microphones and their geometric coordinates, group mappings, and directivity patterns (omnidirectional, cardioid, hypercardioid). On supported Pixel devices, provides controls to steer acoustic beamforming (towards user, away from user, external) and adjust acoustic zoom field dimension.
+  Queries Android AudioManager.getMicrophones() through the native module and returns, for each microphone, its id, description, type, directionality (omnidirectional, bidirectional, cardioid, hypercardioid, supercardioid), location, group and the position and orientation the platform reports, null when it reports none. The hook does not steer or focus the array: MediaRecorder and AudioRecord accept a preferred microphone direction per recorder instance, and this hook owns no recorder, so it exposes no direction or zoom control.
       operationId: get_useMicrophoneArray
       tags:
         - sensors-actuators
@@ -3158,38 +3157,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useMicrophoneArrayTelemetry"
-  /hooks/useMicrophoneArray/actions/setDirection:
-    post:
-      summary: Invoke setDirection (useMicrophoneArray)
-      description: "Directs acoustic beamforming towards 'user', 'away', 'external', or 'omni'."
-      operationId: useMicrophoneArray_setDirection
-      tags:
-        - sensors-actuators
-      responses:
-        200:
-          description: Result of invoking setDirection.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useMicrophoneArray_setDirection_Response"
-  /hooks/useMicrophoneArray/actions/setFieldZoom:
-    post:
-      summary: Invoke setFieldZoom (useMicrophoneArray)
-      description: Sets the acoustic zoom field dimension (0.0 to 1.0).
-      operationId: useMicrophoneArray_setFieldZoom
-      tags:
-        - sensors-actuators
-      responses:
-        200:
-          description: Result of invoking setFieldZoom.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useMicrophoneArray_setFieldZoom_Response"
   /hooks/useMicrophoneArray/actions/refresh:
     post:
       summary: Invoke refresh (useMicrophoneArray)
-      description: Re-queries hardware microphone state.
+      description: Re-queries the platform microphone list.
       operationId: useMicrophoneArray_refresh
       tags:
         - sensors-actuators
@@ -3293,11 +3264,11 @@ paths:
                 $ref: "#/components/schemas/useNFC_clearTag_Response"
   /hooks/useNaturalLanguageAI:
     get:
-      summary: "Translation, language detection, smart replies and entity extraction, all offline."
+      summary: "Translation, language detection, smart replies and entity extraction, running on the device."
       description: |
-  Language tools that work without a connection: translate between 58 languages, work out what language some text is in, suggest replies to a conversation, and pull out things like dates, addresses and tracking numbers.
+  Language tools that run on the phone: translate between the languages ML Kit Translate supports (each language model downloads once), work out what language some text is in, suggest replies to a conversation, and pull out things like dates, addresses and tracking numbers from English text.
 
-  Wraps the ML Kit language stack through pixel-nano: language-id, translate, smart-reply and entity-extraction. Translation models download per language pair on first use and then run entirely offline, which is why the first call for a new pair is slower. Smart reply takes a short conversation history and proposes replies. Entity extraction returns typed spans with their positions in the original string.
+  Wraps the ML Kit language stack through pixel-nano: language-id, translate, smart-reply and entity-extraction. Translation models download per language pair on first use and then run offline, which is why the first call for a new pair is slower. Translation accepts only the language tags ML Kit Translate supports; any other tag rejects with E_NANO_UNSUPPORTED_LANGUAGE (surfaced in error, result null) and no other language is substituted. Smart reply takes a short conversation history and proposes replies. Entity extraction works on English text only and returns typed spans with their positions in the original string.
       operationId: get_useNaturalLanguageAI
       tags:
         - neural-ai
@@ -3335,7 +3306,7 @@ paths:
     post:
       summary: Invoke translate (useNaturalLanguageAI)
       description: |
-  Translates offline. The first call for a language pair downloads that model, so it is slower than the ones after it.
+  Translates on-device. The first call for a language pair downloads that model, so it is slower than the ones after it. An unsupported language tag fails instead of falling back to another language.
 
   **Output Contract**: Resolves with { translatedText, sourceLanguage, targetLanguage, latencyMs, source }, or null on failure.
       operationId: useNaturalLanguageAI_translate
@@ -3381,7 +3352,7 @@ paths:
     post:
       summary: Invoke extractEntities (useNaturalLanguageAI)
       description: |
-  Finds dates, addresses, money, phone numbers, flight numbers and tracking codes.
+  Finds dates, addresses, money, phone numbers, flight numbers and tracking codes in English text. Other languages are not supported.
 
   **Output Contract**: Resolves with { entities, latencyMs, source }; each entity carries type, text and the start and end offsets into your input. Null on failure.
       operationId: useNaturalLanguageAI_extractEntities
@@ -3404,9 +3375,9 @@ paths:
     get:
       summary: "Connection type, address and whether traffic actually goes anywhere."
       description: |
-  Whether the phone is online, how it is connected, and whether that connection costs money. Check isConnected before any network call, and isMetered before a large download.
+  Whether the phone is online, how it is connected, and whether Android marks the active network as metered. Check isConnected before any network call, and isMetered (when it is not null) before a large download.
 
-  Reads from expo-network: interface type, IP address, reachability and airplane mode. Being connected to Wi-Fi is not the same as having internet, which is why isConnected reflects a usable route rather than merely an attached interface. isMetered marks connections where the user pays per byte, typically cellular or a hotspot.
+  Reads from expo-network: interface type, IP address, reachability and airplane mode. Being connected to Wi-Fi is not the same as having internet, which is why isConnected reflects a usable route rather than merely an attached interface. isMetered comes from the native module: true when the active network lacks NET_CAPABILITY_NOT_METERED (ConnectivityManager), so a metered Wi-Fi hotspot is metered and an unmetered cellular plan is not. It is null when there is no active network or the read is not permitted. isAirplaneMode is null when its read failed.
       operationId: get_useNetwork
       tags:
         - system-media
@@ -3543,11 +3514,11 @@ paths:
                 $ref: "#/components/schemas/usePerfetto_refresh_Response"
   /hooks/usePlayIntegrity:
     get:
-      summary: Hardware Key Attestation and Google Play Integrity verdicts via Titan M2.
+      summary: Hardware security feature flags and Android Keystore key attestation. No Play Integrity verdict is produced.
       description: |
-  Generates cryptographic hardware attestation tokens and queries Google Play Integrity and Titan M2 StrongBox KeyMint security. Verifies genuine device integrity, hardware-backed key protection, and bootloader status.
+  Reports which hardware keystore features the device declares and whether Google Play Services is installed, and can generate an attested key and return its real certificate chain. It does not call the Play Integrity API and does not say whether the device is rooted.
 
-  Backed by android.hardware.strongbox_keystore (Titan M2 KeyMint 400), android.hardware.hardware_keystore (500), and Android KeyStore KeyGenParameterSpec attestation. Provides cryptographic hardware verification proving the device is a genuine physical Pixel without root compromise or simulation.
+  Reads the android.hardware.strongbox_keystore, android.hardware.hardware_keystore (FeatureInfo.version), android.hardware.keystore.app_attest_key and android.hardware.security.model.compatible system features and whether com.google.android.gms is installed. requestAttestation generates an EC key with an attestation challenge (StrongBox when the device declares it, with a fallback to the default keystore), reads KeyInfo.getSecurityLevel() (API 31+), and returns the certificate chain (base64, leaf first), its length, the leaf subject and issuer, and the challenge bytes actually used (generated when none is passed). The chain is returned as produced by the Keystore: this hook does not verify it. Verify it on a server against the challenge and Google's attestation roots. No Play Integrity API call is made and no integrity verdict is produced.
       operationId: get_usePlayIntegrity
       tags:
         - radios-security
@@ -3561,7 +3532,7 @@ paths:
   /hooks/usePlayIntegrity/actions/requestAttestation:
     post:
       summary: Invoke requestAttestation (usePlayIntegrity)
-      description: Request hardware-backed key attestation from Titan M2 StrongBox KeyStore.
+      description: "Generates an attested EC key and returns the certificate chain (base64), the key's security level from KeyInfo (null when unreadable) and the challenge used. Resolves null on failure with the reason in error."
       operationId: usePlayIntegrity_requestAttestation
       tags:
         - radios-security
@@ -3575,7 +3546,7 @@ paths:
   /hooks/usePlayIntegrity/actions/refresh:
     post:
       summary: Invoke refresh (usePlayIntegrity)
-      description: Re-probe device security features and Play Integrity status.
+      description: Re-reads the device security features.
       operationId: usePlayIntegrity_refresh
       tags:
         - radios-security
@@ -3588,11 +3559,11 @@ paths:
                 $ref: "#/components/schemas/usePlayIntegrity_refresh_Response"
   /hooks/usePrivateSpace:
     get:
-      summary: Android 15+ Private Space profile isolation detection and vault policy.
+      summary: "Whether the app process runs inside Android 15+'s Private Space profile. Existence of the profile is not readable from outside it."
       description: |
-  Detects whether the running app instance is executing inside Android 15's isolated Private Space vault or the primary profile, and inspects vault auto-lock settings.
+  Tells you whether this app instance runs inside the Private Space profile. Android hides the Private Space from other apps and has no public auto-lock setting, so what cannot be read is null and reason says why.
 
-  Utilizes android.os.UserManager.isPrivateProfile() introduced in Android 15 (API 35). Identifies whether the current application process has been launched within the isolated user profile partition (Private Space), detects whether Private Space has been set up on the device, and reports the active lock policy (immediate, screen_off, device_reboot).
+  A process outside any user profile (UserManager.isProfile() is false) is reported as not inside Private Space. Inside a profile, the user type is read through LauncherApps.getLauncherUserInfo(Process.myUserHandle()) and compared with UserManager.USER_TYPE_PROFILE_PRIVATE (API 35+); when that read is refused isInsidePrivateSpace is null. Android does not list the Private Space profile to third-party apps, so isPrivateSpaceConfigured is true only when the app itself runs inside it and null otherwise. No public API exposes the auto-lock setting, so it is not reported.
       operationId: get_usePrivateSpace
       tags:
         - radios-security
@@ -3606,7 +3577,7 @@ paths:
   /hooks/usePrivateSpace/actions/refresh:
     post:
       summary: Invoke refresh (usePrivateSpace)
-      description: Requests an updated check of Private Space status.
+      description: Re-reads the user profile type.
       operationId: usePrivateSpace_refresh
       tags:
         - radios-security
@@ -3623,7 +3594,7 @@ paths:
       description: |
   A single snapshot of all the wireless hardware: NFC, Bluetooth, ultra-wideband, Wi-Fi precise ranging and satellite messaging. Use this for a status overview instead of calling four separate hooks.
 
-  One native call gathers state from NfcAdapter, BluetoothManager, UwbManager, WifiRttManager and PackageManager, refreshed every five seconds. Everything here is read from the platform, so the whole object carries source hardware. It overlaps with useNFC, useBLE and useUWB on purpose: those add per-radio actions, this one is purely for reading state.
+  One native call gathers state from NfcAdapter, BluetoothAdapter, UwbManager (reflection), WifiRttManager and PackageManager features, refreshed every five seconds. Values that Android does not let the app read are null rather than guessed: uwb.enabled (read through UwbManager.isUwbEnabled() by reflection) and thread.serviceFound (a hidden ServiceManager lookup). Bonded device names are null when unnamed or when BLUETOOTH_CONNECT is not granted. Until the first read completes the returned values are all-false defaults and source is 'unavailable'; source becomes 'hardware' after the first successful read, and a later success clears error. It overlaps with useNFC, useBLE and useUWB on purpose: those add per-radio actions, this one is purely for reading state.
       operationId: get_useRadios
       tags:
         - radios-security
@@ -3640,7 +3611,7 @@ paths:
       description: |
   Forces an immediate re-read instead of waiting for the next five-second poll.
 
-  **Output Contract**: Returns nothing; the nfc, bluetooth, uwb, wifiRtt and satellite blocks update. Call it after sending the user to Settings.
+  **Output Contract**: Returns nothing; the nfc, bluetooth, uwb, wifiRtt, thread and satellite blocks update. Call it after sending the user to Settings.
       operationId: useRadios_refresh
       tags:
         - radios-security
@@ -3653,11 +3624,11 @@ paths:
                 $ref: "#/components/schemas/useRadios_refresh_Response"
   /hooks/useSatelliteNTN:
     get:
-      summary: 3GPP Release-17 Non-Terrestrial Network (satellite SOS) status and alignment telemetry.
+      summary: "Whether the device declares satellite messaging support. Connection state, carrier, signal and SOS readiness are not readable through Android's public API and are null."
       description: |
-  Tracks direct-to-satellite modem connectivity for emergency SOS, reporting provider connection states, signal strength bars, and horizon antenna pointing guidance.
+  Tells you whether the phone declares satellite messaging hardware support. Android does not let apps read the satellite connection, carrier, signal strength or SOS readiness, so those fields stay null and unreadReason says why.
 
-  Interfaces with Android 15+ (API 35+) satellite telephony services and 3GPP Rel-17 NTN modems. Monitors real-time satellite connection states (disconnected, searching, connected, pointing_assist), provider network names, signal quality bars (0 to 4), emergency SOS packet readiness, and surfaces azimuth and elevation vectors to assist pointing the phone at the horizon satellite constellation.
+  Reads the android.hardware.telephony.satellite system feature through PackageManager. Android 36's public SatelliteManager only offers register/unregisterStateChangeListener with an enabled-state callback, so there is no public read for connection state, carrier, signal bars, pointing data or emergency readiness. Those fields (connectionState, carrier, signalQualityBars, pointingGuidance, emergencyServicesReady) are always null and unreadReason states the reason.
       operationId: get_useSatelliteNTN
       tags:
         - radios-security
@@ -3671,7 +3642,7 @@ paths:
   /hooks/useSatelliteNTN/actions/refresh:
     post:
       summary: Invoke refresh (useSatelliteNTN)
-      description: Queries the satellite subsystem for updated connectivity and antenna guidance.
+      description: Re-reads the satellite system feature.
       operationId: useSatelliteNTN_refresh
       tags:
         - radios-security
@@ -4112,9 +4083,9 @@ paths:
     get:
       summary: "Turning speech into text, on the device or in the cloud."
       description: |
-  Records the user talking and returns what they said. It can work offline using the phone's own recogniser, or send the clip to Gemini for higher accuracy. Offline is faster and private; cloud handles harder audio.
+  Records the user talking and returns what they said. It can use the phone's own on-device recogniser, or send a recorded clip to Gemini. On-device keeps audio on the phone and streams partial text; cloud handles harder audio and needs an API key.
 
-  Capture runs through useAudio at 16 kHz mono on the voice_recognition source, which is the path that applies the platform noise suppression. In offline mode the native module drives Android System Intelligence streaming recognition and emits partial results as the user speaks. In cloud mode the finished clip is sent to Gemini audio understanding. Neither path fabricates a transcript: without a key, cloud mode keeps the recording and returns an error.
+  In 'on-device' mode the native module drives Android's SpeechRecognizer with the on-device recogniser (API 31+, SpeechRecognizer.isOnDeviceRecognitionAvailable) and emits partial results as the user speaks; it never silently switches to the default or cloud recogniser, and fails with the reason in error when the on-device one is unavailable. In 'cloud' mode the clip is recorded through useAudio at 16 kHz mono on the voice_recognition source, which applies the platform noise suppression, and sent to Gemini audio understanding. Neither path fabricates a transcript: without a key, cloud mode keeps the recording and returns an error.
       operationId: get_useSpeechAI
       tags:
         - neural-ai
@@ -4235,21 +4206,14 @@ paths:
                 $ref: "#/components/schemas/useTPU_benchmarkTPU_Response"
   /hooks/useThermometer:
     get:
-      summary: Non-contact infrared temperature measurement on Google Pixel Pro hardware.
+      summary: Discovery of the non-contact infrared temperature sensor on Google Pixel Pro hardware; temperatures stay null until a verified decoder exists.
       description: |
-  Reads surface and ambient temperatures from the dedicated far-infrared (FIR) sensor on Pixel 8 Pro, 9 Pro, 10 Pro, and 11 Pro devices. Allows adjusting material emissivity and measurement mode.
+  Finds out whether this phone lists the far-infrared temperature sensor that Pixel Pro models carry. It does not read a temperature from it yet, so the temperatures are always null and the reason is in error.
 
-  Interfaces with the Melexis MLX90632 non-contact FIR temperature sensor integrated into Google Pixel Pro camera visors. Surfaces calibrated surface temperatures in both Celsius and Fahrenheit along with ambient die temperature. Supports configurable emissivity correction factors (0.10 to 1.00) and measurement modes (object, body, ambient). Reports unavailable on non-Pro models.
+  The native module asks Android SensorManager for a sensor whose type string contains object_temperature or mlx90632, or whose name contains Thermometer or MLX90632, and reports its name in sensorName. PixelKit has no verified decoder for that sensor's samples (unit and channel layout), so surfaceTemperatureC, surfaceTemperatureF and ambientTemperatureC are null and error states which sensor was found and why nothing is read. There is no emissivity or measurement-mode setting: nothing downstream of the sensor would apply it. Nothing is estimated or simulated.
       operationId: get_useThermometer
       tags:
         - sensors-actuators
-      parameters:
-        - name: initialEmissivity
-          in: query
-          description: "Surface emissivity factor from 0.1 to 1.0, defaulting to 0.95 (organic/skin/water)."
-          required: false
-          schema:
-            type: number
       responses:
         200:
           description: Current telemetry reading from useThermometer.
@@ -4257,38 +4221,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/useThermometerTelemetry"
-  /hooks/useThermometer/actions/setEmissivity:
-    post:
-      summary: Invoke setEmissivity (useThermometer)
-      description: Updates the material surface emissivity coefficient.
-      operationId: useThermometer_setEmissivity
-      tags:
-        - sensors-actuators
-      responses:
-        200:
-          description: Result of invoking setEmissivity.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useThermometer_setEmissivity_Response"
-  /hooks/useThermometer/actions/setMode:
-    post:
-      summary: Invoke setMode (useThermometer)
-      description: "Switches the calculation mode between 'object', 'body', and 'ambient'."
-      operationId: useThermometer_setMode
-      tags:
-        - sensors-actuators
-      responses:
-        200:
-          description: Result of invoking setMode.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/useThermometer_setMode_Response"
   /hooks/useThermometer/actions/refresh:
     post:
       summary: Invoke refresh (useThermometer)
-      description: Requests an updated temperature reading from hardware.
+      description: Probes the sensor list again.
       operationId: useThermometer_refresh
       tags:
         - sensors-actuators
@@ -4402,7 +4338,7 @@ paths:
       description: |
   Reports whether this phone has the short-range precision radio used for precision spatial tracking and car keys, and ranges against a second UWB device whose address and channel you supply.
 
-  Chip presence, enabled state, chip id and ranging service readiness are queried from Android UwbManager and PackageManager through the native module, carrying source hardware. startRanging(config) opens a real android.ranging.RangingSession (Android 16, API 36+, RAW UWB session) with the peer described by the config: its address, the session id, and optionally the channel, preamble index and key info, all agreed with the peer out of band (BLE, NFC, QR). The call resolves true only when the platform reports the session open; otherwise it resolves false and sessionError carries a status such as needs_peer_configuration, uwb_unsupported, ranging_api_unavailable, uwb_disabled, permission_denied (android.permission.RANGING must be declared and granted by the app), session_active, invalid_parameters or open_failed. measurements holds the latest android.ranging.RangingData sample per peer (distance in meters, azimuth and elevation in degrees, each with the platform's confidence level) and stays empty until the peer answers.
+  Chip presence (android.hardware.uwb feature), the enabled state (UwbManager.isUwbEnabled() by reflection, null when apps cannot read it) and ranging service readiness (whether the Android 16 RangingManager service exists) are queried through the native module, carrying source hardware. startRanging(config) opens a real android.ranging.RangingSession (Android 16, API 36+, RAW UWB session) with the peer described by the config: its address, the session id, and optionally the channel, preamble index and key info, all agreed with the peer out of band (BLE, NFC, QR). The call resolves true only when the platform reports the session open; otherwise it resolves false and sessionError carries a status such as needs_peer_configuration, uwb_unsupported, ranging_api_unavailable, uwb_disabled, permission_denied (android.permission.RANGING must be declared and granted by the app), session_active, invalid_parameters or open_failed. measurements holds the latest android.ranging.RangingData sample per peer (distance in meters, azimuth and elevation in degrees, each with the platform's confidence level) and stays empty until the peer answers.
       operationId: get_useUWB
       tags:
         - pro-exclusives
@@ -4758,7 +4694,7 @@ paths:
       description: |
   Everything image-related in one hook. Locally it can read text, scan barcodes, find faces and poses, label objects and cut out the subject. For open-ended questions about a picture it can also send the image to Gemini.
 
-  The on-device half wraps the ML Kit vision models through pixel-nano and runs without a network: barcode scanning, text recognition v2, face detection with landmarks and head angles, 468-point face mesh, image labelling, object detection with tracking, 33-point pose detection, selfie and subject segmentation, and digital ink recognition. The cloud half sends a captured or picked image to Gemini and asks for a description plus structured labels. Each on-device call reports its own latency.
+  The on-device half wraps the ML Kit vision models through pixel-nano and runs without a network: barcode scanning, text recognition v2, face detection with landmarks and head angles, 468-point face mesh, image labelling, object detection (single-image mode), 33-point pose detection, selfie and subject segmentation, and digital ink recognition. Face and object results have a trackingId field, but it is always null: the object detector runs in SINGLE_IMAGE_MODE and the face detector is created without tracking, so ids are not assigned across frames. The cloud half sends a captured or picked image to Gemini and asks for a description plus structured labels. Each on-device call reports its own latency.
       operationId: get_useVisionAI
       tags:
         - neural-ai
@@ -4867,7 +4803,7 @@ paths:
       description: |
   Locates faces and their attributes.
 
-  **Output Contract**: Resolves with { faces, latencyMs, source }; each face carries a tracking id, head Euler angles, a bounding box, and smile and eye-open probabilities that are null when classification is off. Null on failure.
+  **Output Contract**: Resolves with { faces, latencyMs, source }; each face carries a trackingId (always null, the detector has no tracking enabled), head Euler angles, a bounding box, and smile and eye-open probabilities (classification is always requested). Null on failure.
       operationId: useVisionAI_detectFaces
       tags:
         - neural-ai
@@ -4890,7 +4826,7 @@ paths:
       description: |
   Detects and tracks objects with labels.
 
-  **Output Contract**: Resolves with { objects, latencyMs, source }; each object carries a tracking id, a bounding box and labels with confidences. Null on failure.
+  **Output Contract**: Resolves with { objects, latencyMs, source }; each object carries a trackingId (always null in single-image mode), a bounding box and labels with confidences. Null on failure.
       operationId: useVisionAI_detectObjects
       tags:
         - neural-ai
@@ -4936,7 +4872,7 @@ paths:
       description: |
   Separates the main subject from the background.
 
-  **Output Contract**: Resolves with { subjectsCount, foregroundConfidence, latencyMs, source }. Null on failure.
+  **Output Contract**: Resolves with { subjectsCount, foregroundConfidence, latencyMs, source }. foregroundConfidence is a boolean: true when ML Kit returned a foreground confidence mask; the mask values are not returned. Null on failure.
       operationId: useVisionAI_segmentSubject
       tags:
         - neural-ai
@@ -5023,11 +4959,11 @@ paths:
                 $ref: "#/components/schemas/useVisionAI_recognizeDigitalInk_Response"
   /hooks/useWifi7MLO:
     get:
-      summary: Wi-Fi 7 (802.11be) Multi-Link Operation and 320 MHz channel telemetry.
+      summary: "Wi-Fi 7 (802.11be) Multi-Link Operation links: band, channel, RSSI, link speeds and state."
       description: |
-  Inspects affiliated Wi-Fi 7 radio links operating simultaneously across 2.4 GHz, 5 GHz, and 6 GHz spectrum, reporting bonded link speeds and channel bandwidths.
+  Lists the Wi-Fi 7 multi-link operation links of the connected access point with band, channel, signal and link speeds, and whether this phone is associated to more than one of them. Values the platform reports as unknown are null.
 
-  Reads Multi-Link Operation (MLO) telemetry introduced in Android 14+ (API 34+) for 802.11be Wi-Fi 7 routers and modems. Surfaces the array of active affiliated links, their respective channel widths (including ultra-wide 320 MHz channels on 6 GHz), per-link transmit and receive speeds, and calculates combined aggregate throughput. Reports inactive on Wi-Fi 6 or earlier.
+  Reads WifiInfo.getAffiliatedMloLinks() (all links of the access point multi-link device) and getAssociatedMloLinks() (the links this station is associated to), Android 14+ (API 34+). Each link carries band (MloLink.getBand(): 2.4GHz, 5GHz, 6GHz, 60GHz or null), channel, rssi, txLinkSpeedMbps and rxLinkSpeedMbps (null when the platform reports an unknown value) and state (MloLink.getState(): unassociated, idle, active, or invalid). The platform exposes no per-link channel width. isMloActive is true when the station is associated to more than one link. aggregateSpeedMbps is the sum of txLinkSpeedMbps (transmit direction only) over the associated links, not a PHY capacity figure; it is null when not multi-link or when no link reported a speed. Reports inactive with an empty links array when the connected access point is not a multi-link device.
       operationId: get_useWifi7MLO
       tags:
         - radios-security
@@ -5166,24 +5102,38 @@ components:
           description: Altitude in meters
     MloLinkInfo:
       type: object
-      description: Affiliated Wi-Fi 7 Multi-Link Operation (MLO) link.
+      description: Wi-Fi 7 Multi-Link Operation (MLO) link of the access point multi-link device. Unknown values are null.
       properties:
         band:
-          type: string
-          enum:
-            - 2.4GHz
-            - 5GHz
-            - 6GHz
-        channelWidthMHz:
+          anyOf:
+            - type: string
+              enum:
+                - 2.4GHz
+                - 5GHz
+                - 6GHz
+                - 60GHz
+            - type: null
+        channel:
           type: number
         rssi:
-          type: number
+          anyOf:
+            - type: number
+            - type: null
         txLinkSpeedMbps:
-          type: number
+          anyOf:
+            - type: number
+            - type: null
         rxLinkSpeedMbps:
-          type: number
+          anyOf:
+            - type: number
+            - type: null
         state:
           type: string
+          enum:
+            - invalid
+            - unassociated
+            - idle
+            - active
     WifiRttResult:
       type: object
       description: "One access point measured by WifiRttManager.startRanging. Distance, standard deviation, RSSI and counters are null unless status is 0 (success)."
@@ -5292,23 +5242,42 @@ components:
           type: number
     KeyAgreementKeyPairResult:
       type: object
-      description: ECDH key pair generated in Titan M2 hardware.
+      description: ECDH key pair generated in the Android Keystore; securityLevel is read from KeyInfo (null when unreadable).
       properties:
         alias:
           type: string
         publicKeyBase64:
-          type: string
-        algorithm:
-          type: string
-        isStrongBoxBacked:
+          anyOf:
+            - type: string
+            - type: null
+        securityLevel:
+          anyOf:
+            - type: string
+              enum:
+                - STRONGBOX
+                - TRUSTED_ENVIRONMENT
+                - SOFTWARE
+                - UNKNOWN_SECURE
+            - type: null
+        securityLevelReason:
+          anyOf:
+            - type: string
+            - type: null
+        isStrongBoxSupported:
           type: boolean
+        error:
+          anyOf:
+            - type: string
+            - type: null
     SharedSecretResult:
       type: object
       description: Derived ECDH shared secret.
       properties:
         sharedSecretBase64:
-          type: string
-        keyLengthBits:
+          anyOf:
+            - type: string
+            - type: null
+        secretLengthBytes:
           type: number
     SatelliteGuidance:
       type: object
@@ -5435,16 +5404,16 @@ components:
     useADPFHintSessionTelemetry:
       type: object
       description: |
-  Active frame workload negotiation with Android Dynamic Performance Framework and Tensor EAS.
+  PerformanceHintManager hint session: report how long work took against a target duration for the session's threads.
 
-  Interfaces directly with android.os.PerformanceHintManager (Android 12+ API 31+). Manages an active thread hint session allowing apps to report exact frame computation times in nanoseconds. This informs the kernel scheduler in real-time whether the workload is meeting its deadline (e.g. 16.67ms for 60Hz or 8.33ms for 120Hz), scaling frequencies up only when needed.
+  Uses android.os.PerformanceHintManager (Android 12+, API 31+). On mount the native module closes any previous session, then calls createHintSession for the app's main thread (its tid equals the process id), or for the thread ids passed as threadIds, with the initial target duration. isSupported is true only when createHintSession returned a session; otherwise it is false and error says so. reportWorkDuration and updateTargetWorkDuration forward to Session.reportActualWorkDuration and Session.updateTargetWorkDuration and return true when the platform accepted the call. The session covers the main thread by default, so report durations of work done on that thread (or pass the tids of the threads that do the work); durations measured on the JS thread describe a thread that is not in the session. The native module keeps one session per app.
       properties:
         isSupported:
           type: boolean
-          description: Whether ADPF PerformanceHintManager sessions are supported on this device.
+          description: Whether createHintSession returned a session (Android 12+).
         targetFrameDurationMs:
           type: number
-          description: Current target frame render budget in milliseconds.
+          description: "Current target work duration in milliseconds, as last set by this hook."
         error:
           anyOf:
             - type: string
@@ -5452,7 +5421,7 @@ components:
           description: Error message if hint session creation or reporting failed.
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Data provenance: 'hardware' or 'unavailable'."
+          description: "Data provenance: 'hardware' when a session exists, 'unavailable' otherwise."
       required:
         - source
     useADPFHintSession_reportWorkDuration_Request:
@@ -5563,7 +5532,7 @@ components:
                 - falling
                 - rapid_fall
             - type: null
-          description: Short-term pressure change trend indicating weather changes (rapid_fall indicates storm front).
+          description: "Pressure change extrapolated to hPa/hour over the retained samples (at most the last 60 s) and classified as rapid_fall (below -1.5), falling (below -0.5), rising (above +0.5) or steady. null until at least 5 samples spanning 10 s exist; it is never 'steady' by default."
         isAvailable:
           type: boolean
           description: Whether the hardware barometer is present and streaming.
@@ -5626,13 +5595,13 @@ components:
     useAppFunctionsTelemetry:
       type: object
       description: |
-  Exposes on-device actions and hardware capabilities to system AI and Gemini Assistant.
+  In-process registry and runner for device actions, plus a probe of the Android AppFunctions service.
 
-  Backed by android.app.appfunctions.IAppFunctionManager (system service 133 on Pixel 11 Pro). Exposes built-in hardware actions ('check_phone_thermals', 'purge_memory_cache', 'get_device_silicon_info') and enables developers to register custom AppFunction schemas and handlers dynamically. An id that is neither custom nor built in is run through the native registry (PixelNative.getAppFunctions: triggerHapticEffect, setTorchLevel, getSiliconStatus, scanNearbyRadios); executeFunction resolves success false with the native message when the effect did not happen (for example an unsupported haptic primitive) and with an unknown-id error for any other id. Reports source: 'hardware' when backed by the real system service.
+  isSupported is an API-level check (36 and above); serviceFound and serviceName come from a lookup of the Android app_function system service. The hook keeps an in-process registry: built-in actions ('check_phone_thermals', 'purge_memory_cache', 'get_device_silicon_info') and custom schemas and handlers added with registerFunction are listed in functions and run by executeFunction, but none of them is registered with the system service, so Gemini and other assistants cannot see them (that needs a native AppFunctionService in your app). An id that is neither custom nor built in is run through the native registry (PixelNative.getAppFunctions: triggerHapticEffect, setTorchLevel, getSiliconStatus, scanNearbyRadios); executeFunction resolves success false with the native message when the effect did not happen (for example an unsupported haptic primitive) and with an unknown-id error for any other id. source is 'hardware' only when the system service was found.
       properties:
         isSupported:
           type: boolean
-          description: "Whether AppFunctions subsystem is supported on this Android OS version (API 36+ / Android 16 QPR & Android 17)."
+          description: "Whether the device runs Android 16 (API 36) or later. An API-level check, not a service probe."
         serviceFound:
           type: boolean
           description: Whether the android.app.appfunctions.IAppFunctionManager system service is active and discoverable on device.
@@ -5640,17 +5609,17 @@ components:
           anyOf:
             - type: number
             - type: null
-          description: Android platform API level reported by the device (37 on Pixel 11 Pro).
+          description: Android platform API level reported by the device.
         serviceName:
           anyOf:
             - type: string
             - type: null
-          description: "System service name ('app_function')."
+          description: "System service name ('app_function'); null when the service was not found."
         functions:
           type: array
           items:
             $ref: "#/components/schemas/AppFunctionSchema"
-          description: "All registered AppFunction schemas available to Gemini, agents, or local invocation."
+          description: "The hook's built-in schemas plus custom ones registered through this hook. An in-process list, not the system registry."
         error:
           anyOf:
             - type: string
@@ -6168,7 +6137,7 @@ components:
       description: |
   Bluetooth adapter state, Channel Sounding, bonded devices, and active BLE peripheral discovery.
 
-  Adapter state, Channel Sounding support and the bonded device list are read from Android BluetoothAdapter through the native module with source hardware. Live peripheral discovery scans for nearby BLE beacons using Android BluetoothLeScanner, returning verified MAC addresses, RSSI (dBm), and log-distance path loss distance estimations.
+  Adapter state and the bonded device list are read from Android BluetoothAdapter through the native module (useRadios); channelSounding is whether the device declares the android.hardware.bluetooth_le.channel_sounding feature, and ranging a peer is useChannelSounding. Live peripheral discovery uses Android BluetoothLeScanner: each peripheral has its address (results without an address are skipped), name (null when neither BluetoothDevice.getName() nor the advertised local name is available), RSSI in dBm, lastSeenTimestamp (wall-clock ms computed from ScanResult.getTimestampNanos() against SystemClock.elapsedRealtimeNanos()) and estimatedDistanceMeters. The distance is derived, not measured: log-distance path loss with an assumed -59 dBm at 1 m and exponent 2. A failed scan (ScanCallback.onScanFailed) is reported in scanError with its code.
       properties:
         isSupported:
           type: boolean
@@ -6186,12 +6155,12 @@ components:
           description: "Adapter state, including the transitional values."
         channelSounding:
           type: boolean
-          description: "Whether Bluetooth 5.4 Channel Sounding, used for accurate distance, is supported."
+          description: Whether the device declares android.hardware.bluetooth_le.channel_sounding. Ranging itself is in useChannelSounding.
         bondedDevices:
           type: array
           items:
             $ref: "#/components/schemas/BondedDevice"
-          description: Devices already paired with this phone. Real data.
+          description: Devices already paired with this phone; name is null when unnamed or BLUETOOTH_CONNECT is not granted.
         isScanning:
           type: boolean
           description: Whether a BLE scan is running.
@@ -6199,12 +6168,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BLEPeripheral"
-          description: Discovered nearby BLE peripherals with genuine RSSI and distance estimate.
+          description: "Discovered nearby BLE peripherals: id (address), name (or null), RSSI in dBm, lastSeenTimestamp (wall-clock ms) and a derived distance estimate."
         scanError:
           anyOf:
             - type: string
             - type: null
-          description: Error message if scanning fails to start or times out.
+          description: "Why the scan could not start or failed, including the ScanCallback.onScanFailed error code."
         source:
           type: string
           enum:
@@ -6234,7 +6203,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "Resolves true when the scan started; false with the reason in scanError otherwise. Results appear in peripherals, polled every 500 ms."
+          description: "Resolves true when the scan started; false with the reason in scanError otherwise. Results appear in peripherals, polled every 500 ms; an asynchronous scan failure ends the scan and sets scanError."
         error:
           anyOf:
             - type: string
@@ -6271,27 +6240,21 @@ components:
     useBatteryShareTelemetry:
       type: object
       description: |
-  Google Pixel Battery Share (Reverse Wireless Qi Charging) telemetry and actuator.
+  Google Pixel Battery Share (reverse wireless Qi charging) state and toggle.
 
-  Directly interfaces with the Google Pixel reverse wireless charging subsystem (/sys/class/power_supply/wireless/reverse_chg_mode). Reports whether wireless power transfer is active, whether a compatible Qi receiver is docked, real-time power transmission in watts, and allows programmatically enabling or disabling power transfer with safety cutoff thresholds.
+  Reads the Google Pixel reverse charging sysfs node (/sys/class/power_supply/wireless/reverse_chg_mode, or /sys/devices/platform/google,battery/reverse_chg_mode): a non-zero mode means the coil is on. setBatteryShare writes that node when the app is permitted to and reports whether the write succeeded. Receiver presence, delivered watts and a charge cutoff are not exposed by any node PixelKit can read, so the hook reports none of them (transmittedWatts is always null) and offers no threshold setting.
       properties:
         isSupported:
           type: boolean
-          description: Whether this device hardware supports reverse wireless power transmission.
+          description: Whether a readable reverse charging sysfs node exists on this device.
         isActive:
           type: boolean
-          description: Whether the Qi TX reverse charging coil is currently energized.
-        isReceiverDetected:
-          type: boolean
-          description: Whether a compatible Qi receiver device is docked on the reverse charging coil.
+          description: Whether the node reports the reverse charging coil as on (non-zero mode).
         transmittedWatts:
           anyOf:
             - type: number
             - type: null
           description: "Real-time power transmitted in watts (W), or null if inactive/unsupported."
-        batteryThreshold:
-          type: number
-          description: Configured battery percentage cutoff threshold (stops sharing below this percentage).
         error:
           anyOf:
             - type: string
@@ -6314,30 +6277,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Result description
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
-        - source
-    useBatteryShare_setBatteryThreshold_Request:
-      type: object
-      description: Request payload for setBatteryThreshold on useBatteryShare.
-      properties:{}
-    useBatteryShare_setBatteryThreshold_Response:
-      type: object
-      description: Response payload for setBatteryThreshold on useBatteryShare.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: Result description
+          description: "Resolves true when the node write succeeded, false when the app may not write it. isActive afterwards is the re-read node value, not the request."
         error:
           anyOf:
             - type: string
@@ -6388,7 +6328,7 @@ components:
           type: array
           items:
             type: string
-          description: "Which modalities are available, such as fingerprint or face."
+          description: "Modalities the platform reports: 'Fingerprint', 'Face Unlock' or 'Iris'. Any other type value is omitted rather than labelled."
         hasChecked:
           type: boolean
           description: "Whether the capability read has completed. Before it, treat the other flags as unknown rather than false."
@@ -6629,9 +6569,6 @@ components:
         maxZoomFactor:
           type: number
           description: "App-side ceiling for that fraction; `1`."
-        isUltraLowLightVideoActive:
-          type: boolean
-          description: "UI flag only, for the same reason."
       required:
         - source
     useCamera_handleCameraReady_Request:
@@ -6989,29 +6926,6 @@ components:
       required:
         - success
         - source
-    useCamera_toggleUltraLowLightVideo_Request:
-      type: object
-      description: Request payload for toggleUltraLowLightVideo on useCamera.
-      properties:{}
-    useCamera_toggleUltraLowLightVideo_Response:
-      type: object
-      description: Response payload for toggleUltraLowLightVideo on useCamera.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: void
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
-        - source
     useCameraExtensionsTelemetry:
       type: object
       description: |
@@ -7078,7 +6992,7 @@ components:
       description: |
   What this particular phone actually has.
 
-  Resolution starts from a model table keyed on the device name, then upgrades to real PackageManager feature checks when the native module is present, at which point verification changes from model-table to device. Fields that can only be answered by the device are null until that upgrade happens. Evaluates verified platform features including android.hardware.npu, BLE Channel Sounding, and StrongBox KeyStore.
+  Resolution starts from a model table keyed on the device name (inference, not a device read), then upgrades the PackageManager-probed flags (UWB, NFC, BLE Channel Sounding, Wi-Fi RTT, satellite, StrongBox, NPU) and the AICore version when the native module is present, at which point verification changes from model-table to device. Only those probed fields come from the device. hasHiLight, hasTitanM3, geminiNanoTier, isPixel, pixelGeneration, isProModel, isFoldable and the supports* flags are always derived from the model name or the API level, even after device verification; the provenance map reports that per field. Fields that can only be answered by the device are null until verification happens.
       properties:
         modelName:
           type: string
@@ -7145,6 +7059,24 @@ components:
         hasTitanM3:
           type: boolean
           description: "Whether the Titan M3 security chip is expected, per Google's specification. It is not readable from the device."
+        source:
+          type: string
+          enum:
+            - hardware
+            - derived
+            - unavailable
+          description: "'hardware' once PackageManager verification ran, 'derived' while everything comes from the model table. Even then the table-only fields stay derived; read provenance per field."
+        provenance:
+          type: object
+          additionalProperties: true
+          description: "Per-field origin: 'hardware' (platform read or feature probe), 'derived' (model table or API level) or 'unavailable' (probe failed or not run)."
+        error:
+          anyOf:
+            - type: string
+            - type: null
+          description: "Why device verification failed, if it did."
+      required:
+        - source
     useCellularTelemetry:
       type: object
       description: |
@@ -7203,7 +7135,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' once at least one value (generation, carrier, codes or VoIP flag) was answered by the platform, 'unavailable' before that or when every read returned nothing."
       required:
         - source
     useCellular_refresh_Request:
@@ -7255,61 +7187,72 @@ components:
     useChannelSoundingTelemetry:
       type: object
       description: |
-  Bluetooth Core 6.0 high-accuracy centimeter-precision Phase-Based Ranging (PBR).
+  Bluetooth LE Channel Sounding availability and real ranging sessions against a Bluetooth peer.
 
-  Backed by android.hardware.bluetooth_le.channel_sounding and the Android 16/17 Ranging HAL service (IBluetoothChannelSounding). Measures distance with sub-decimeter accuracy, complementing UWB for non-line-of-sight spatial positioning. Nothing is simulated: queries actual device hardware capabilities.
+  Support, adapter state and ranging service readiness come from the android.hardware.bluetooth_le.channel_sounding feature flag, a lookup of the ranging HAL service (IBluetoothChannelSounding) and the Bluetooth adapter, carrying source hardware. rangingAvailability and supportedSecurityLevels are what android.ranging.RangingManager reports for BLE Channel Sounding (BleCsRangingCapabilities); they are null when the platform did not deliver them. startRanging(config) opens a real android.ranging.RangingSession (Android 16, API 36+, RAW session with BleCsRangingParams) with the peer at config.peerAddress. The call resolves true only when the platform reports the session open; otherwise it resolves false and sessionError carries a status such as needs_peer_address, channel_sounding_unsupported, channel_sounding_disabled, ranging_api_unavailable, bluetooth_disabled, permission_denied (android.permission.RANGING must be declared and granted), session_active, invalid_parameters or open_failed. Every measurement is an android.ranging.RangingData sample: a distance in metres, a confidence ('low', 'medium', 'high'), an RSSI when the platform supplied one, and a timestamp, each null when omitted. RangingData does not say whether phase-based ranging or round-trip time produced a sample, so the hook reports no method, channel count or accuracy figure. Nothing is simulated: with no peer answering, measurements stays empty.
       properties:
         isSupported:
           type: boolean
-          description: Whether the hardware physically supports BLE 6.0 Channel Sounding.
+          description: Whether the device declares android.hardware.bluetooth_le.channel_sounding.
         isEnabled:
           type: boolean
-          description: Whether Channel Sounding is enabled (requires Bluetooth enabled and hardware support).
+          description: Whether the feature is declared and the Bluetooth adapter is on.
         serviceFound:
           type: boolean
-          description: Whether the underlying Android Ranging HAL service is active on device.
-        supportsPbr:
-          type: boolean
-          description: Whether Phase-Based Ranging (PBR) is supported.
-        supportsRtt:
-          type: boolean
-          description: Whether Round-Trip Time (RTT) ranging is supported.
-        channelCount:
-          type: number
-          description: Number of BLE channels utilized (79 on Bluetooth 6.0).
-        precision:
-          type: string
-          enum:
-            - centimeter
-            - decimeter
-            - unsupported
-          description: Distance measurement precision level.
+          description: Whether the lookup of the ranging HAL service found a service.
+        rangingAvailability:
+          anyOf:
+            - $ref: "#/components/schemas/ChannelSoundingAvailability"
+            - type: null
+          description: "RangingManager availability for BLE Channel Sounding: 'enabled', 'not_supported', 'disabled_user', 'disabled_regulatory' or 'disabled_user_restrictions'. Null until read, below Android 16, or when the platform did not report it."
+        supportedSecurityLevels:
+          anyOf:
+            - type: array
+              items:
+                type: number
+            - type: null
+          description: Channel Sounding security levels (1 and/or 4) from BleCsRangingCapabilities. Null when the platform did not report them.
         isRanging:
           type: boolean
-          description: Whether an active ranging session is currently underway.
-        targets:
+          description: "Whether the platform holds an open ranging session. Follows the platform's session events, not the last call."
+        measurements:
           type: array
           items:
-            $ref: "#/components/schemas/ChannelSoundingTarget"
-          description: List of tracked ranging targets.
+            $ref: "#/components/schemas/ChannelSoundingMeasurementEvent"
+          description: "Latest platform sample per peer: `deviceAddress`, `distanceMeters` (null when the platform omitted it), `confidence` ('low', 'medium' or 'high', else null), `rssi`, `sessionId` and `timestampMs`. Empty until the peer answers."
+        sessionInfo:
+          anyOf:
+            - $ref: "#/components/schemas/ChannelSoundingRangingResult"
+            - type: null
+          description: "Result of the last start request: `status`, `error`, `sessionId`, `peerAddress`, `serviceName`, `serviceAvailable`, `channelSoundingFeature`, `timestampMs`."
+        sessionError:
+          anyOf:
+            - type: string
+            - type: null
+          description: "Status code and reason when the last start or stop did not succeed, for example `needs_peer_address: peerAddress is required`."
         error:
           anyOf:
             - type: string
             - type: null
-          description: Latest error message if operation failed.
+          description: "Latest failure message, or `null`. Failures are also logged and counted."
         source:
           type: string
           enum:
             - hardware
             - derived
             - unavailable
-          description: "Telemetry provenance: 'hardware' when read from physical device."
+          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
       required:
         - source
     useChannelSounding_startRanging_Request:
       type: object
       description: Request payload for startRanging on useChannelSounding.
-      properties:{}
+      properties:
+        config:
+          $ref: "#/components/schemas/ChannelSoundingRangingConfig"
+          description: "`{ peerAddress: string, role?: 'initiator' | 'responder' (default 'initiator'), securityLevel?: 1 | 4, sightType?: 'unknown' | 'line_of_sight' | 'non_line_of_sight', locationType?: 'unknown' | 'indoor' | 'outdoor', updateRate?: 'normal' | 'infrequent' | 'frequent' }`. peerAddress is required: six colon-separated hex bytes such as \"AA:BB:CC:DD:EE:FF\". The optional fields are passed to BleCsRangingParams; omitted means the platform default."
+      required:
+        - config
     useChannelSounding_startRanging_Response:
       type: object
       description: Response payload for startRanging on useChannelSounding.
@@ -7318,7 +7261,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Result description
+          description: "Resolves true when the platform reported the session open; false with the status and reason in sessionError when the peer address is missing or malformed, the device or OS cannot range, Bluetooth is off, a permission is missing, another session is running, or the platform refused to open. sessionInfo is updated either way."
         error:
           anyOf:
             - type: string
@@ -7341,7 +7284,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Result description
+          description: "Returns `{ wasActive, closed, sessionId, error, timestampMs }`: wasActive is false when nothing was running, and error carries a failure from the platform's stop or close. Returns null when the native module is absent."
         error:
           anyOf:
             - type: string
@@ -7364,7 +7307,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Result description
+          description: "Returns `{ isSupported, isEnabled, serviceFound, hasChannelSoundingFeature, error }`, or null when the native module is absent."
         error:
           anyOf:
             - type: string
@@ -7380,7 +7323,7 @@ components:
       description: |
   Deep battery health, cycle count, manufacturing dates, and charging wattage tiers.
 
-  Reads Android 14+ battery health metrics and Google Pixel power supply sysfs telemetry. Provides lifetime charge cycles (BatteryManager.EXTRA_CYCLE_COUNT), state of health percentage (/sys/class/power_supply/battery/soh), factory manufacture date, first-use date, real-time charging wattage, and classifies charging speed into tiers (slow, standard, rapid, ultra_rapid > 30W).
+  Reads Android 14+ battery health metrics and Google Pixel power supply sysfs telemetry. Provides lifetime charge cycles (BatteryManager.EXTRA_CYCLE_COUNT), state of health percentage (/sys/class/power_supply/battery/soh), manufacture date, first-use date, charging wattage (BATTERY_PROPERTY_CURRENT_NOW times the battery voltage, only while the current is positive), and a tier classified from that wattage (slow, standard, rapid, ultra_rapid at 30 W and above). Values the app cannot read are null.
       properties:
         stateOfHealthPercent:
           anyOf:
@@ -7408,16 +7351,20 @@ components:
             - type: null
           description: Real-time charging power in watts (W) delivered to the battery.
         chargingTier:
-          type: string
-          enum:
-            - slow
-            - standard
-            - rapid
-            - ultra_rapid
-          description: Classification of charging speed based on delivered wattage.
-        chargeLimitActive:
-          type: boolean
-          description: "Whether the Android battery protect 80% charge limit is currently engaged."
+          anyOf:
+            - type: string
+              enum:
+                - slow
+                - standard
+                - rapid
+                - ultra_rapid
+            - type: null
+          description: "Classification of chargingWattage (under 5 W slow, 5 W up to 18 W standard, 18 W up to 30 W rapid, 30 W and above ultra_rapid). Null when no wattage was read."
+        chargeLimitAvailable:
+          anyOf:
+            - type: boolean
+            - type: null
+          description: "Whether the charge_limit_available sysfs node reads \"1\"; null when it cannot be read. The node says the limit is offered, not that it is switched on."
         error:
           anyOf:
             - type: string
@@ -7454,9 +7401,9 @@ components:
     useCloudHardwareAgentTelemetry:
       type: object
       description: |
-  Autonomous cloud hardware reasoning loop with multi-turn tool calling and extended thinking.
+  Multi-turn Gemini tool-calling loop over the capability adapter you pass to each ask().
 
-  Orchestrates multi-turn agentic hardware problem solving using Google Gen AI SDK (`@google/genai`). Evaluates prompts, plans hardware tool invocations, executes local sensors and actuators, and reflects on results across consecutive turns until the goal is achieved. Surfaces live reasoning thought chains, intermediate tool execution steps, and final diagnostics.
+  Wraps runCloudAgent from @google/genai: ask() sends the prompt and the conversation so far, executes each model tool call through runTool against run.capabilityAdapter, folds the results back into the next turn, and stops when the model answers, maxSteps (default DEFAULT_MAX_STEPS, 6) is reached, the run is cancelled, or no capability or API key is available. The default model is the DEFAULT_AGENT_MODEL constant. Intermediate tool steps are reported in steps and final text in lastResponse. The hook does not request or surface model thoughts.
       properties:
         isRunning:
           type: boolean
@@ -7488,13 +7435,22 @@ components:
           description: "Error message if agent initialization, network, or execution failed."
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Data provenance: 'hardware' when an API key is present, or 'unavailable'."
+          description: "'hardware' when an API key is present, otherwise 'unavailable'. It records that a cloud call is possible, not that device hardware was read; the tools run against the adapter you pass."
       required:
         - source
     useCloudHardwareAgent_ask_Request:
       type: object
       description: Request payload for ask on useCloudHardwareAgent.
-      properties:{}
+      properties:
+        prompt:
+          type: string
+          description: The user request. A blank prompt resolves null.
+        run:
+          $ref: "#/components/schemas/CloudAgentOptions"
+          description: "{ capabilityAdapter: CapabilityAdapter; context: TraceContext; model?; systemInstruction?; maxSteps?; temperature?; signal?: AbortSignal; onStep?; sink?; redaction? }."
+      required:
+        - prompt
+        - run
     useCloudHardwareAgent_ask_Response:
       type: object
       description: Response payload for ask on useCloudHardwareAgent.
@@ -7503,7 +7459,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Result description
+          description: "Resolves with { text, contents, steps, totalSteps, stoppedReason: 'completed' | 'max_steps_exceeded' | 'unavailable' | 'cancelled', context, unavailableReason?, providerRequestId?, usage? }, or null for a blank prompt or when the loop threw (reason in error). A missing API key or empty adapter resolves with stoppedReason 'unavailable'."
         error:
           anyOf:
             - type: string
@@ -7545,14 +7501,20 @@ components:
   Identity comes from expo-device, external-power state from native battery EXTRA_PLUGGED and expo-battery listeners, and deep physical battery telemetry from PixelNative.getBatteryTelemetry(). isCharging reports whether AC, USB, wireless, or dock power is attached, including Android NOT_CHARGING while a full battery or charge limit pauses current flow; null means unreadable. Inspect batteryTelemetry.status to distinguish CHARGING, FULL, and NOT_CHARGING. batteryTemperatureC reads the actual lithium pack NTC thermistor in 0.1 °C units. batteryVoltageMv and batteryCurrentMa give cell voltage and live current; batteryPowerWatts computes wattage (V × |I|). On Android 14+, batteryCycleCount reads lifetime charge cycles. Unavailable readings are null.
       properties:
         modelName:
-          type: string
-          description: "Commercial model name (e.g. \"Pixel 11 Pro\")."
+          anyOf:
+            - type: string
+            - type: null
+          description: "Commercial model name (e.g. \"Pixel 11 Pro\"); null when the platform does not report it."
         brand:
-          type: string
-          description: "Hardware manufacturer brand (e.g. \"Google\")."
+          anyOf:
+            - type: string
+            - type: null
+          description: "Hardware manufacturer brand (e.g. \"Google\"); null when the platform does not report it."
         osVersion:
-          type: string
-          description: Android release string.
+          anyOf:
+            - type: string
+            - type: null
+          description: Android release string; null when the platform does not report it.
         batteryPercent:
           anyOf:
             - type: number
@@ -7564,8 +7526,10 @@ components:
             - type: null
           description: "External charger attached (AC, USB, wireless or dock), even when Android pauses charging at 100% or a charge limit. Null until observed; batteryTelemetry.status distinguishes active charging from paused/full."
         lowPowerMode:
-          type: boolean
-          description: Whether Battery Saver is active. Treat as a direct instruction to do less work.
+          anyOf:
+            - type: boolean
+            - type: null
+          description: Whether Battery Saver is active; null until the first read or when the read failed. Treat true as a direct instruction to do less work.
         networkType:
           type: string
           description: "Active network connection type (e.g. \"WIFI\", \"CELLULAR\")."
@@ -7694,7 +7658,7 @@ components:
       description: |
   Refresh rate, HDR capability, brightness, high brightness mode, and the screen wake lock.
 
-  Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode toggles peak sunlight luminance, and setPreferredDisplayMode selects panel modes directly.
+  Display mode, supported refresh rates, HDR types, and resolution come from the Android Display object through the native module, re-read every two seconds because adaptive refresh rate changes the active mode continuously. Brightness uses expo-brightness and the wake lock uses expo-keep-awake. setPreferredRefreshRate requests a rate, setHighBrightnessMode requests maximum window brightness (BRIGHTNESS_OVERRIDE_FULL) plus an HDR headroom of 3.0 on API 34+, and setPreferredDisplayMode requests a panel mode by ID. These are window-attribute requests; the panel's own High Brightness Mode is controlled by firmware and is not read.
       properties:
         refreshRateHz:
           type: number
@@ -7735,7 +7699,7 @@ components:
           description: "Current HDR to SDR luminance boost ratio (Android 14+ / API 34+), or null if not reported."
         isHbmActive:
           type: boolean
-          description: Whether High Brightness Mode (HBM) override is currently engaged.
+          description: "Whether the last setHighBrightnessMode(true) request was accepted and not since reversed. A record of the request, not a read of the panel's firmware-controlled High Brightness Mode."
         brightness:
           type: number
           description: Current screen brightness from 0 to 1.
@@ -7790,7 +7754,7 @@ components:
       properties:
         enabled:
           type: boolean
-          description: Whether HBM should be forced on.
+          description: Whether the maximum-brightness request should be applied (true) or released (false).
       required:
         - enabled
     useDisplay_setHighBrightnessMode_Response:
@@ -7801,7 +7765,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves true when applied.
+          description: Resolves true when the window attributes were set. It does not confirm what the panel actually did.
         error:
           anyOf:
             - type: string
@@ -8501,9 +8465,9 @@ components:
     useGeminiLiveTelemetry:
       type: object
       description: |
-  Real-time bidirectional streaming audio, camera video frames, text, and hardware tool execution with Gemini 3.8 Multimodal Live API.
+  Bidirectional streaming of text, microphone audio chunks and camera frames with the Gemini Live API over a WebSocket, with tool calls routed through a capability adapter you supply.
 
-  Establishes a persistent full-duplex WebSocket connection to the Gemini Multimodal Live API. Streams base64-encoded PCM audio chunks and camera image/video frames from device sensors, receives low-latency synthesized speech responses, exposes live extended thinking thought streams, and intercepts model tool calls to execute device hardware actuators and sensors with zero round-trip delay.
+  Opens a WebSocket to the Gemini Live API (BidiGenerateContent). You supply the session's trace context and capability adapter to connect(); the API key comes from run.apiKey or the stored key. sendAudioChunk, sendImageChunk and sendVideoFrame forward base64 PCM audio and JPEG frames as realtime input, and sendText and sendMultimodalTurn send client turns. The hook does not capture audio or decode and play the model's audio: isSpeaking means audio parts from the model are arriving, and the audio bytes themselves are not played or exposed. isListening and isStreamingMedia are set when a chunk is sent and clear 2 s after the last one. Model tool calls are validated and executed through runTool against the adapter's tools; each call is a network round trip plus the tool's own execution time. The default model is the DEFAULT_LIVE_MODEL constant (currently 'models/gemini-2.0-flash-exp'); config.model overrides it.
       properties:
         isConnected:
           type: boolean
@@ -8513,13 +8477,13 @@ components:
           description: Whether the model is actively streaming an audio or text response.
         isSpeaking:
           type: boolean
-          description: Whether synthesized speech audio is currently playing.
+          description: "Whether audio parts from the model are arriving. The hook does not play audio, so this does not mean sound is coming out of the device."
         isListening:
           type: boolean
-          description: Whether the client is streaming microphone audio chunks to the server.
+          description: True after an audio chunk was sent and clears 2 seconds after the last one (or on disconnect).
         isStreamingMedia:
           type: boolean
-          description: Whether the client is actively streaming media (camera video frames or images) to the server.
+          description: True after an image or video frame was sent and clears 2 seconds after the last one (or on disconnect).
         transcript:
           type: array
           items:
@@ -8542,13 +8506,23 @@ components:
           description: Error message if connection or streaming protocol encountered a failure.
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Data provenance: 'hardware' when connected with valid key, or 'unavailable'."
+          description: "'hardware' while the WebSocket session is connected, 'unavailable' otherwise. It records that the cloud session is open, not that device hardware is involved."
+        context:
+          anyOf:
+            - $ref: "#/components/schemas/TraceContext"
+            - type: null
+          description: "Trace context of the current session, or null before connect() has been called."
       required:
         - source
     useGeminiLive_connect_Request:
       type: object
       description: Request payload for connect on useGeminiLive.
-      properties:{}
+      properties:
+        run:
+          $ref: "#/components/schemas/GeminiLiveRunOptions"
+          description: "{ context: TraceContext; capabilityAdapter: CapabilityAdapter; apiKey?: string; sink?: ObservabilitySink; redaction?: RedactionPolicy }. The adapter defines which tools the model may call; tools it does not list are not offered."
+      required:
+        - run
     useGeminiLive_connect_Response:
       type: object
       description: Response payload for connect on useGeminiLive.
@@ -8557,7 +8531,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Result description
+          description: "Resolves with { status: 'connected' | 'unavailable' | 'error' | 'cancelled', context, reason? }. Check status before sending."
         error:
           anyOf:
             - type: string
@@ -8706,29 +8680,6 @@ components:
       required:
         - success
         - source
-    useGeminiLive_interrupt_Request:
-      type: object
-      description: Request payload for interrupt on useGeminiLive.
-      properties:{}
-    useGeminiLive_interrupt_Response:
-      type: object
-      description: Response payload for interrupt on useGeminiLive.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: Result description
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
-        - source
     useGeminiLive_clearTranscript_Request:
       type: object
       description: Request payload for clearTranscript on useGeminiLive.
@@ -8856,7 +8807,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' once AICore has answered (model info was read, or status is 'available'); 'unavailable' before that, when AICore reported an error, or when the native module is absent. There is no 'simulated' value."
       required:
         - source
     useGeminiNano_setSystemInstruction_Request:
@@ -9321,7 +9272,7 @@ components:
       description: |
   Four focused text tasks that run locally: summarise, proofread, rewrite, describe.
 
-  Wraps the ML Kit GenAI task modules on AICore through pixel-nano: genai-summarization, genai-proofreading and genai-rewriting, plus image description. Because each task ships a tuned model rather than a free-form prompt, the output is more consistent than asking a chat model, and it works on more devices. Every call reports its own measured latency and the engine that served it.
+  Wraps the ML Kit GenAI task modules on AICore through pixel-nano: genai-summarization, genai-proofreading and genai-rewriting, plus image description. summarize, proofread and rewrite use the ML Kit task model when it is available; when it is not, or it throws, the module falls back to a Gemini Nano prompt and the result's engine field says so ('mlkit-summarization', 'mlkit-proofreading', 'mlkit-rewriting' or 'gemini-nano-prompt'). describeImage is a Gemini Nano multimodal prompt (engine 'gemini-nano-vision'). AICore decides where inference runs; the hook does not select or report the processor. Every call reports its own measured latency and the engine that served it.
       properties:
         isRunning:
           type: boolean
@@ -9357,7 +9308,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' once a task has produced a result; 'unavailable' before the first successful call or when the native module is absent. There is no 'simulated' value."
       required:
         - source
     useGenAITasks_summarize_Request:
@@ -9486,7 +9437,7 @@ components:
       description: |
   Vibration, from simple taps to custom-shaped waveforms.
 
-  Standard patterns come from expo-haptics. Beyond that, the native module reports the actual vibrator hardware: whether amplitude can be varied, its resonant frequency, and which composition primitives it supports. Android 16 envelope effects are built with BasicEnvelopeBuilder from intensity and sharpness control points and must finish at zero intensity. This Pixel supports them, which is how the thinking ramp and alert pulses are produced.
+  Standard patterns come from expo-haptics. Beyond that, the native module reports the vibrator's capabilities: whether amplitude can be varied, its resonant frequency (null when the platform does not report it), and which composition primitives it supports. Android 16 envelope effects are built with BasicEnvelopeBuilder from intensity and sharpness control points and must finish at zero intensity; they play only where Vibrator.areEnvelopeEffectsSupported() is true (check envelopeSupported). source reflects the capability read, not the expo-haptics calls.
       properties:
         hasAmplitudeControl:
           anyOf:
@@ -9500,7 +9451,7 @@ components:
           anyOf:
             - type: number
             - type: null
-          description: The frequency at which the actuator is most efficient. Around 134 Hz here.
+          description: "The actuator's resonant frequency in Hz as the vibrator reports it, or null when not reported. Effects near it feel strongest."
         supportedPrimitives:
           type: array
           items:
@@ -9512,7 +9463,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' once the vibrator capability read succeeded, 'unavailable' before it, on web, or without the native module."
       required:
         - source
     useHaptics_selection_Request:
@@ -9527,7 +9478,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web; failures are logged rather than thrown.
+          description: "Resolves true when the platform call completed, false on web or when it threw; failures are logged rather than thrown."
         error:
           anyOf:
             - type: string
@@ -9550,7 +9501,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web.
+          description: "Resolves true when the platform call completed, false on web or when it threw."
         error:
           anyOf:
             - type: string
@@ -9573,7 +9524,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web.
+          description: "Resolves true when the platform call completed, false on web or when it threw."
         error:
           anyOf:
             - type: string
@@ -9596,7 +9547,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web.
+          description: "Resolves true when the platform call completed, false on web or when it threw."
         error:
           anyOf:
             - type: string
@@ -9619,7 +9570,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web.
+          description: "Resolves true when the platform call completed, false on web or when it threw."
         error:
           anyOf:
             - type: string
@@ -9642,7 +9593,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web.
+          description: "Resolves true when the platform call completed, false on web or when it threw."
         error:
           anyOf:
             - type: string
@@ -9665,7 +9616,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Resolves once dispatched. No-op on web.
+          description: "Resolves true when the platform call completed, false on web or when it threw."
         error:
           anyOf:
             - type: string
@@ -9774,7 +9725,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "`Promise<void>` — resolves when dispatched; failures are logged, not thrown"
+          description: "`Promise<boolean>` — true when the platform call completed without throwing (the platform does not confirm the actuator moved); false on web or when the call threw (failures are logged, not thrown)"
         error:
           anyOf:
             - type: string
@@ -9788,20 +9739,19 @@ components:
     useHealthConnectTelemetry:
       type: object
       description: |
-  Platform health records, steps, and sensor vitals telemetry.
+  Health Connect availability and the device's step counter and heart rate sensors. Does not read health records.
 
-  Backed by android.health.connect system framework on Android 14+, PackageManager healthdata provider detection, and hardware Sensor.TYPE_STEP_COUNTER / Sensor.TYPE_HEART_RATE HAL drivers. Nothing is simulated: reports real device health telemetry availability.
+  isAvailable and sdkStatus are inferred: the healthconnect system service (Context.HEALTHCONNECT_SERVICE, Android 14+) or the com.google.android.apps.healthdata package is present. They are not the result of HealthConnectClient.getSdkStatus(), which this SDK does not call, so no provider-update state is reported. hasStepCounter / hasHeartRateSensor and the sensor names come from the step counter system feature and SensorManager.getDefaultSensor (TYPE_STEP_COUNTER, TYPE_HEART_RATE).
       properties:
         isAvailable:
           type: boolean
-          description: Whether Health Connect is available on the device.
+          description: "Inferred: the healthconnect system service or the com.google.android.apps.healthdata package exists."
         sdkStatus:
           type: string
           enum:
             - SDK_AVAILABLE
             - SDK_UNAVAILABLE
-            - SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED
-          description: Platform SDK availability status.
+          description: "'SDK_AVAILABLE' when isAvailable, otherwise 'SDK_UNAVAILABLE'. Not read from HealthConnectClient.getSdkStatus(); no provider-update state is reported."
         hasStepCounter:
           type: boolean
           description: Whether physical hardware step counter sensor is present.
@@ -9820,7 +9770,7 @@ components:
           description: Hardware heart rate sensor name.
         isFrameworkIntegrated:
           type: boolean
-          description: Whether Health Connect is built into the OS (Android 14+).
+          description: Whether the healthconnect system service exists (Android 14+).
         error:
           anyOf:
             - type: string
@@ -9863,7 +9813,7 @@ components:
       description: |
   The eight-LED ring around the rear camera flash. Real LEDs or nothing.
 
-  Android 17 exposes the array as eight lights of type Light.LIGHT_TYPE_APPLICATION, but every lights session needs CONTROL_DEVICE_LIGHTS, which is signature|privileged and cannot be held by a normal app. PixelKit therefore ships a small Java daemon that runs as the adb shell user and listens on 127.0.0.1:11080; start it with npm run hilight:daemon. With the daemon up, availability is hardware and the calls drive real LEDs. Without it, availability is simulated: the colour and pattern state is still tracked and mirrored on screen with haptics, and nothing pretends the lights are on.
+  Android 17 exposes the array as eight lights of type Light.LIGHT_TYPE_APPLICATION, but every lights session needs CONTROL_DEVICE_LIGHTS, which is signature|privileged and cannot be held by a normal app. PixelKit therefore ships a small Java daemon that runs as the adb shell user and listens on 127.0.0.1:11080; start it with npm run hilight:daemon. With the daemon up, availability is hardware and the calls drive real LEDs. Without it, availability is unavailable and every control function refuses: it resolves false and sets error. Nothing is mirrored on screen. mode, isActive and currentColor change only after the daemon answered a command with a 2xx status.
       properties:
         availability:
           type: string
@@ -9889,10 +9839,7 @@ components:
           description: "Pattern label: off, glow, breathing, pulse, gemini_thinking, incoming_call or notification."
         brightness:
           type: number
-          description: "0 to 1. The hardware has no brightness channel, so this scales the RGB values."
-        isFaceDownMode:
-          type: boolean
-          description: Whether glanceable face-down behaviour is engaged.
+          description: "0 to 1, sent to the daemon with the next lit command. The initial 0.85 is the hook's default request, not a value read from the LEDs."
         source:
           type: string
           enum:
@@ -9904,7 +9851,7 @@ components:
           anyOf:
             - type: string
             - type: null
-          description: "Latest failure message, or `null`. Failures are also logged and counted."
+          description: "Latest failure message from a refused or failed control call, or `null` after the next accepted command."
       required:
         - source
     useHiLight_refreshDaemonStatus_Request:
@@ -9936,7 +9883,7 @@ components:
       properties:
         hexColor:
           type: string
-          description: "RGB hex string such as \"#81C995\". Sent to the daemon as-is, scaled by brightness."
+          description: "RGB hex string such as \"#81C995\". Sent to the daemon as-is together with the brightness."
       required:
         - hexColor
     useHiLight_setColor_Response:
@@ -9947,7 +9894,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Returns nothing. Nothing lights unless availability is hardware.
+          description: "Resolves true when the daemon accepted the command; currentColor, mode and isActive update only then. Resolves false and sets error otherwise."
         error:
           anyOf:
             - type: string
@@ -9965,6 +9912,9 @@ components:
         mode:
           $ref: "#/components/schemas/HiLightMode"
           description: "One of off, glow, breathing, pulse, gemini_thinking, incoming_call, notification. Passing 'off' extinguishes the ring."
+        hexColor:
+          type: string
+          description: "RGB hex colour to light the pattern with. Defaults to currentColor. Ignored for 'off'."
       required:
         - mode
     useHiLight_setMode_Response:
@@ -9975,7 +9925,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Returns nothing; mode and isActive update immediately.
+          description: "Resolves true when the daemon accepted the command; mode, isActive and (when lit) currentColor update only then. Resolves false and sets error otherwise."
         error:
           anyOf:
             - type: string
@@ -10003,7 +9953,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "Returns nothing. Applied immediately when the ring is lit, stored otherwise."
+          description: "While lit: true when the daemon accepted it, false and error otherwise. While off: true, because nothing is sent until the next lit command."
         error:
           anyOf:
             - type: string
@@ -10020,7 +9970,7 @@ components:
       properties:
         durationMs:
           type: number
-          description: "How long to hold before clearing, in milliseconds. Defaults to 4000."
+          description: "How long to hold before clearing, in milliseconds. Defaults to 4000. The same duration is sent to the daemon."
     useHiLight_triggerGeminiPulse_Response:
       type: object
       description: Response payload for triggerGeminiPulse on useHiLight.
@@ -10029,7 +9979,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Returns nothing. A pending timer from an earlier call is cancelled first.
+          description: Resolves true when the daemon accepted the command; a timer from an earlier hold is cancelled then and a new one starts. Resolves false and sets error otherwise.
         error:
           anyOf:
             - type: string
@@ -10060,7 +10010,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Returns nothing. Replaces any hold already running.
+          description: Resolves true when the daemon accepted the command and replaces any hold already running. Resolves false and sets error otherwise.
         error:
           anyOf:
             - type: string
@@ -10083,7 +10033,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Returns nothing; mode becomes off and isActive false.
+          description: Resolves true when the daemon accepted it; mode becomes off and isActive false only then. Resolves false and sets error otherwise.
         error:
           anyOf:
             - type: string
@@ -10106,7 +10056,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: Returns nothing; isActive flips.
+          description: Resolves true when the daemon accepted the command and isActive flipped. Resolves false and sets error otherwise.
         error:
           anyOf:
             - type: string
@@ -10120,13 +10070,13 @@ components:
     useKeyAgreementTelemetry:
       type: object
       description: |
-  Hardware-isolated Elliptic Curve Diffie-Hellman session key derivation via Titan M2.
+  ECDH session key derivation with a private key generated in the Android Keystore; the achieved security level is read from KeyInfo.
 
-  Utilizes AndroidKeyStore and Java Cryptography Architecture (JCA) backed by the Google Titan M2 StrongBox hardware security module. Implements Elliptic Curve Diffie-Hellman (ECDH) on the NIST P-256 (secp256r1) curve with PURPOSE_AGREE_KEY. Generates hardware-isolated keypairs and derives symmetrical AES shared secrets against external peer public keys.
+  Uses AndroidKeyStore and the Java Cryptography Architecture. Generates an EC keypair with PURPOSE_AGREE_KEY (the Keystore default curve) and derives an ECDH shared secret against an external peer public key. When preferStrongBox is true and the device declares android.hardware.strongbox_keystore, StrongBox is requested; the achieved level is read with KeyInfo.getSecurityLevel() (API 31+) and returned as securityLevel (STRONGBOX, TRUSTED_ENVIRONMENT, SOFTWARE, UNKNOWN_SECURE), or null with securityLevelReason when it cannot be read or generation failed.
       properties:
         isStrongBoxSupported:
           type: boolean
-          description: Whether the device hardware includes a dedicated StrongBox Keymaster module (Titan M2).
+          description: Whether the device declares the android.hardware.strongbox_keystore feature.
         error:
           anyOf:
             - type: string
@@ -10186,16 +10136,20 @@ components:
     useLocationTelemetry:
       type: object
       description: |
-  Position, altitude, heading and speed from the satellite receiver.
+  Position, altitude, heading and speed from expo-location.
 
-  Streams from expo-location using the high-accuracy provider, which on a Pixel uses the dual-band receiver. The accuracy value is the radius in metres that the platform believes the position lies within; indoors it can be tens of metres and should gate any decision made from the coordinates. Heading and speed are only meaningful while actually moving.
+  Takes one fix from expo-location (getCurrentPositionAsync, Accuracy.Highest); it does not report which receiver or band produced it. Latitude and longitude are null until the first fix arrives, including when permission is denied. The accuracy value is the radius in metres that the platform believes the position lies within; indoors it can be tens of metres and should gate any decision made from the coordinates. Heading and speed are only meaningful while actually moving.
       properties:
         latitude:
-          type: number
-          description: Decimal degrees north.
+          anyOf:
+            - type: number
+            - type: null
+          description: Decimal degrees north; null until the first fix.
         longitude:
-          type: number
-          description: Decimal degrees east.
+          anyOf:
+            - type: number
+            - type: null
+          description: Decimal degrees east; null until the first fix.
         altitude:
           anyOf:
             - type: number
@@ -10483,84 +10437,27 @@ components:
     useMicrophoneArrayTelemetry:
       type: object
       description: |
-  Multi-mic acoustic array topology, polar directivity, and beamforming controls.
+  Microphone inventory: position, orientation, directionality and location of each microphone the platform lists.
 
-  Directly queries the Android AudioManager for connected hardware microphones and their geometric coordinates, group mappings, and directivity patterns (omnidirectional, cardioid, hypercardioid). On supported Pixel devices, provides controls to steer acoustic beamforming (towards user, away from user, external) and adjust acoustic zoom field dimension.
+  Queries Android AudioManager.getMicrophones() through the native module and returns, for each microphone, its id, description, type, directionality (omnidirectional, bidirectional, cardioid, hypercardioid, supercardioid), location, group and the position and orientation the platform reports, null when it reports none. The hook does not steer or focus the array: MediaRecorder and AudioRecord accept a preferred microphone direction per recorder instance, and this hook owns no recorder, so it exposes no direction or zoom control.
       properties:
         microphones:
           type: array
           items:
             $ref: "#/components/schemas/MicrophoneInfo"
-          description: Array of physical microphones detected on the device chassis with 3D positions and polar patterns.
-        direction:
-          type: string
-          enum:
-            - user
-            - away
-            - external
-            - omni
-          description: Current beam direction configured for the microphone array.
-        fieldZoom:
-          type: number
-          description: Acoustic field zoom dimension ratio from 0.0 (wide) to 1.0 (narrow focus).
+          description: "Microphones the platform lists, with position and orientation (null when the platform reports none) and directionality."
         isSupported:
           type: boolean
-          description: Whether the hardware and platform support acoustic array inspection and beamforming.
+          description: Whether the platform can list microphones (Android 9+).
         error:
           anyOf:
             - type: string
             - type: null
-          description: Error message if microphone array query or direction setting failed.
+          description: Error message if the microphone query failed.
         source:
           $ref: "#/components/schemas/TelemetrySource"
           description: "Data provenance: 'hardware' or 'unavailable'."
       required:
-        - source
-    useMicrophoneArray_setDirection_Request:
-      type: object
-      description: Request payload for setDirection on useMicrophoneArray.
-      properties:{}
-    useMicrophoneArray_setDirection_Response:
-      type: object
-      description: Response payload for setDirection on useMicrophoneArray.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: Result description
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
-        - source
-    useMicrophoneArray_setFieldZoom_Request:
-      type: object
-      description: Request payload for setFieldZoom on useMicrophoneArray.
-      properties:{}
-    useMicrophoneArray_setFieldZoom_Response:
-      type: object
-      description: Response payload for setFieldZoom on useMicrophoneArray.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: Result description
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
         - source
     useMicrophoneArray_refresh_Request:
       type: object
@@ -10615,7 +10512,7 @@ components:
           anyOf:
             - $ref: "#/components/schemas/ScannedTag"
             - type: null
-          description: "The last physical tag read: id, technologies, capacity, writability and decoded NDEF records."
+          description: "The last physical tag read: id, tech ('Ndef' when NDEF-formatted, otherwise the first entry of the tag's technology list, null when empty), the full techs list, capacity, writability and decoded NDEF records."
         tagCount:
           type: number
           description: How many tags have been read this session.
@@ -10743,9 +10640,9 @@ components:
     useNaturalLanguageAITelemetry:
       type: object
       description: |
-  Translation, language detection, smart replies and entity extraction, all offline.
+  Translation, language detection, smart replies and entity extraction, running on the device.
 
-  Wraps the ML Kit language stack through pixel-nano: language-id, translate, smart-reply and entity-extraction. Translation models download per language pair on first use and then run entirely offline, which is why the first call for a new pair is slower. Smart reply takes a short conversation history and proposes replies. Entity extraction returns typed spans with their positions in the original string.
+  Wraps the ML Kit language stack through pixel-nano: language-id, translate, smart-reply and entity-extraction. Translation models download per language pair on first use and then run offline, which is why the first call for a new pair is slower. Translation accepts only the language tags ML Kit Translate supports; any other tag rejects with E_NANO_UNSUPPORTED_LANGUAGE (surfaced in error, result null) and no other language is substituted. Smart reply takes a short conversation history and proposes replies. Entity extraction works on English text only and returns typed spans with their positions in the original string.
       properties:
         isProcessing:
           type: boolean
@@ -10781,7 +10678,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' once at least one on-device operation has returned a result; 'unavailable' before that or when the native module is absent. There is no 'simulated' value."
       required:
         - source
     useNaturalLanguageAI_identifyLanguage_Request:
@@ -10821,10 +10718,10 @@ components:
           description: The text to translate.
         sourceLang:
           type: string
-          description: "BCP-47 language code of the input. Defaults to 'en'."
+          description: "Language tag of the input, one that ML Kit Translate supports (for example 'en', 'de', 'zh'). Defaults to 'en'. Unsupported tags reject."
         targetLang:
           type: string
-          description: "BCP-47 language code to translate into. Defaults to 'es'."
+          description: "Language tag to translate into, one that ML Kit Translate supports. Defaults to 'es'. Unsupported tags reject."
       required:
         - text
     useNaturalLanguageAI_translate_Response:
@@ -10908,7 +10805,7 @@ components:
       description: |
   Connection type, address and whether traffic actually goes anywhere.
 
-  Reads from expo-network: interface type, IP address, reachability and airplane mode. Being connected to Wi-Fi is not the same as having internet, which is why isConnected reflects a usable route rather than merely an attached interface. isMetered marks connections where the user pays per byte, typically cellular or a hotspot.
+  Reads from expo-network: interface type, IP address, reachability and airplane mode. Being connected to Wi-Fi is not the same as having internet, which is why isConnected reflects a usable route rather than merely an attached interface. isMetered comes from the native module: true when the active network lacks NET_CAPABILITY_NOT_METERED (ConnectivityManager), so a metered Wi-Fi hotspot is metered and an unmetered cellular plan is not. It is null when there is no active network or the read is not permitted. isAirplaneMode is null when its read failed.
       properties:
         networkType:
           type: string
@@ -10922,11 +10819,15 @@ components:
           type: boolean
           description: "Whether a usable internet route exists, not merely an attached interface."
         isMetered:
-          type: boolean
-          description: Whether the user pays for this traffic. Gate large transfers on it.
+          anyOf:
+            - type: boolean
+            - type: null
+          description: Whether the active network is metered (lacks NET_CAPABILITY_NOT_METERED). Null before the first read or when Android does not report it. Gate large transfers on it.
         isAirplaneMode:
-          type: boolean
-          description: Whether airplane mode is on.
+          anyOf:
+            - type: boolean
+            - type: null
+          description: Whether airplane mode is on. Null before the first read or when the read failed.
         hasRead:
           type: boolean
           description: "Whether a read has completed. Before it, the values above are defaults."
@@ -11177,48 +11078,40 @@ components:
     usePlayIntegrityTelemetry:
       type: object
       description: |
-  Hardware Key Attestation and Google Play Integrity verdicts via Titan M2.
+  Hardware security feature flags and Android Keystore key attestation. No Play Integrity verdict is produced.
 
-  Backed by android.hardware.strongbox_keystore (Titan M2 KeyMint 400), android.hardware.hardware_keystore (500), and Android KeyStore KeyGenParameterSpec attestation. Provides cryptographic hardware verification proving the device is a genuine physical Pixel without root compromise or simulation.
+  Reads the android.hardware.strongbox_keystore, android.hardware.hardware_keystore (FeatureInfo.version), android.hardware.keystore.app_attest_key and android.hardware.security.model.compatible system features and whether com.google.android.gms is installed. requestAttestation generates an EC key with an attestation challenge (StrongBox when the device declares it, with a fallback to the default keystore), reads KeyInfo.getSecurityLevel() (API 31+), and returns the certificate chain (base64, leaf first), its length, the leaf subject and issuer, and the challenge bytes actually used (generated when none is passed). The chain is returned as produced by the Keystore: this hook does not verify it. Verify it on a server against the challenge and Google's attestation roots. No Play Integrity API call is made and no integrity verdict is produced.
       properties:
         isSupported:
           type: boolean
-          description: Whether hardware attestation and Play Integrity are supported on device.
+          description: "True when the device declares StrongBox or hardware keystore, or Google Play Services is installed."
         hasStrongBox:
           type: boolean
-          description: Whether Titan M2 hardware StrongBox security chip is present.
+          description: Whether the device declares the StrongBox keystore feature.
         strongBoxVersion:
           anyOf:
             - type: number
             - type: null
-          description: StrongBox KeyMint version (400 on Pixel 11 Pro).
+          description: "StrongBox keystore feature version (FeatureInfo.version), or null when not declared."
         hardwareKeystoreVersion:
           anyOf:
             - type: number
             - type: null
-          description: Hardware KeyStore version (500 on Android 17 / Pixel 11 Pro).
+          description: "Hardware keystore feature version (FeatureInfo.version), or null when not declared."
         hasAppAttestKey:
           type: boolean
-          description: Whether device supports individual key attestation (android.hardware.keystore.app_attest_key).
+          description: Whether the device declares android.hardware.keystore.app_attest_key.
         securityModelCompatible:
           type: boolean
-          description: Whether device satisfies Android hardware security model.
+          description: Whether the device declares android.hardware.security.model.compatible.
         playServicesAvailable:
           type: boolean
-          description: Whether Google Play Services is available and active.
+          description: Whether the Google Play Services package is installed.
         playServicesVersion:
           anyOf:
             - type: string
             - type: null
           description: Google Play Services version string.
-        deviceIntegrity:
-          type: string
-          enum:
-            - MEETS_STRONG_INTEGRITY
-            - MEETS_DEVICE_INTEGRITY
-            - MEETS_BASIC_INTEGRITY
-            - UNVERIFIED
-          description: Hardware integrity tier verdict.
         isAttesting:
           type: boolean
           description: Whether a cryptographic attestation operation is running.
@@ -11226,7 +11119,7 @@ components:
           anyOf:
             - $ref: "#/components/schemas/HardwareAttestationResult"
             - type: null
-          description: Result of last hardware key attestation.
+          description: "Result of the last key attestation, including certificateChainBase64 and the challenge used."
         error:
           anyOf:
             - type: string
@@ -11290,24 +11183,25 @@ components:
     usePrivateSpaceTelemetry:
       type: object
       description: |
-  Android 15+ Private Space profile isolation detection and vault policy.
+  Whether the app process runs inside Android 15+'s Private Space profile. Existence of the profile is not readable from outside it.
 
-  Utilizes android.os.UserManager.isPrivateProfile() introduced in Android 15 (API 35). Identifies whether the current application process has been launched within the isolated user profile partition (Private Space), detects whether Private Space has been set up on the device, and reports the active lock policy (immediate, screen_off, device_reboot).
+  A process outside any user profile (UserManager.isProfile() is false) is reported as not inside Private Space. Inside a profile, the user type is read through LauncherApps.getLauncherUserInfo(Process.myUserHandle()) and compared with UserManager.USER_TYPE_PROFILE_PRIVATE (API 35+); when that read is refused isInsidePrivateSpace is null. Android does not list the Private Space profile to third-party apps, so isPrivateSpaceConfigured is true only when the app itself runs inside it and null otherwise. No public API exposes the auto-lock setting, so it is not reported.
       properties:
         isInsidePrivateSpace:
-          type: boolean
-          description: Whether the current application process is executing inside the isolated Private Space profile.
+          anyOf:
+            - type: boolean
+            - type: null
+          description: Whether the current application process runs inside the Private Space profile. False below Android 15 and outside any profile; null when it runs in a profile whose type cannot be read.
         isPrivateSpaceConfigured:
-          type: boolean
-          description: Whether the device currently has a Private Space secure profile configured.
-        autoLockPolicy:
-          type: string
-          enum:
-            - immediate
-            - screen_off
-            - device_reboot
-            - unknown
-          description: Configured auto-lock timeout policy for the private space vault.
+          anyOf:
+            - type: boolean
+            - type: null
+          description: True when the app runs inside the Private Space; null otherwise because Android hides the profile from apps (false below Android 15).
+        reason:
+          anyOf:
+            - type: string
+            - type: null
+          description: Why unreadable values are null; null before the first read.
         error:
           anyOf:
             - type: string
@@ -11315,7 +11209,7 @@ components:
           description: Error message if private profile querying failed.
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Data provenance: 'hardware' or 'unavailable'."
+          description: "'hardware' once a read returned isInsidePrivateSpace, 'unavailable' otherwise."
       required:
         - source
     usePrivateSpace_refresh_Request:
@@ -11346,7 +11240,7 @@ components:
       description: |
   Every radio subsystem in one read.
 
-  One native call gathers state from NfcAdapter, BluetoothManager, UwbManager, WifiRttManager and PackageManager, refreshed every five seconds. Everything here is read from the platform, so the whole object carries source hardware. It overlaps with useNFC, useBLE and useUWB on purpose: those add per-radio actions, this one is purely for reading state.
+  One native call gathers state from NfcAdapter, BluetoothAdapter, UwbManager (reflection), WifiRttManager and PackageManager features, refreshed every five seconds. Values that Android does not let the app read are null rather than guessed: uwb.enabled (read through UwbManager.isUwbEnabled() by reflection) and thread.serviceFound (a hidden ServiceManager lookup). Bonded device names are null when unnamed or when BLUETOOTH_CONNECT is not granted. Until the first read completes the returned values are all-false defaults and source is 'unavailable'; source becomes 'hardware' after the first successful read, and a later success clears error. It overlaps with useNFC, useBLE and useUWB on purpose: those add per-radio actions, this one is purely for reading state.
       properties:
         nfc:
           type: object
@@ -11356,23 +11250,23 @@ components:
           description: Adapter state plus paired devices and Channel Sounding support.
         uwb:
           type: object
-          description: Ultra-wideband chip state.
+          description: "Ultra-wideband state: the android.hardware.uwb feature, whether UwbManager reports it enabled (null when not readable by apps) and whether the Android 16 RangingManager service exists."
         wifiRtt:
           type: object
           description: "Wi-Fi round-trip-time ranging, used for indoor positioning."
         thread:
           type: object
-          description: Thread 802.15.4 mesh radio (chip0) and Android ThreadNetworkManager state.
+          description: Thread 802.15.4 radio feature flag and whether a ServiceManager lookup finds the Thread network service (null when the hidden lookup is not possible).
         satellite:
           type: object
-          description: Satellite radio and Google Satellite SOS provider state.
+          description: Satellite and Google Satellite SOS provider system feature flags.
         source:
           type: string
           enum:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' after the first successful read, 'unavailable' before it or without the native module. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
       required:
         - source
     useRadios_refresh_Request:
@@ -11387,7 +11281,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "Returns nothing; the nfc, bluetooth, uwb, wifiRtt and satellite blocks update. Call it after sending the user to Settings."
+          description: "Returns nothing; the nfc, bluetooth, uwb, wifiRtt, thread and satellite blocks update. Call it after sending the user to Settings."
         error:
           anyOf:
             - type: string
@@ -11401,47 +11295,56 @@ components:
     useSatelliteNTNTelemetry:
       type: object
       description: |
-  3GPP Release-17 Non-Terrestrial Network (satellite SOS) status and alignment telemetry.
+  Whether the device declares satellite messaging support. Connection state, carrier, signal and SOS readiness are not readable through Android's public API and are null.
 
-  Interfaces with Android 15+ (API 35+) satellite telephony services and 3GPP Rel-17 NTN modems. Monitors real-time satellite connection states (disconnected, searching, connected, pointing_assist), provider network names, signal quality bars (0 to 4), emergency SOS packet readiness, and surfaces azimuth and elevation vectors to assist pointing the phone at the horizon satellite constellation.
+  Reads the android.hardware.telephony.satellite system feature through PackageManager. Android 36's public SatelliteManager only offers register/unregisterStateChangeListener with an enabled-state callback, so there is no public read for connection state, carrier, signal bars, pointing data or emergency readiness. Those fields (connectionState, carrier, signalQualityBars, pointingGuidance, emergencyServicesReady) are always null and unreadReason states the reason.
       properties:
         isSupported:
           type: boolean
-          description: Whether this device hardware and modem support Non-Terrestrial Network satellite links.
+          description: True when the device declares the android.hardware.telephony.satellite system feature.
         connectionState:
-          type: string
-          enum:
-            - disconnected
-            - searching
-            - connected
-            - pointing_assist
-          description: Current lifecycle connection state with the satellite constellation.
+          anyOf:
+            - type: string
+              enum:
+                - disconnected
+                - searching
+                - connected
+                - pointing_assist
+            - type: null
+          description: "Always null: Android's public API exposes no satellite connection state."
         carrier:
           anyOf:
             - type: string
             - type: null
-          description: "Satellite network provider name (e.g. Skylo, T-Mobile Starlink, Iridium), or null."
+          description: "Always null: Android's public API exposes no satellite carrier."
         signalQualityBars:
           anyOf:
             - type: number
             - type: null
-          description: "Signal quality indicator bars (0 to 4), or null if disconnected."
+          description: "Always null: Android's public API exposes no satellite signal strength."
         pointingGuidance:
           anyOf:
             - $ref: "#/components/schemas/SatelliteGuidance"
             - type: null
-          description: "Antenna pointing guidance with azimuth, elevation, and alignment flag, or null."
+          description: "Always null: Android's public API exposes no satellite pointing data."
         emergencyServicesReady:
-          type: boolean
-          description: Whether the satellite link is ready for emergency SOS packet transmission.
+          anyOf:
+            - type: boolean
+            - type: null
+          description: "Always null: Android's public API exposes no satellite emergency readiness."
+        unreadReason:
+          anyOf:
+            - type: string
+            - type: null
+          description: Why the null fields are null; null before the first read.
         error:
           anyOf:
             - type: string
             - type: null
-          description: Error message if satellite modem querying failed.
+          description: Error message if the query failed.
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Data provenance: 'hardware' or 'unavailable'."
+          description: "'hardware' when the feature flag says satellite is supported, 'unavailable' otherwise."
       required:
         - source
     useSatelliteNTN_refresh_Request:
@@ -11610,7 +11513,7 @@ components:
           description: Ambient brightness in lux. Undefined until the first sample arrives.
         isAvailable:
           type: boolean
-          description: Whether the sensors are present and streaming.
+          description: "True when at least one motion sensor (accelerometer, gyroscope or magnetometer) reported itself present through isAvailableAsync() and was subscribed."
         hasMotionSample:
           type: boolean
           description: "`true` once a real accelerometer sample has arrived. Until then the vectors are zeroed, so use this to distinguish \"still\" from \"not started\"."
@@ -12144,7 +12047,7 @@ components:
       description: |
   Turning speech into text, on the device or in the cloud.
 
-  Capture runs through useAudio at 16 kHz mono on the voice_recognition source, which is the path that applies the platform noise suppression. In offline mode the native module drives Android System Intelligence streaming recognition and emits partial results as the user speaks. In cloud mode the finished clip is sent to Gemini audio understanding. Neither path fabricates a transcript: without a key, cloud mode keeps the recording and returns an error.
+  In 'on-device' mode the native module drives Android's SpeechRecognizer with the on-device recogniser (API 31+, SpeechRecognizer.isOnDeviceRecognitionAvailable) and emits partial results as the user speaks; it never silently switches to the default or cloud recogniser, and fails with the reason in error when the on-device one is unavailable. In 'cloud' mode the clip is recorded through useAudio at 16 kHz mono on the voice_recognition source, which applies the platform noise suppression, and sent to Gemini audio understanding. Neither path fabricates a transcript: without a key, cloud mode keeps the recording and returns an error.
       properties:
         isListening:
           type: boolean
@@ -12155,15 +12058,15 @@ components:
         recognitionMode:
           type: string
           enum:
-            - offline
+            - on-device
             - cloud
           description: Which engine will handle the next transcription.
         isOfflineAvailable:
           type: boolean
-          description: Whether on-device recognition is installed for the current language.
+          description: "Whether the platform reports an on-device recogniser (SpeechRecognizer.isOnDeviceRecognitionAvailable, API 31+). It is not specific to a language: a language the recogniser lacks can still fail at start."
         streamingPartial:
           type: string
-          description: "Live text as the user is still speaking, offline mode only."
+          description: "Live text as the user is still speaking, on-device mode only."
         voiceDecibels:
           type: number
           description: "Current input level, for a meter or a speaking indicator."
@@ -12187,7 +12090,7 @@ components:
           description: Engine used for the last cloud transcription.
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Provenance of the transcript: on-device or cloud; `'unavailable'` before either is ready."
+          description: "'hardware' when the platform reports an on-device recogniser (isOfflineAvailable); 'unavailable' otherwise, including in cloud mode, where the transcript comes from Gemini and not from the device."
       required:
         - source
     useSpeechAI_startListening_Request:
@@ -12444,7 +12347,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' when the AICore package is installed and visible; 'unavailable' when it is not installed, not visible to this app, or the native module is absent. There is no 'simulated' value."
         throughputTokensPerSec:
           anyOf:
             - type: number
@@ -12483,93 +12386,42 @@ components:
     useThermometerTelemetry:
       type: object
       description: |
-  Non-contact infrared temperature measurement on Google Pixel Pro hardware.
+  Discovery of the non-contact infrared temperature sensor on Google Pixel Pro hardware; temperatures stay null until a verified decoder exists.
 
-  Interfaces with the Melexis MLX90632 non-contact FIR temperature sensor integrated into Google Pixel Pro camera visors. Surfaces calibrated surface temperatures in both Celsius and Fahrenheit along with ambient die temperature. Supports configurable emissivity correction factors (0.10 to 1.00) and measurement modes (object, body, ambient). Reports unavailable on non-Pro models.
+  The native module asks Android SensorManager for a sensor whose type string contains object_temperature or mlx90632, or whose name contains Thermometer or MLX90632, and reports its name in sensorName. PixelKit has no verified decoder for that sensor's samples (unit and channel layout), so surfaceTemperatureC, surfaceTemperatureF and ambientTemperatureC are null and error states which sensor was found and why nothing is read. There is no emissivity or measurement-mode setting: nothing downstream of the sensor would apply it. Nothing is estimated or simulated.
       properties:
         isSupported:
           type: boolean
-          description: Whether the device hardware features the FIR non-contact temperature sensor.
+          description: Whether SensorManager lists a far-infrared temperature sensor on this device.
         surfaceTemperatureC:
           anyOf:
             - type: number
             - type: null
-          description: "Calibrated surface temperature in degrees Celsius (°C), or null if absent/unmeasured."
+          description: Surface temperature in degrees Celsius (°C); null because no decoder exists.
         surfaceTemperatureF:
           anyOf:
             - type: number
             - type: null
-          description: "Calibrated surface temperature in degrees Fahrenheit (°F), or null."
+          description: Surface temperature in degrees Fahrenheit (°F); null because no decoder exists.
         ambientTemperatureC:
           anyOf:
             - type: number
             - type: null
-          description: "Sensor die / internal ambient temperature in degrees Celsius (°C), or null."
-        emissivity:
-          type: number
-          description: Current material surface emissivity coefficient (0.1 to 1.0).
-        mode:
-          type: string
-          enum:
-            - object
-            - body
-            - ambient
-          description: "Target measurement mode: 'object', 'body', or 'ambient'."
+          description: Sensor die / ambient temperature in degrees Celsius (°C); null because no decoder exists.
+        sensorName:
+          anyOf:
+            - type: string
+            - type: null
+          description: "Name SensorManager gives the sensor, or null when none was found."
         error:
           anyOf:
             - type: string
             - type: null
-          description: Error message if sensor probing failed.
+          description: "Why temperatures are null: the sensor was found but is not decoded, no sensor is listed, or the probe failed."
         source:
           $ref: "#/components/schemas/TelemetrySource"
-          description: "Data provenance: 'hardware' or 'unavailable'."
+          description: "'hardware' when a temperature was read, otherwise 'unavailable'."
       required:
-        - source
-    useThermometer_setEmissivity_Request:
-      type: object
-      description: Request payload for setEmissivity on useThermometer.
-      properties:{}
-    useThermometer_setEmissivity_Response:
-      type: object
-      description: Response payload for setEmissivity on useThermometer.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: Result description
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
-        - source
-    useThermometer_setMode_Request:
-      type: object
-      description: Request payload for setMode on useThermometer.
-      properties:{}
-    useThermometer_setMode_Response:
-      type: object
-      description: Response payload for setMode on useThermometer.
-      properties:
-        success:
-          type: boolean
-          description: Whether the hardware accepted the command.
-        output:
-          description: Result description
-        error:
-          anyOf:
-            - type: string
-            - type: null
-          description: Error message if failed.
-        source:
-          $ref: "#/components/schemas/TelemetrySource"
-      required:
-        - success
         - source
     useThermometer_refresh_Request:
       type: object
@@ -12737,22 +12589,19 @@ components:
       description: |
   Ultra-wideband radio state and real ranging sessions against a peer device.
 
-  Chip presence, enabled state, chip id and ranging service readiness are queried from Android UwbManager and PackageManager through the native module, carrying source hardware. startRanging(config) opens a real android.ranging.RangingSession (Android 16, API 36+, RAW UWB session) with the peer described by the config: its address, the session id, and optionally the channel, preamble index and key info, all agreed with the peer out of band (BLE, NFC, QR). The call resolves true only when the platform reports the session open; otherwise it resolves false and sessionError carries a status such as needs_peer_configuration, uwb_unsupported, ranging_api_unavailable, uwb_disabled, permission_denied (android.permission.RANGING must be declared and granted by the app), session_active, invalid_parameters or open_failed. measurements holds the latest android.ranging.RangingData sample per peer (distance in meters, azimuth and elevation in degrees, each with the platform's confidence level) and stays empty until the peer answers.
+  Chip presence (android.hardware.uwb feature), the enabled state (UwbManager.isUwbEnabled() by reflection, null when apps cannot read it) and ranging service readiness (whether the Android 16 RangingManager service exists) are queried through the native module, carrying source hardware. startRanging(config) opens a real android.ranging.RangingSession (Android 16, API 36+, RAW UWB session) with the peer described by the config: its address, the session id, and optionally the channel, preamble index and key info, all agreed with the peer out of band (BLE, NFC, QR). The call resolves true only when the platform reports the session open; otherwise it resolves false and sessionError carries a status such as needs_peer_configuration, uwb_unsupported, ranging_api_unavailable, uwb_disabled, permission_denied (android.permission.RANGING must be declared and granted by the app), session_active, invalid_parameters or open_failed. measurements holds the latest android.ranging.RangingData sample per peer (distance in meters, azimuth and elevation in degrees, each with the platform's confidence level) and stays empty until the peer answers.
       properties:
         isSupported:
           type: boolean
           description: Whether the UWB chip exists on this device.
         isEnabled:
-          type: boolean
-          description: Whether the radio is switched on in system settings.
-        chipId:
           anyOf:
-            - type: string
+            - type: boolean
             - type: null
-          description: Chip identifier from the native radio probe.
+          description: Whether the radio is switched on in system settings; null when Android does not let apps read it.
         rangingApiSupported:
           type: boolean
-          description: Whether the device declares the android.hardware.ranging feature.
+          description: Whether the Android 16 android.ranging.RangingManager service exists.
         isRanging:
           type: boolean
           description: "Whether the platform holds an open ranging session. Follows the platform's session events, not the last call."
@@ -13250,7 +13099,7 @@ components:
       description: |
   Nine on-device vision capabilities, plus cloud scene understanding.
 
-  The on-device half wraps the ML Kit vision models through pixel-nano and runs without a network: barcode scanning, text recognition v2, face detection with landmarks and head angles, 468-point face mesh, image labelling, object detection with tracking, 33-point pose detection, selfie and subject segmentation, and digital ink recognition. The cloud half sends a captured or picked image to Gemini and asks for a description plus structured labels. Each on-device call reports its own latency.
+  The on-device half wraps the ML Kit vision models through pixel-nano and runs without a network: barcode scanning, text recognition v2, face detection with landmarks and head angles, 468-point face mesh, image labelling, object detection (single-image mode), 33-point pose detection, selfie and subject segmentation, and digital ink recognition. Face and object results have a trackingId field, but it is always null: the object detector runs in SINGLE_IMAGE_MODE and the face detector is created without tracking, so ids are not assigned across frames. The cloud half sends a captured or picked image to Gemini and asks for a description plus structured labels. Each on-device call reports its own latency.
       properties:
         selectedImageUri:
           anyOf:
@@ -13297,7 +13146,7 @@ components:
           anyOf:
             - $ref: "#/components/schemas/ObjectDetectionResult"
             - type: null
-          description: Detected objects with tracking ids across frames.
+          description: "Detected objects with bounding boxes and labels. trackingId is always null: detection runs in single-image mode, so there is no tracking across frames."
         poseResult:
           anyOf:
             - $ref: "#/components/schemas/PoseDetectionResult"
@@ -13332,7 +13181,7 @@ components:
             - hardware
             - derived
             - unavailable
-          description: "Where the numbers came from. There is no 'simulated' value: a reading is real, derived from real readings, or unavailable."
+          description: "'hardware' once an on-device operation has returned a result; 'unavailable' before that or when the native module is absent. There is no 'simulated' value."
         selectedImageBase64:
           anyOf:
             - type: string
@@ -13465,7 +13314,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "Resolves with { faces, latencyMs, source }; each face carries a tracking id, head Euler angles, a bounding box, and smile and eye-open probabilities that are null when classification is off. Null on failure."
+          description: "Resolves with { faces, latencyMs, source }; each face carries a trackingId (always null, the detector has no tracking enabled), head Euler angles, a bounding box, and smile and eye-open probabilities (classification is always requested). Null on failure."
         error:
           anyOf:
             - type: string
@@ -13493,7 +13342,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "Resolves with { objects, latencyMs, source }; each object carries a tracking id, a bounding box and labels with confidences. Null on failure."
+          description: "Resolves with { objects, latencyMs, source }; each object carries a trackingId (always null in single-image mode), a bounding box and labels with confidences. Null on failure."
         error:
           anyOf:
             - type: string
@@ -13549,7 +13398,7 @@ components:
           type: boolean
           description: Whether the hardware accepted the command.
         output:
-          description: "Resolves with { subjectsCount, foregroundConfidence, latencyMs, source }. Null on failure."
+          description: "Resolves with { subjectsCount, foregroundConfidence, latencyMs, source }. foregroundConfidence is a boolean: true when ML Kit returned a foreground confidence mask; the mask values are not returned. Null on failure."
         error:
           anyOf:
             - type: string
@@ -13655,26 +13504,26 @@ components:
     useWifi7MLOTelemetry:
       type: object
       description: |
-  Wi-Fi 7 (802.11be) Multi-Link Operation and 320 MHz channel telemetry.
+  Wi-Fi 7 (802.11be) Multi-Link Operation links: band, channel, RSSI, link speeds and state.
 
-  Reads Multi-Link Operation (MLO) telemetry introduced in Android 14+ (API 34+) for 802.11be Wi-Fi 7 routers and modems. Surfaces the array of active affiliated links, their respective channel widths (including ultra-wide 320 MHz channels on 6 GHz), per-link transmit and receive speeds, and calculates combined aggregate throughput. Reports inactive on Wi-Fi 6 or earlier.
+  Reads WifiInfo.getAffiliatedMloLinks() (all links of the access point multi-link device) and getAssociatedMloLinks() (the links this station is associated to), Android 14+ (API 34+). Each link carries band (MloLink.getBand(): 2.4GHz, 5GHz, 6GHz, 60GHz or null), channel, rssi, txLinkSpeedMbps and rxLinkSpeedMbps (null when the platform reports an unknown value) and state (MloLink.getState(): unassociated, idle, active, or invalid). The platform exposes no per-link channel width. isMloActive is true when the station is associated to more than one link. aggregateSpeedMbps is the sum of txLinkSpeedMbps (transmit direction only) over the associated links, not a PHY capacity figure; it is null when not multi-link or when no link reported a speed. Reports inactive with an empty links array when the connected access point is not a multi-link device.
       properties:
         isSupported:
           type: boolean
-          description: Whether the device hardware and platform support Wi-Fi 7 MLO querying.
+          description: Whether this app could query MLO links (Android 14+ and the query did not throw). Not a hardware capability flag.
         isMloActive:
           type: boolean
-          description: Whether multiple simultaneous radio links are currently bonded.
+          description: Whether the station is associated to more than one link.
         links:
           type: array
           items:
             $ref: "#/components/schemas/MloLinkInfo"
-          description: "Array of affiliated radio links with frequency band, channel width, RSSI, and link speeds."
+          description: "Links of the access point multi-link device with band, channel, RSSI and link speeds; each link's state says whether this station is associated to it."
         aggregateSpeedMbps:
           anyOf:
             - type: number
             - type: null
-          description: "Combined theoretical PHY throughput across all bonded links in Mbps, or null."
+          description: "Sum of txLinkSpeedMbps over the associated links (transmit direction only), or null when not multi-link or no link reported a speed."
         error:
           anyOf:
             - type: string
@@ -13902,9 +13751,9 @@ components:
           $ref: "#/components/schemas/useWifi7MLOTelemetry"
         useWifiRTT:
           $ref: "#/components/schemas/useWifiRTTTelemetry"
-    CloudAgentOptions:
+    CloudAgentDefaultsPartialOmitCloudAgentOptionscapabilityAdaptercontextsinkredactionsignal:
       type: object
-      description: "Typed entity: CloudAgentOptions"
+      description: "Typed entity: CloudAgentDefaultsPartialOmitCloudAgentOptionscapabilityAdaptercontextsinkredactionsignal"
       additionalProperties: true
     GeminiLiveConfig:
       type: object
@@ -13942,9 +13791,21 @@ components:
       type: object
       description: "Typed entity: CameraExtensionInfo"
       additionalProperties: true
-    ChannelSoundingTarget:
+    ChannelSoundingAvailability:
       type: object
-      description: "Typed entity: ChannelSoundingTarget"
+      description: "Typed entity: ChannelSoundingAvailability"
+      additionalProperties: true
+    ChannelSoundingMeasurementEvent:
+      type: object
+      description: "Typed entity: ChannelSoundingMeasurementEvent"
+      additionalProperties: true
+    ChannelSoundingRangingResult:
+      type: object
+      description: "Typed entity: ChannelSoundingRangingResult"
+      additionalProperties: true
+    ChannelSoundingRangingConfig:
+      type: object
+      description: "Typed entity: ChannelSoundingRangingConfig"
       additionalProperties: true
     AgentStepInfo:
       type: object
@@ -13957,6 +13818,10 @@ components:
     Content:
       type: object
       description: "Typed entity: Content"
+      additionalProperties: true
+    CloudAgentOptions:
+      type: object
+      description: "Typed entity: CloudAgentOptions"
       additionalProperties: true
     BatteryTelemetry:
       type: object
@@ -13981,6 +13846,14 @@ components:
     LiveToolCall:
       type: object
       description: "Typed entity: LiveToolCall"
+      additionalProperties: true
+    TraceContext:
+      type: object
+      description: "Typed entity: TraceContext"
+      additionalProperties: true
+    GeminiLiveRunOptions:
+      type: object
+      description: "Typed entity: GeminiLiveRunOptions"
       additionalProperties: true
     NanoModelInfo:
       type: object

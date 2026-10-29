@@ -1,8 +1,9 @@
 /**
  * @file useAppFunctions.ts
- * @description Android 16/17 (API 36+) AppFunctions architecture. Exposes on-device actions and
- * registered hardware capabilities to system AI (Google Assistant / Gemini) and local agents.
- * Nothing is simulated: reads directly from the Android `app_function` (IAppFunctionManager) system service.
+ * @description Android 16+ (API 36) AppFunctions state and an in-process function registry. The service
+ * probe (`serviceFound`, `serviceName`) reads the Android `app_function` system service; the functions
+ * listed and executed here live in this hook and are callable through `executeFunction`, they are not
+ * registered with the system service or visible to Gemini. Nothing is simulated.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -62,33 +63,36 @@ export interface AppFunctionsState {
   unregisterFunction: (functionId: string) => boolean;
 }
 
-/** Built-in hardware function schemas exposed to Gemini / AppFunctions */
+/**
+ * Built-in hardware function schemas. Each id is handled by `executeFunction` in this hook; the list
+ * lives in this hook's memory and is not registered with the Android `app_function` system service.
+ */
 const BUILTIN_SCHEMAS: AppFunctionSchema[] = [
   {
     id: 'check_phone_thermals',
     name: 'Check Phone Thermals',
     category: 'hardware',
-    description: 'Reads current ADPF thermal headroom and CPU core cluster load from Tensor G6 silicon.',
+    description: 'Reads PowerManager thermal status and headroom and this app\'s CPU percentage and core count.',
     parameters: [],
-    returns: '{ thermalStatus: number, thermalHeadroom: number, cpuLoadPercent: number }',
+    returns: '{ thermalStatus: number, thermalHeadroom: number | null, appCpuPercent: number | null, coreCount: number }',
     enabledByDefault: true,
   },
   {
     id: 'purge_memory_cache',
     name: 'Purge Memory Cache',
     category: 'hardware',
-    description: 'Requests an explicit garbage collection pass and reports freed heap memory.',
+    description: 'Requests a garbage collection pass in this app and returns the memory snapshot taken afterwards. It does not report how much was freed.',
     parameters: [],
-    returns: '{ totalMemoryMb: number, freeMemoryMb: number, usedPercent: number }',
+    returns: 'MemoryInfo: { totalBytes, availableBytes, lowMemoryThresholdBytes, isLowMemory, appJavaHeapUsedBytes, appJavaHeapMaxBytes, appNativeHeapBytes, memoryClassMB, largeMemoryClassMB }',
     enabledByDefault: true,
   },
   {
     id: 'get_device_silicon_info',
     name: 'Get Device Silicon Info',
     category: 'hardware',
-    description: 'Returns Tensor SoC hardware identifiers, GPU renderer, and hardware feature flags.',
+    description: 'Returns SoC identifiers from android.os.Build and the GPU renderer and vendor strings.',
     parameters: [],
-    returns: '{ soc: string, hardware: string, gpuRenderer: string, features: string[] }',
+    returns: '{ soc: string | null, socManufacturer: string | null, hardware: string, gpuRenderer: string | null, gpuVendor: string | null }',
     enabledByDefault: true,
   },
 ];

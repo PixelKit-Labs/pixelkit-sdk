@@ -1,9 +1,13 @@
 /**
  * @file useBatteryShare.ts
- * @description Google Pixel Battery Share (Reverse Wireless Qi Charging) telemetry and actuator.
+ * @description Google Pixel Battery Share (reverse wireless Qi charging) state and toggle.
+ * State is the contents of the `reverse_chg_mode` sysfs node (non-zero means the coil is on); the
+ * toggle writes that node when the app is permitted to, and reports false otherwise. Receiver
+ * presence, delivered watts and a charge cutoff are not exposed by any readable node, so the hook
+ * reports none of them.
  *
- * Adheres to the Zero-Simulation Principle: returns isSupported: false, transmittedWatts: null,
- * and source: 'unavailable' if reverse wireless power transfer is not supported by hardware.
+ * Adheres to the Zero-Simulation Principle: returns isSupported: false and source: 'unavailable'
+ * if the sysfs node is absent or unreadable.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,62 +17,49 @@ import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/
 const MODULE = 'useBatteryShare';
 
 export interface BatteryShareTelemetry {
-  /** Whether this device hardware supports reverse wireless power transmission. */
+  /** Whether a readable reverse charging sysfs node exists on this device. */
   isSupported: boolean;
-  /** Whether the Qi TX reverse charging coil is currently energized. */
+  /** Whether the node reports the reverse charging coil as on (non-zero mode). */
   isActive: boolean;
-  /** Whether a compatible Qi receiver (Pixel Buds, Pixel Watch, Qi phone) is docked on the coil. */
-  isReceiverDetected: boolean;
-  /** Real-time power transmitted in watts (W), or null if inactive/unsupported. */
+  /** Power transmitted in watts (W); null because no readable node reports it. */
   transmittedWatts: number | null;
-  /** Safety cutoff threshold percentage (stops sharing when battery drops below this). */
-  batteryThreshold: number;
   /** Error message if query or toggle failed. */
   error: string | null;
   /** Provenance of the data: 'hardware' or 'unavailable'. */
   source: TelemetrySource;
-  /** Toggles the reverse wireless charging coil on or off. */
+  /** Writes the reverse charging node on or off; false when the app may not write it. Re-reads the node afterwards. */
   setBatteryShare: (enabled: boolean) => Promise<boolean>;
-  /** Sets the battery percentage cutoff threshold (e.g. 15%). */
-  setBatteryThreshold: (pct: number) => void;
-  /** Refreshes the reverse wireless charging status. */
-  refresh: () => void;
+  /** Re-reads the reverse charging node and returns what was read, or null when the read failed or the native module is absent. */
+  refresh: () => BatteryShareStatus | null;
 }
 
 export function useBatteryShare(): BatteryShareTelemetry {
   const [status, setStatus] = useState<BatteryShareStatus>({
     isSupported: false,
     isActive: false,
-    isReceiverDetected: false,
     transmittedWatts: null,
-    batteryThreshold: 15,
     error: null,
   });
-
-  const [threshold, setThreshold] = useState<number>(15);
   const [error, setError] = useState<string | null>(null);
 
   const source: TelemetrySource =
     PixelNative && status.isSupported ? 'hardware' : 'unavailable';
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((): BatteryShareStatus | null => {
     if (!PixelNative) {
       setStatus({
         isSupported: false,
         isActive: false,
-        isReceiverDetected: false,
         transmittedWatts: null,
-        batteryThreshold: 15,
         error: 'PixelNative module unavailable',
       });
       setError('PixelNative module unavailable');
-      return;
+      return null;
     }
 
     try {
       const res = PixelNative.getBatteryShareStatus();
       setStatus(res);
-      setThreshold(res.batteryThreshold ?? 15);
       setError(res.error ?? null);
 
       if (res.transmittedWatts !== null) {
@@ -78,9 +69,11 @@ export function useBatteryShare(): BatteryShareTelemetry {
         supported: res.isSupported,
         active: res.isActive,
       });
-    } catch (e: any) {
+      return res;
+    } catch (e) {
       const err = logError(MODULE, 'getBatteryShareStatus failed', e);
       setError(err.message);
+      return null;
     }
   }, []);
 
@@ -88,22 +81,14 @@ export function useBatteryShare(): BatteryShareTelemetry {
     if (!PixelNative) return false;
     try {
       const success = await PixelNative.setBatteryShareEnabled(enabled);
-      if (success) {
-        setStatus((prev) => ({ ...prev, isActive: enabled }));
-        logEvent(MODULE, 'toggled battery share', { enabled });
-      }
+      logEvent(MODULE, 'toggled battery share', { enabled, written: success });
+      refresh();
       return success;
-    } catch (e: any) {
+    } catch (e) {
       logError(MODULE, 'setBatteryShareEnabled failed', e);
       return false;
     }
-  }, []);
-
-  const setBatteryThreshold = useCallback((pct: number) => {
-    const clamped = Math.max(10, Math.min(50, pct));
-    setThreshold(clamped);
-    logEvent(MODULE, 'updated battery share threshold', { threshold: clamped });
-  }, []);
+  }, [refresh]);
 
   useEffect(() => {
     refresh();
@@ -112,13 +97,10 @@ export function useBatteryShare(): BatteryShareTelemetry {
   return {
     isSupported: status.isSupported,
     isActive: status.isActive,
-    isReceiverDetected: status.isReceiverDetected,
     transmittedWatts: status.transmittedWatts,
-    batteryThreshold: threshold,
     error,
     source,
     setBatteryShare,
-    setBatteryThreshold,
     refresh,
   };
 }

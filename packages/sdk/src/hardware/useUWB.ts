@@ -1,7 +1,7 @@
 /**
  * @file useUWB.ts
  * @description Ultra-Wideband (UWB) radio state and ranging sessions.
- * Radio presence comes from PackageManager / UwbManager. Ranging opens a real
+ * Radio presence comes from the `android.hardware.uwb` feature. Ranging opens a real
  * `android.ranging.RangingSession` (Android 16, API 36+) with a peer whose address and channel
  * parameters the caller supplies; every measurement is an `android.ranging.RangingData` sample
  * delivered by the platform. Without a peer, or when the platform refuses, the session is not
@@ -50,8 +50,7 @@ export function useUWB() {
 
   const nativeInfo = PixelNative?.getRadioInfo?.()?.uwb;
   const isSupported = nativeInfo?.supported ?? false;
-  const isEnabled = nativeInfo?.enabled ?? false;
-  const chipId = nativeInfo?.chipId ?? (isSupported ? 'default' : null);
+  const isEnabled: boolean | null = nativeInfo?.enabled ?? null;
   const rangingApiSupported = nativeInfo?.rangingApiSupported ?? false;
 
   // Genuine hardware provenance
@@ -154,11 +153,9 @@ export function useUWB() {
   return {
     /** Whether UWB chip is present on device */
     isSupported,
-    /** Whether UWB radio is enabled in system settings */
+    /** Whether UWB radio is enabled in system settings; null when Android does not let apps read it */
     isEnabled,
-    /** Chip identifier from the radio probe */
-    chipId,
-    /** Whether the Android 16 RangingManager feature is declared */
+    /** Whether the Android 16 `android.ranging.RangingManager` service exists */
     rangingApiSupported,
     /** Latest failure message, or null. Failures are also logged and counted. */
     error,

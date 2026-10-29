@@ -61,7 +61,8 @@ export function useCellular() {
       setMobileCountryCode(mcc);
       setMobileNetworkCode(mnc);
       setAllowsVoip(voip);
-      setHasRead(true);
+      // `source` is hardware only when the platform answered at least one value.
+      setHasRead([gen, carrier, iso, mcc, mnc, voip].some(v => v != null));
       logEvent(MODULE, 'cellular', { generation: generationLabel(gen), carrier, iso, mcc, mnc });
     } catch (e: any) {
       setError(e?.message ?? 'Could not read cellular state');

@@ -1,10 +1,14 @@
 /**
  * @file useThermometer.ts
- * @description Non-contact infrared temperature measurement on Google Pixel Pro hardware
- * (Melexis MLX90632 far-infrared thermopile sensor).
+ * @description Non-contact infrared temperature sensor discovery on Google Pixel Pro hardware.
+ * The native module finds the sensor through `SensorManager` (a sensor whose type string contains
+ * `object_temperature` or `mlx90632`, or whose name contains `Thermometer` or `MLX90632`) and
+ * reports its name. It has no decoder for that sensor's samples, so the temperatures are null and
+ * `error` says so; nothing is estimated and there is no emissivity or mode setting, because nothing
+ * downstream of the sensor would apply it.
  *
- * Adheres to the Zero-Simulation Principle: returns null and source: 'unavailable'
- * on non-Pro Pixel models or when the sensor is not present.
+ * Zero-Simulation Principle: temperatures are null and source is 'unavailable' on every device
+ * until a verified sample decoder exists.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,36 +16,27 @@ import PixelNative, { type ThermometerReading } from '@pixelkit-labs/native';
 import { logEvent, logError, recordMetric, type TelemetrySource } from '../core/observability';
 
 const MODULE = 'useThermometer';
-export const DEFAULT_EMISSIVITY = 0.95; // Default for organic materials / human skin / water
-
-export type ThermometerMode = 'object' | 'body' | 'ambient';
 
 export interface ThermometerTelemetry {
-  /** Whether this device hardware contains the non-contact FIR temperature sensor. */
+  /** Whether `SensorManager` lists a far-infrared temperature sensor on this device. */
   isSupported: boolean;
-  /** Calibrated surface temperature reading in degrees Celsius (°C), or null. */
+  /** Surface temperature in degrees Celsius (°C), or null. */
   surfaceTemperatureC: number | null;
-  /** Calibrated surface temperature reading in degrees Fahrenheit (°F), or null. */
+  /** Surface temperature in degrees Fahrenheit (°F), or null. */
   surfaceTemperatureF: number | null;
-  /** Internal sensor die / ambient environment temperature in degrees Celsius (°C), or null. */
+  /** Sensor die / ambient temperature in degrees Celsius (°C), or null. */
   ambientTemperatureC: number | null;
-  /** Configured material surface emissivity factor (0.1 to 1.0). */
-  emissivity: number;
-  /** Target measurement mode ('object', 'body', 'ambient'). */
-  mode: ThermometerMode;
-  /** Error message if sensor probing or reading failed. */
+  /** Name `SensorManager` gives the sensor, or null when none was found. */
+  sensorName: string | null;
+  /** Why temperatures are null (sensor found but not decoded, probe failure), or null. */
   error: string | null;
-  /** Provenance of the data: 'hardware' or 'unavailable'. */
+  /** Provenance of the data: 'hardware' when a temperature was read, otherwise 'unavailable'. */
   source: TelemetrySource;
-  /** Configures the material emissivity coefficient (e.g. 0.95 for skin/water, 0.80 for cast iron). */
-  setEmissivity: (value: number) => void;
-  /** Sets the measurement calculation mode ('object', 'body', 'ambient'). */
-  setMode: (mode: ThermometerMode) => void;
-  /** Probes the hardware sensor for a fresh reading. */
+  /** Probes the sensor list again. */
   refresh: () => void;
 }
 
-export function useThermometer(initialEmissivity: number = DEFAULT_EMISSIVITY): ThermometerTelemetry {
+export function useThermometer(): ThermometerTelemetry {
   const [reading, setReading] = useState<ThermometerReading>({
     isSupported: false,
     surfaceTemperatureC: null,
@@ -50,9 +45,6 @@ export function useThermometer(initialEmissivity: number = DEFAULT_EMISSIVITY): 
     sensorName: null,
     error: null,
   });
-
-  const [emissivity, setEmissivityState] = useState<number>(initialEmissivity);
-  const [mode, setModeState] = useState<ThermometerMode>('object');
   const [error, setError] = useState<string | null>(null);
 
   const source: TelemetrySource =
@@ -90,17 +82,6 @@ export function useThermometer(initialEmissivity: number = DEFAULT_EMISSIVITY): 
     }
   }, []);
 
-  const setEmissivity = useCallback((val: number) => {
-    const clamped = Math.max(0.1, Math.min(1.0, val));
-    setEmissivityState(clamped);
-    logEvent(MODULE, 'updated emissivity', { emissivity: clamped });
-  }, []);
-
-  const setMode = useCallback((m: ThermometerMode) => {
-    setModeState(m);
-    logEvent(MODULE, 'updated thermometer mode', { mode: m });
-  }, []);
-
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -110,12 +91,9 @@ export function useThermometer(initialEmissivity: number = DEFAULT_EMISSIVITY): 
     surfaceTemperatureC: reading.surfaceTemperatureC,
     surfaceTemperatureF: reading.surfaceTemperatureF,
     ambientTemperatureC: reading.ambientTemperatureC,
-    emissivity,
-    mode,
+    sensorName: reading.sensorName,
     error,
     source,
-    setEmissivity,
-    setMode,
     refresh,
   };
 }

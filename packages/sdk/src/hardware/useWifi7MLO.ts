@@ -1,9 +1,9 @@
 /**
  * @file useWifi7MLO.ts
- * @description Wi-Fi 7 (802.11be) Multi-Link Operation (MLO) link bonding and 320 MHz channel telemetry.
- *
- * Adheres to the Zero-Simulation Principle: isMloActive: false, links: [],
- * and aggregateSpeedMbps: null when connected to Wi-Fi 6 or earlier.
+ * @description Wi-Fi 7 (802.11be) Multi-Link Operation (MLO) links from `WifiInfo.getAffiliatedMloLinks()`
+ * and `getAssociatedMloLinks()`: band, channel, RSSI, link speeds and state per link.
+ * Values the platform reports as unknown are null. `isMloActive: false`, `links: []` and
+ * `aggregateSpeedMbps: null` when the connected network is not a Wi-Fi 7 multi-link device.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,13 +14,13 @@ const MODULE = 'useWifi7MLO';
 export { type MloLinkInfo };
 
 export interface Wifi7MloTelemetry {
-  /** Whether the device hardware and current Wi-Fi network support 802.11be MLO. */
+  /** Whether this app could query MLO links (Android 14+ and the query did not throw). Not a hardware capability flag. */
   isSupported: boolean;
-  /** Whether multiple simultaneous band links (e.g. 5GHz + 6GHz) are actively bonded. */
+  /** Whether the station is associated to more than one link (`getAssociatedMloLinks().size > 1`). */
   isMloActive: boolean;
-  /** Array of affiliated physical radio links with frequency band, signal, and link speeds. */
+  /** Links of the access point multi-link device (`getAffiliatedMloLinks()`); each link's `state` says whether this station is associated to it. */
   links: MloLinkInfo[];
-  /** Combined theoretical PHY data transfer rate across all bonded links in Mbps, or null. */
+  /** Sum of `txLinkSpeedMbps` over the associated links (transmit direction only), or null when not multi-link or no link reported a speed. */
   aggregateSpeedMbps: number | null;
   /** Error message if Wi-Fi link inspection failed. */
   error: string | null;
@@ -72,7 +72,7 @@ export function useWifi7MLO(): Wifi7MloTelemetry {
         links: res.links.length,
         speed: res.aggregateSpeedMbps,
       });
-    } catch (e: any) {
+    } catch (e) {
       const err = logError(MODULE, 'getWifi7MloInfo failed', e);
       setError(err.message);
     }

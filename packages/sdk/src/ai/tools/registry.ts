@@ -16,6 +16,7 @@ import {
   type ObservabilityOptions,
   type TraceContext,
 } from '../../core/observability';
+import type { HiLightMode } from '../../hardware/useHiLight';
 
 const MODULE = 'CapabilityAdapter';
 
@@ -111,14 +112,17 @@ export interface ToolExecutionResult {
 }
 
 export interface HardwareContext {
-  torch?: { isTorchOn: boolean; isStrobing: boolean; toggleTorch: () => Promise<void>; startStrobe: () => Promise<void>; stopStrobe: () => Promise<void> };
-  haptics?: { triggerHaptic: (pattern: 'selection' | 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error') => Promise<void> };
-  hilight?: { mode: string; currentColor: string; setMode: (mode: unknown) => Promise<void> | void; setColor: (color: string) => Promise<void> | void };
+  torch?: { isStrobing: boolean; setTorch: (on: boolean) => Promise<boolean>; startStrobe: () => Promise<void> | void; stopStrobe: () => Promise<void> | void };
+  /** `triggerHaptic` resolves false when the platform call failed or is unavailable (e.g. web). */
+  haptics?: { triggerHaptic: (pattern: 'selection' | 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error') => Promise<boolean | void> };
+  /** `setMode` resolves true only when the HiLight daemon accepted the command. */
+  hilight?: { mode: string; currentColor: string; setMode: (mode: HiLightMode, hexColor?: string) => Promise<boolean> };
   adpf?: { cpuHeadroom: number | null; gpuHeadroom: number | null; thermalStatus: string | null; currentFps: number | null };
-  altimeter?: { altitudeM: number | null; pressureHpa: number | null; verticalVelocityMps: number | null; trend: string; calibrateSeaLevel: (hpa: number) => void };
-  batteryShare?: { isSupported: boolean; isActive: boolean; isReceiverDetected: boolean; transmittedWatts: number | null; setBatteryShare: (enabled: boolean) => Promise<boolean> };
+  altimeter?: { altitudeM: number | null; pressureHpa: number | null; verticalVelocityMps: number | null; trend: string | null; calibrateSeaLevel: (hpa: number) => void };
+  /** `setBatteryShare` resolves true only when the sysfs write succeeded; `refresh` re-reads the node and returns what it read, or null. */
+  batteryShare?: { isSupported: boolean; isActive: boolean; transmittedWatts: number | null; setBatteryShare: (enabled: boolean) => Promise<boolean>; refresh?: () => { isActive: boolean } | null };
   thermometer?: { isSupported: boolean; surfaceTemperatureC: number | null; surfaceTemperatureF: number | null; ambientTemperatureC: number | null; mode: string };
-  charging?: { stateOfHealthPercent: number | null; cycleCount: number | null; chargingTier: string | null; chargingWattage: number | null };
+  charging?: { stateOfHealthPercent: number | null; cycleCount: number | null; chargingTier: string | null; chargingWattage: number | null; chargeLimitAvailable: boolean | null };
   wifi7?: { isSupported: boolean; isMloActive: boolean; aggregateSpeedMbps: number | null; links: Array<{ band: string; rssi: number; rxLinkSpeedMbps: number; txLinkSpeedMbps: number }> };
 }
 
@@ -665,26 +669,28 @@ export async function runCloudAgent(
   return { text: '', contents, steps, totalSteps: maxSteps, stoppedReason: 'max_steps_exceeded', context, providerRequestId, usage };
 }
 
-const torchOutput: ToolPropertySchema = { type: 'OBJECT', properties: { on: { type: 'BOOLEAN' }, strobe: { type: 'BOOLEAN' } }, required: ['on', 'strobe'] };
+const torchOutput: ToolPropertySchema = { type: 'OBJECT', properties: { on: { type: 'BOOLEAN', nullable: true }, strobe: { type: 'BOOLEAN' } }, required: ['on', 'strobe'] };
 const hapticOutput: ToolPropertySchema = { type: 'OBJECT', properties: { played: { type: 'STRING' } }, required: ['played'] };
 const hilightOutput: ToolPropertySchema = { type: 'OBJECT', properties: { mode: { type: 'STRING' }, color: { type: 'STRING', nullable: true } }, required: ['mode'] };
+const HILIGHT_MODES = ['off', 'glow', 'breathing', 'pulse', 'gemini_thinking', 'incoming_call', 'notification'] as const satisfies readonly HiLightMode[];
 const thermalOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   cpuHeadroom: { type: 'NUMBER', nullable: true }, gpuHeadroom: { type: 'NUMBER', nullable: true },
   thermalStatus: { type: 'STRING', nullable: true }, currentFps: { type: 'NUMBER', nullable: true },
 }, required: ['cpuHeadroom', 'gpuHeadroom', 'thermalStatus', 'currentFps'] };
 const barometerOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   altitudeM: { type: 'NUMBER', nullable: true }, pressureHpa: { type: 'NUMBER', nullable: true },
-  verticalVelocityMps: { type: 'NUMBER', nullable: true }, trend: { type: 'STRING' },
+  verticalVelocityMps: { type: 'NUMBER', nullable: true }, trend: { type: 'STRING', nullable: true },
 }, required: ['altitudeM', 'pressureHpa', 'verticalVelocityMps', 'trend'] };
 const thermometerOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   surfaceTemperatureC: { type: 'NUMBER', nullable: true }, surfaceTemperatureF: { type: 'NUMBER', nullable: true },
   ambientTemperatureC: { type: 'NUMBER', nullable: true }, mode: { type: 'STRING' },
 }, required: ['surfaceTemperatureC', 'surfaceTemperatureF', 'ambientTemperatureC', 'mode'] };
-const batteryShareOutput: ToolPropertySchema = { type: 'OBJECT', properties: { isSupported: { type: 'BOOLEAN' }, isActive: { type: 'BOOLEAN' } }, required: ['isSupported', 'isActive'] };
+const batteryShareOutput: ToolPropertySchema = { type: 'OBJECT', properties: { isSupported: { type: 'BOOLEAN' }, written: { type: 'BOOLEAN' }, isActive: { type: 'BOOLEAN', nullable: true } }, required: ['isSupported', 'written', 'isActive'] };
 const batteryOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   stateOfHealthPercent: { type: 'NUMBER', nullable: true }, cycleCount: { type: 'INTEGER', nullable: true },
   chargingTier: { type: 'STRING', nullable: true }, chargingWattage: { type: 'NUMBER', nullable: true },
-}, required: ['stateOfHealthPercent', 'cycleCount', 'chargingTier', 'chargingWattage'] };
+  chargeLimitAvailable: { type: 'BOOLEAN', nullable: true },
+}, required: ['stateOfHealthPercent', 'cycleCount', 'chargingTier', 'chargingWattage', 'chargeLimitAvailable'] };
 const wifiOutput: ToolPropertySchema = { type: 'OBJECT', properties: {
   isSupported: { type: 'BOOLEAN' }, isMloActive: { type: 'BOOLEAN' }, aggregateSpeedMbps: { type: 'NUMBER', nullable: true },
   links: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
@@ -707,9 +713,12 @@ export function createHardwareCapabilityAdapter(
       execute: async (value: unknown) => {
         const { on, strobe } = value as { on: boolean; strobe?: boolean };
         const torch = hardware.torch!;
-        if (strobe) { await torch.startStrobe(); return { on: true, strobe: true }; }
+        // The strobe is a timer inside the hook that toggles the LED; the individual toggles are not reported back,
+        // so only the fact that it was started is returned and `on` is null.
+        if (strobe) { await torch.startStrobe(); return { on: null, strobe: true }; }
         if (torch.isStrobing) await torch.stopStrobe();
-        if (on !== torch.isTorchOn) await torch.toggleTorch();
+        const applied = await torch.setTorch(on);
+        if (!applied) throw new Error('torch_set_failed');
         return { on, strobe: false };
       },
     },
@@ -717,13 +726,24 @@ export function createHardwareCapabilityAdapter(
       name: 'play_haptic', description: 'Play a tactile vibration pattern on the Pixel haptic actuator.',
       inputSchema: { type: 'OBJECT', properties: { pattern: { type: 'STRING', enum: ['selection', 'light', 'medium', 'heavy', 'success', 'warning', 'error'] } }, required: ['pattern'] },
       outputSchema: hapticOutput, effect: 'effect', risk: 'low', availability: () => hardware.haptics ? available() : unavailable('haptics_hardware_unavailable'),
-      execute: async value => { const pattern = (value as { pattern: 'selection' | 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' }).pattern; await hardware.haptics!.triggerHaptic(pattern); return { played: pattern }; },
+      execute: async value => {
+        const pattern = (value as { pattern: 'selection' | 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' }).pattern;
+        const played = await hardware.haptics!.triggerHaptic(pattern);
+        if (played === false) throw new Error('haptic_not_played');
+        return { played: pattern };
+      },
     },
     {
       name: 'set_hilight', description: 'Set the rear camera-bar HiLight LED ring colour and animation mode.',
-      inputSchema: { type: 'OBJECT', properties: { mode: { type: 'STRING' }, color: { type: 'STRING' } }, required: ['mode'] },
+      inputSchema: { type: 'OBJECT', properties: { mode: { type: 'STRING', enum: HILIGHT_MODES }, color: { type: 'STRING' } }, required: ['mode'] },
       outputSchema: hilightOutput, effect: 'effect', risk: 'low', availability: () => hardware.hilight ? available() : unavailable('hilight_hardware_unavailable'),
-      execute: async value => { const { mode, color } = value as { mode: string; color?: string }; if (color) await hardware.hilight!.setColor(color); await hardware.hilight!.setMode(mode); return { mode, color: color ?? hardware.hilight!.currentColor }; },
+      execute: async value => {
+        const { mode, color } = value as { mode: HiLightMode; color?: string };
+        const hilight = hardware.hilight!;
+        const accepted = await hilight.setMode(mode, color);
+        if (!accepted) throw new Error('hilight_command_rejected');
+        return { mode, color: mode === 'off' ? null : (color ?? hilight.currentColor) };
+      },
     },
     {
       name: 'get_thermal_headroom', description: 'Read ADPF CPU/GPU headroom and thermal throttling status.',
@@ -746,12 +766,23 @@ export function createHardwareCapabilityAdapter(
       name: 'set_battery_share', description: 'Enable or disable reverse wireless power sharing.',
       inputSchema: { type: 'OBJECT', properties: { enabled: { type: 'BOOLEAN' } }, required: ['enabled'] }, outputSchema: batteryShareOutput,
       effect: 'effect', risk: 'medium', availability: () => hardware.batteryShare?.isSupported ? available() : unavailable('battery_share_unsupported'),
-      execute: async value => { const enabled = (value as { enabled: boolean }).enabled; const success = await hardware.batteryShare!.setBatteryShare(enabled); return { isSupported: true, isActive: success ? enabled : hardware.batteryShare!.isActive }; },
+      execute: async value => {
+        const enabled = (value as { enabled: boolean }).enabled;
+        const share = hardware.batteryShare!;
+        const written = await share.setBatteryShare(enabled);
+        if (!written) throw new Error('battery_share_write_rejected');
+        const reread = share.refresh?.() ?? null;
+        return { isSupported: share.isSupported, written, isActive: reread ? reread.isActive : null };
+      },
     },
     {
       name: 'get_battery_health', description: 'Read battery cycle count, health, charging wattage, and speed tier.',
       inputSchema: { type: 'OBJECT', properties: {} }, outputSchema: batteryOutput, effect: 'read', risk: 'low', onDevice: true,
-      availability: () => hardware.charging ? available() : unavailable('charging_intelligence_unavailable'), execute: () => ({ ...hardware.charging! }),
+      availability: () => hardware.charging ? available() : unavailable('charging_intelligence_unavailable'),
+      execute: () => {
+        const c = hardware.charging!;
+        return { stateOfHealthPercent: c.stateOfHealthPercent, cycleCount: c.cycleCount, chargingTier: c.chargingTier, chargingWattage: c.chargingWattage, chargeLimitAvailable: c.chargeLimitAvailable };
+      },
     },
     {
       name: 'get_wifi7_status', description: 'Read Wi-Fi 7 Multi-Link Operation bonded links and throughput.',

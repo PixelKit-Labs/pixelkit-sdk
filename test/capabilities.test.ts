@@ -21,7 +21,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveCapabilities, verifyCapabilities } from '../packages/sdk/src/core/capabilities.ts';
+import { capabilityProvenance, resolveCapabilities, verifyCapabilities } from '../packages/sdk/src/core/capabilities.ts';
 
 /** Android 17 on a current device; the API-level gates gate on 36 and 37. */
 const API_37 = 37;
@@ -177,5 +177,46 @@ describe('verifyCapabilities: the device overrides the table', () => {
     assert.equal(c.aicoreVersion, null);
     // hasUWB is the one probe result with a table fallback, so a failed probe keeps the inference.
     assert.equal(c.hasUWB, true);
+  });
+});
+
+describe('capabilityProvenance', () => {
+  test('model-table values are derived and unprobed flags are unavailable before device verification', () => {
+    const p = capabilityProvenance(resolveCapabilities('Pixel 11 Pro', API_37, true));
+    assert.equal(p.hasHiLight, 'derived');
+    assert.equal(p.hasTitanM3, 'derived');
+    assert.equal(p.geminiNanoTier, 'derived');
+    assert.equal(p.hasUWB, 'derived');
+    assert.equal(p.hasNFC, 'unavailable');
+    assert.equal(p.androidApiLevel, 'hardware');
+  });
+
+  test('after device verification probed flags are hardware while table-only fields stay derived', () => {
+    const base = resolveCapabilities('Pixel 11 Pro', API_37, true);
+    const c = verifyCapabilities(base, {
+      hasSystemFeature: () => true,
+      getPackageVersion: () => ({ installed: true, versionName: '1.2.3' }),
+    });
+    const p = capabilityProvenance(c);
+    assert.equal(p.hasNFC, 'hardware');
+    assert.equal(p.hasStrongBox, 'hardware');
+    assert.equal(p.hasUWB, 'hardware');
+    assert.equal(p.hasHiLight, 'derived');
+    assert.equal(p.hasTitanM3, 'derived');
+  });
+
+  test('a probe that failed is unavailable, not hardware', () => {
+    const base = resolveCapabilities('Pixel 11 Pro', API_37, true);
+    const c = verifyCapabilities(base, {
+      hasSystemFeature: () => {
+        throw new Error('binder transaction failed');
+      },
+      getPackageVersion: () => {
+        throw new Error('package manager unavailable');
+      },
+    });
+    const p = capabilityProvenance(c);
+    assert.equal(p.hasNFC, 'unavailable');
+    assert.equal(p.hasStrongBox, 'unavailable');
   });
 });

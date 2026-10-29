@@ -305,14 +305,14 @@ Covers all ${hooks.length} typed hardware and AI hooks, low-overhead native tele
         },
         MloLinkInfo: {
           type: 'object',
-          description: 'Affiliated Wi-Fi 7 Multi-Link Operation (MLO) link.',
+          description: 'Wi-Fi 7 Multi-Link Operation (MLO) link of the access point multi-link device. Unknown values are null.',
           properties: {
-            band: { type: 'string', enum: ['2.4GHz', '5GHz', '6GHz'] },
-            channelWidthMHz: { type: 'number' },
-            rssi: { type: 'number' },
-            txLinkSpeedMbps: { type: 'number' },
-            rxLinkSpeedMbps: { type: 'number' },
-            state: { type: 'string' },
+            band: { anyOf: [{ type: 'string', enum: ['2.4GHz', '5GHz', '6GHz', '60GHz'] }, { type: 'null' }] },
+            channel: { type: 'number' },
+            rssi: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+            txLinkSpeedMbps: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+            rxLinkSpeedMbps: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+            state: { type: 'string', enum: ['invalid', 'unassociated', 'idle', 'active'] },
           },
         },
         WifiRttResult: {
@@ -377,20 +377,22 @@ Covers all ${hooks.length} typed hardware and AI hooks, low-overhead native tele
         },
         KeyAgreementKeyPairResult: {
           type: 'object',
-          description: 'ECDH key pair generated in Titan M2 hardware.',
+          description: 'ECDH key pair generated in the Android Keystore; securityLevel is read from KeyInfo (null when unreadable).',
           properties: {
             alias: { type: 'string' },
-            publicKeyBase64: { type: 'string' },
-            algorithm: { type: 'string' },
-            isStrongBoxBacked: { type: 'boolean' },
+            publicKeyBase64: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            securityLevel: { anyOf: [{ type: 'string', enum: ['STRONGBOX', 'TRUSTED_ENVIRONMENT', 'SOFTWARE', 'UNKNOWN_SECURE'] }, { type: 'null' }] },
+            securityLevelReason: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            isStrongBoxSupported: { type: 'boolean' },
+            error: { anyOf: [{ type: 'string' }, { type: 'null' }] },
           },
         },
         SharedSecretResult: {
           type: 'object',
           description: 'Derived ECDH shared secret.',
           properties: {
-            sharedSecretBase64: { type: 'string' },
-            keyLengthBits: { type: 'number' },
+            sharedSecretBase64: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            secretLengthBytes: { type: 'number' },
           },
         },
         SatelliteGuidance: {

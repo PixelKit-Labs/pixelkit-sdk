@@ -1,6 +1,7 @@
 /**
  * @file useNetwork.ts
- * @description Connectivity, address and metering from `expo-network`.
+ * @description Connectivity, address and airplane mode from `expo-network`; `isMetered` from
+ * `PixelNative.getNetworkMetered()` (ConnectivityManager network capabilities).
  *
  * Being attached to Wi-Fi is not the same as having internet, so `isConnected` requires both a
  * connection and a reachable route. Nothing is assumed before the first read: the type is UNKNOWN
@@ -12,6 +13,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Network from 'expo-network';
+import PixelNative from '@pixelkit-labs/native';
 import { logEvent, logError, tracedSafe, traced, type TelemetrySource } from '../core/observability';
 import { NetworkTelemetry } from '../core/types';
 
@@ -22,8 +24,8 @@ export function useNetwork() {
     ipAddress: null,
     networkType: 'UNKNOWN',
     isConnected: false,
-    isMetered: false,
-    isAirplaneMode: false,
+    isMetered: null,
+    isAirplaneMode: null,
   });
   const [hasRead, setHasRead] = useState<boolean>(false);
   const [isChecking, setIsChecking] = useState<boolean>(false);
@@ -35,10 +37,11 @@ export function useNetwork() {
   const refreshNetwork = useCallback(async (): Promise<void> => {
     setIsChecking(true);
     try {
-      const [ip, state, airplane] = await traced(MODULE, 'read', () => Promise.all([
+      const [ip, state, airplane, metered] = await traced(MODULE, 'read', () => Promise.all([
         tracedSafe(MODULE, 'readIpAddress', () => Network.getIpAddressAsync(), null),
         tracedSafe(MODULE, 'readState', () => Network.getNetworkStateAsync(), null),
-        tracedSafe(MODULE, 'readAirplaneMode', () => Network.isAirplaneModeEnabledAsync(), false),
+        tracedSafe<boolean | null>(MODULE, 'readAirplaneMode', () => Network.isAirplaneModeEnabledAsync(), null),
+        tracedSafe<boolean | null>(MODULE, 'readMetered', async () => PixelNative?.getNetworkMetered?.() ?? null, null),
       ]));
 
       const next: NetworkTelemetry = {
@@ -46,7 +49,7 @@ export function useNetwork() {
         networkType: state?.type ?? 'UNKNOWN',
         // Attached is not the same as reachable; require both.
         isConnected: !!state?.isConnected && state?.isInternetReachable !== false,
-        isMetered: state?.type === Network.NetworkStateType.CELLULAR,
+        isMetered: metered,
         isAirplaneMode: airplane,
       };
       setNetwork(next);

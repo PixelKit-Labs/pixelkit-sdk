@@ -1,10 +1,10 @@
 /**
  * @file useHaptics.ts
- * @description Linear Resonant Actuator control. Standard patterns use `expo-haptics`. On top of that
- * the PixelNative module exposes the vibrator's real capabilities (amplitude control, resonant
- * frequency, supported primitives) and Android 16+ envelope effects (`BasicEnvelopeBuilder`), which
- * this Pixel 11 Pro supports (PWLE v2). Envelopes are how "Gemini thinking" ramps and HiLight-synced
- * pulses are rendered tactilely.
+ * @description Vibrator control. Standard patterns use `expo-haptics`. On top of that the PixelNative
+ * module exposes the vibrator's reported capabilities (amplitude control, resonant frequency,
+ * supported primitives) and Android 16+ envelope effects (`BasicEnvelopeBuilder`) on devices whose
+ * `Vibrator.areEnvelopeEffectsSupported()` is true. `source` reflects the capability read, not the
+ * `expo-haptics` calls.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -57,14 +57,18 @@ function readHapticsInfo(): HapticsInfo | null {
 
 export function useHaptics() {
   const [info, setInfo] = useState<HapticsInfo | null>(() => cachedInfo ?? null);
-  const source: TelemetrySource = Platform.OS === 'web' ? 'unavailable' : 'hardware';
+  const source: TelemetrySource = info ? 'hardware' : 'unavailable';
 
   useEffect(() => {
     if (cachedInfo === undefined) setInfo(readHapticsInfo());
   }, []);
 
-  const triggerHaptic = useCallback(async (type: HapticType = 'light'): Promise<void> => {
-    if (Platform.OS === 'web') return;
+  /**
+   * Plays one expo-haptics pattern. Resolves true when the platform call completed without throwing
+   * (the platform gives no confirmation that the actuator moved), false on web or when the call threw.
+   */
+  const triggerHaptic = useCallback(async (type: HapticType = 'light'): Promise<boolean> => {
+    if (Platform.OS === 'web') return false;
     try {
       switch (type) {
         case 'selection': await Haptics.selectionAsync(); break;
@@ -74,8 +78,13 @@ export function useHaptics() {
         case 'success': await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); break;
         case 'warning': await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); break;
         case 'error': await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); break;
+        default: return false;
       }
-    } catch (e: any) { logEvent(MODULE, 'haptic error', { type, message: e?.message }, 'warn'); }
+      return true;
+    } catch (e: any) {
+      logEvent(MODULE, 'haptic error', { type, message: e?.message }, 'warn');
+      return false;
+    }
   }, []);
 
   /** Android 16+ envelope effect. Returns false (and logs) when unsupported. */
