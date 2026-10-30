@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_LIVE_MODEL,
+  buildLiveContextFrame,
   LIVE_WEBSOCKET_ENDPOINT,
 } from '../packages/sdk/src/ai/liveConstants.ts';
 import {
@@ -155,5 +156,16 @@ describe('Gemini 3.8 Multimodal Live Protocol', () => {
     assert.strictEqual(inline.mimeType, 'image/jpeg');
     assert.strictEqual(inline.data, fakeFrame);
     assert.strictEqual(clientMsg.clientContent.turnComplete, true);
+  });
+
+  it('sends background context without completing the turn, and sends nothing for blank text', () => {
+    const frame = buildLiveContextFrame('  Laya ranks get_battery first.  ');
+    assert.ok(frame);
+    const message = JSON.parse(frame) as { clientContent: { turns: Array<{ role: string; parts: Array<{ text: string }> }>; turnComplete: boolean } };
+    assert.equal(message.clientContent.turnComplete, false);
+    assert.equal(message.clientContent.turns.length, 1);
+    assert.equal(message.clientContent.turns[0]?.role, 'user');
+    assert.equal(message.clientContent.turns[0]?.parts[0]?.text, 'Laya ranks get_battery first.');
+    assert.equal(buildLiveContextFrame('   \n'), null);
   });
 });

@@ -23,6 +23,7 @@ import {
 import {
   DEFAULT_LIVE_MODEL,
   LIVE_WEBSOCKET_ENDPOINT,
+  buildLiveContextFrame,
   type LiveVoiceName,
   type LiveMessage,
   type LiveToolCall,
@@ -81,6 +82,11 @@ export interface GeminiLiveTelemetry {
   connect: (run: GeminiLiveRunOptions) => Promise<GeminiLiveConnectResult>;
   disconnect: () => void;
   sendText: (text: string) => void;
+  /**
+   * Adds background text to the session without asking for a reply. Sent as a client turn with `turnComplete: false`,
+   * so the model reads it with the next `sendText` and nothing is added to `transcript`.
+   */
+  sendContext: (text: string) => void;
   sendAudioChunk: (pcmBase64: string) => void;
   sendImageChunk: (base64Data: string, mimeType?: string) => void;
   sendVideoFrame: (base64Jpeg: string) => void;
@@ -320,6 +326,14 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     session.scope.event('request_accepted', { modality: 'text', chars: value.length });
   }, []);
 
+  const sendContext = useCallback((text: string) => {
+    const session = sessionRef.current;
+    const frame = buildLiveContextFrame(text);
+    if (!frame || !session || session.socket.readyState !== WebSocket.OPEN) return;
+    session.socket.send(frame);
+    session.scope.event('context_accepted', { chars: text.trim().length });
+  }, []);
+
   const sendAudioChunk = useCallback((pcmBase64: string) => {
     const session = sessionRef.current;
     if (!pcmBase64 || !session || session.socket.readyState !== WebSocket.OPEN) return;
@@ -367,7 +381,7 @@ export function useGeminiLive(config: GeminiLiveConfig = {}): GeminiLiveTelemetr
     isConnected, isStreaming, isSpeaking, isListening, isStreamingMedia,
     transcript, currentThinking, activeToolCalls, error,
     source: isConnected ? 'hardware' : 'unavailable', context,
-    connect, disconnect, sendText, sendAudioChunk, sendImageChunk, sendVideoFrame,
+    connect, disconnect, sendText, sendContext, sendAudioChunk, sendImageChunk, sendVideoFrame,
     sendMultimodalTurn, clearTranscript,
   };
 }

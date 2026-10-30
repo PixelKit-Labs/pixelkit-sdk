@@ -35,3 +35,13 @@ export interface GeminiLiveConfig {
   /** Extended thinking budget in tokens. Sent only when it is a non-zero number; when omitted no thinkingConfig is sent. */
   thinkingBudget?: number;
 }
+
+/**
+ * The `clientContent` frame for background context. `turnComplete: false` makes the model read the text
+ * with the next completed turn instead of replying to it. Returns null when the text is empty after trimming.
+ */
+export function buildLiveContextFrame(text: string): string | null {
+  const value = text.trim();
+  if (!value) return null;
+  return JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: value }] }], turnComplete: false } });
+}

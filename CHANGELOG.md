@@ -4,6 +4,14 @@ All notable changes to PixelKit are recorded here. The format follows [Keep a Ch
 
 **Rule:** every change to the codebase bumps the patch version by 0.0.1 (`1.0.0 → 1.0.1 → 1.0.2 …`) and adds an entry here in the same commit. Set the version with `node scripts/sync-versions.js <version>`, which moves the root `package.json` and all three packages together and re-pins the packages to each other. Minor and major bumps are decided by the maintainer, not by agents.
 
+## [1.6.88] - 2026-10-30
+
+### Added
+- `useGeminiLive().sendContext(text)`: sends background text to the Live session as a client turn with `turnComplete: false`. The model reads it with the next `sendText`, does not reply to it, and the transcript does not show it. An app can pass a ranking or note that should inform the user's message without becoming part of it. The frame is built by the pure `buildLiveContextFrame` (`src/ai/liveConstants.ts`), which returns null for blank text and is covered by a unit test. The session itself was not exercised against the live service in this release.
+
+### Fixed
+- The `useGeminiLive` documentation said an adapter with no tools is valid. `connect()` returns `status: 'unavailable'` with reason `capability_adapter_empty` for an empty adapter, and `capabilities_unavailable` when every tool reports unavailable at connect time. The page now says so.
+
 ## [1.6.87] - 2026-10-29
 
 ### Fixed
